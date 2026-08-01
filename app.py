@@ -12,7 +12,7 @@ from src.metricas.fg import calcular_fg
 from src.metricas.cpp import calcular_cpp
 from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo
 from src.metricas.psicologico import calcular_psicologico
-from src.engramscore import calcular_engramscore
+from src.meteicas.engramscore import calcular_engramscore
 from src.mercados.gols import calcular_mercado_gols
 
 # ==================== CONFIGURAÇÃO VISUAL ====================
