@@ -150,7 +150,7 @@ with tab_a:
     with st.expander("Estilo de Jogo", expanded=True):
         dados_estilo_a, vetor_estilo_a, n_est_a = criar_bloco_estilo("A", "a")
     with st.expander("Psicológico", expanded=True):
-        psic_a = criar_bloco_psicologico("A", "a")
+        psic_a = criar_bloco_psicologico("a")
     prateleira_a = st.selectbox("Prateleira", ["Elite", "Alta", "Média", "Baixa", "Crítico"], key="prat_a")
     prat_map = {"Elite": 0, "Alta": 1, "Média": 2, "Baixa": 3, "Crítico": 4}
     prat_a_num = prat_map[prateleira_a]
@@ -159,7 +159,7 @@ with tab_b:
     st.header("Time B - Visitante")
     nome_b = st.text_input("Nome do time", "Time B", key="nome_b")
     with st.expander("MA - Momento Atual", expanded=True):
-        ma_b = criar_bloco_ma("B", "b")
+        ma_b = criar_bloco_ma("B","b")
     with st.expander("FG - Força Geral", expanded=True):
         fg_b, dados_fg_b, n_b = criar_bloco_fg("B", "b")
     with st.expander("CPP - Confronto por Prateleira", expanded=True):
@@ -167,7 +167,7 @@ with tab_b:
     with st.expander("Estilo de Jogo", expanded=True):
         dados_estilo_b, vetor_estilo_b, n_est_b = criar_bloco_estilo("B", "b")
     with st.expander("Psicológico", expanded=True):
-        psic_b = criar_bloco_psicologico("B", "b")
+        psic_b = criar_bloco_psicologico("b")
     prateleira_b = st.selectbox("Prateleira", ["Elite", "Alta", "Média", "Baixa", "Crítico"], key="prat_b")
     prat_b_num = prat_map[prateleira_b]
 
