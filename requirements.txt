@@ -1,2 +1,10 @@
+streamlit>=1.25
+pandas
+requests
+openai>=1.0.0
 streamlit
-altair
+numpy
+scipy
+matplotlib
+scikit-learn
+statsmodels
