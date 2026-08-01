@@ -1,18 +1,18 @@
-import sys
-import os
-# Garante que o diretório do app está no path
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
-from src.metricas.ma import calcular_ma, calcular_pontos_e_resultados
-from src.metricas.fg import calcular_fg
-from src.metricas.cpp import calcular_cpp
-from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo
-from src.metricas.psicologico import calcular_psicologico
-from src.engramscore import calcular_engramscore
-from src.mercados.gols import calcular_mercado_gols
+
+from metricas.ma import calcular_ma, calcular_pontos_e_resultados
+from metricas.fg import calcular_fg
+from metricas.cpp import calcular_cpp
+from metricas.estilo import calcular_vetor_estilo, calcular_estilo
+from metricas.psicologico import calcular_psicologico
+from engramscore import calcular_engramscore
+from mercados.gols import calcular_mercado_gols
 
 # ==================== CONFIGURAÇÃO VISUAL ====================
 st.set_page_config(page_title="EngramsCore", page_icon="⚽", layout="wide")
