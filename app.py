@@ -118,15 +118,16 @@ def criar_bloco_estilo(equipe, prefixo):
     st.write("Vetor:", vetor)
     return dados_estilo, vetor, n_jogos
 
-def criar_bloco_psicologico(equipe, prefixo):
+def criar_bloco_psicologico(prefixo):
     st.markdown("**🧠 Psicológico**")
-    cons = st.text_input("Últimos 10 resultados", "VVEDVVEDVV", key=f"{prefixo}_cons").upper()
-    pts_cons, _, _ = calcular_pontos_e_resultados(list(cons))
+    cons_str = st.text_input("Últimos 10 resultados", "VVEDVVEDVV", key=f"{prefixo}_cons").upper()
+    # Converter string de resultados em lista de pontos (3=V, 1=E, 0=D)
+    pontos_lista = [3 if c == 'V' else 1 if c == 'E' else 0 for c in cons_str]
     moral = st.slider("Moral (pts 3 jogos)", 0, 9, 6, key=f"{prefixo}_moral")
     p_obj = st.slider("Pressão objetiva (0-100)", 0, 100, 40, key=f"{prefixo}_pobj")
     sens = st.slider("Sensibilidade (-1 a +1)", -1.0, 1.0, 0.0, 0.1, key=f"{prefixo}_sens")
     psic = calcular_psicologico(
-        consistencia_pontos=pts_cons,
+        consistencia_pontos=pontos_lista,   # <-- agora é uma lista de inteiros
         moral_pontos=moral,
         pressao_p_obj=p_obj,
         pressao_sensibilidade=sens
