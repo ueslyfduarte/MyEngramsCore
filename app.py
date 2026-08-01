@@ -13,7 +13,7 @@ from src.metricas.cpp import calcular_cpp
 from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo
 from src.metricas.psicologico import calcular_psicologico
 from src.metricas.engramscore import calcular_engramscore
-from src.mercados.gols import calcular_mercado_gols
+from src.mercado.gols import calcular_mercado_gols
 
 # ==================== CONFIGURAÇÃO VISUAL ====================
 st.set_page_config(page_title="EngramsCore", page_icon="⚽", layout="wide")
