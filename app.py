@@ -233,11 +233,17 @@ with col_liga:
     medias_liga = {}
     # FG
     with st.expander("💪 Força Geral", expanded=False):
-        medias_liga['GM'] = st.number_input("Média Gols/jogo", 0.1, 5.0, 1.4, 0.1, key="l_gm")
-        medias_liga['FA'] = st.number_input("Média Finalizações/j", 0.1, 10.0, 4.0, 0.1, key="l_fa")
-        medias_liga['GS'] = st.number_input("Média Gols sofridos/j", 0.1, 5.0, 1.4, 0.1, key="l_gs")
-        medias_liga['xGA'] = st.number_input("Média xG contra", 0.1, 5.0, 1.4, 0.1, key="l_xga")
-        medias_liga['Posse'] = st.number_input("Média Posse %", 0.0, 100.0, 50.0, 1.0, key="l_posse")
+        medias_liga['GM'] = st.number_input("Média Gols/jogo", 0.1, 5.0, 1.4, 0.1, key="l_fg_gm")
+        medias_liga['FA'] = st.number_input("Média Finalizações/j", 0.1, 10.0, 4.0, 0.1, key="l_fg_fa")
+        medias_liga['GS'] = st.number_input("Média Gols sofridos/j", 0.1, 5.0, 1.4, 0.1, key="l_fg_gs")
+        medias_liga['xGA'] = st.number_input("Média xG contra", 0.1, 5.0, 1.4, 0.1, key="l_fg_xga")
+        medias_liga['Posse'] = st.number_input("Média Posse %", 0.0, 100.0, 50.0, 1.0, key="l_fg_posse")
+    # Estilo
+    with st.expander("🎨 Estilo", expanded=False):
+        for dim, indicadores in INDICADORES_ESTILO.items():
+            st.markdown(f"**{dim.replace('_', ' ').title()}**")
+            for nome_tecnico, chave in indicadores.items():
+                medias_liga[chave] = st.number_input(f"Média {nome_tecnico}", value=0.0, step=0.1, key=f"l_est_{chave}")
     # Estilo
     with st.expander("🎨 Estilo", expanded=False):
         for dim, indicadores in INDICADORES_ESTILO.items():
