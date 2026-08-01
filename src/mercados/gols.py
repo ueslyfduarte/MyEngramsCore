@@ -75,13 +75,12 @@ def calcular_delta_gols(
     if diff_prat >= 2:
         delta += MOD_PRATELEIRA_DIF
 
-    posse_a = estilo_a.get('posse', 50.0)
-    posse_b = estilo_b.get('posse', 50.0)
-    transicao_a = estilo_a.get('transicao_rapida', 50.0)
-    transicao_b = estilo_b.get('transicao_rapida', 50.0)
-    pressao_a = estilo_a.get('pressao_alta', 50.0)
-    pressao_b = estilo_b.get('pressao_alta', 50.0)
-
+    posse_a = estilo_a.get('posse') if estilo_a.get('posse') is not None else 50.0
+    posse_b = estilo_b.get('posse') if estilo_b.get('posse') is not None else 50.0
+    transicao_a = estilo_a.get('transicao_rapida') if estilo_a.get('transicao_rapida') is not None else 50.0
+    transicao_b = estilo_b.get('transicao_rapida') if estilo_b.get('transicao_rapida') is not None else 50.0
+    pressao_a = estilo_a.get('pressao_alta') if estilo_a.get('pressao_alta') is not None else 50.0
+    pressao_b = estilo_b.get('pressao_alta') if estilo_b.get('pressao_alta') is not None else 50.0
     delta += ((posse_a + posse_b) / 2.0 - 50.0) * 0.002
     delta += ((transicao_a + transicao_b) / 2.0 - 50.0) * 0.004
     delta += ((pressao_a + pressao_b) / 2.0 - 50.0) * 0.003
