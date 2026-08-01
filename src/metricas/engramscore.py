@@ -36,10 +36,9 @@ def _redistribuir_pesos(pilares_disponiveis: Dict[str, Optional[float]],
     """
     ativos = {k: v for k, v in pilares_disponiveis.items() if v is not None}
     if not ativos:
-        return {}  # sem pilares ativos, EC será 0 depois
+        return {}
     peso_total = sum(pesos.get(k, 0.0) for k in ativos)
     if peso_total == 0:
-        # Se nenhum pilar ativo tiver peso, distribui igualmente
         n = len(ativos)
         return {k: 1.0/n for k in ativos}
     return {k: pesos.get(k, 0.0)/peso_total for k in ativos}
@@ -80,35 +79,17 @@ def calcular_engramscore(
     estilo_b: Optional[float] = None,
     psicologico_b: Optional[float] = None,
     # Configurações
-    time_mandante: str = 'A',      # 'A' ou 'B'
+    time_mandante: str = 'A',
     pesos: Dict[str, float] = None,
     thr_mandante: float = THR_MANDANTE,
     thr_visitante: float = THR_VISITANTE,
 ) -> Dict[str, float]:
     """
     Calcula o EngramsCore para ambos os times em um confronto.
-
-    Parâmetros:
-        ma_a, fg_a, cpp_a, estilo_a, psicologico_a: valores dos pilares do Time A (0-100, FG: 45-100).
-        idem para Time B.
-        time_mandante: 'A' se Time A é o mandante, 'B' se Time B é o mandante.
-        pesos: dicionário com pesos para cada pilar. Default: PESOS_PADRAO.
-        thr_mandante, thr_visitante: thresholds para bônus de casa.
-
-    Retorna:
-        dict com:
-            'EC_A': EngramsCore do Time A (0-100)
-            'EC_B': EngramsCore do Time B (0-100)
-            'P_A': probabilidade de vitória de A (0-1)
-            'P_B': probabilidade de vitória de B (0-1)
-            'P_E': probabilidade de empate (0-1)
-            'P_A_ou_E': dupla chance A ou empate
-            'P_B_ou_E': dupla chance B ou empate
     """
     if pesos is None:
         pesos = PESOS_PADRAO.copy()
 
-    # Dicionários de pilares
     pilares_a = {
         'MA': ma_a,
         'FG': fg_a,
@@ -124,15 +105,12 @@ def calcular_engramscore(
         'Psicologico': psicologico_b,
     }
 
-    # Redistribuir pesos apenas com pilares ativos em ambos os times
-    # Consideramos um pilar ativo se ambos os times têm valor não None
     ativos_ambos = {}
     for pilar in ['MA', 'FG', 'CPP', 'Estilo', 'Psicologico']:
         if pilares_a[pilar] is not None and pilares_b[pilar] is not None:
             ativos_ambos[pilar] = True
 
     if not ativos_ambos:
-        # Caso extremo: nenhum pilar comum; retornar neutro
         return {
             'EC_A': 50.0,
             'EC_B': 50.0,
@@ -143,16 +121,13 @@ def calcular_engramscore(
             'P_B_ou_E': 0.667,
         }
 
-    # Pesos redistribuídos só com pilares ativos em ambos
     peso_ativos = {p: pesos[p] for p in ativos_ambos}
     soma_pesos = sum(peso_ativos.values())
     pesos_norm = {p: w/soma_pesos for p, w in peso_ativos.items()}
 
-    # Calcular EC parcial (sem bônus casa)
     ec_a = sum(pesos_norm[p] * pilares_a[p] for p in pesos_norm)
     ec_b = sum(pesos_norm[p] * pilares_b[p] for p in pesos_norm)
 
-    # Fator casa dinâmico (se ambos MA disponíveis)
     bonus_a = 0.0
     bonus_b = 0.0
     if ma_a is not None and ma_b is not None:
@@ -167,11 +142,9 @@ def calcular_engramscore(
     ec_a += bonus_a
     ec_b += bonus_b
 
-    # Limitar a 0-100 (por segurança, FG já vem >=45, mas outros podem ser negativos em teoria?)
     ec_a = max(0.0, min(100.0, ec_a))
     ec_b = max(0.0, min(100.0, ec_b))
 
-    # Probabilidades 1X2
     soma = ec_a + ec_b
     if soma == 0:
         p_a = p_b = 0.333
@@ -180,7 +153,6 @@ def calcular_engramscore(
         p_a = ec_a / soma
         p_b = ec_b / soma
         p_e = 1.0 - p_a - p_b
-        # Se por acaso p_e < 0, redistribui
         if p_e < 0:
             p_e = 0.0
             total = p_a + p_b
