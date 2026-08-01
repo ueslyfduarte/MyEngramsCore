@@ -18,20 +18,18 @@ def calcular_consistencia(pontos_ultimos_10: list) -> Optional[float]:
     """
     Mede a regularidade do time (0-100).
     pontos_ultimos_10: lista dos pontos feitos nos últimos 10 jogos (ex.: [3,1,0,3,...])
-    Retorna None se menos de 5 jogos.
+    Retorna None se menos de 5 jogos ou lista vazia.
     """
-    n = len(pontos_ultimos_10)
-    if n < 5:
+    if not pontos_ultimos_10 or len(pontos_ultimos_10) < 5:
         return None
+    n = len(pontos_ultimos_10)
     media = sum(pontos_ultimos_10) / n
     if media == 0:
-        return 100.0  # totalmente consistente (sempre perde, mas consistente)
+        return 100.0
     variancia = sum((p - media) ** 2 for p in pontos_ultimos_10) / n
     cv = (variancia ** 0.5) / media
-    # Quanto menor o CV, mais consistente. Limitamos CV a 1 para não dar negativo.
     nota = (1 - min(cv, 1.0)) * 100
     return nota
-
 
 # ----------------------------------------------------------
 # 2. Resiliência
