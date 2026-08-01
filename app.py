@@ -1,3 +1,7 @@
+import sys
+import os
+# Garante que o diretório do app está no path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st
 import pandas as pd
 import numpy as np
