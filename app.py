@@ -80,14 +80,13 @@ def calcular_engramscore(
     ec_a = max(0.0, min(100.0, ec_a + bonus_a))
     ec_b = max(0.0, min(100.0, ec_b + bonus_b))
 
-    # Probabilidade de empate baseada na diferença relativa
     soma = ec_a + ec_b
     if soma == 0:
         p_a = p_b = 0.333
         p_e = 0.334
     else:
-        diff_rel = abs(ec_a - ec_b) / soma  # 0 a 1
-        p_e = max(0.10, 0.35 - diff_rel * 0.3)  # mínimo 10% de empate
+        diff_rel = abs(ec_a - ec_b) / soma
+        p_e = max(0.10, 0.35 - diff_rel * 0.3)
         p_a = (1.0 - p_e) * (ec_a / soma)
         p_b = (1.0 - p_e) * (ec_b / soma)
 
@@ -101,7 +100,7 @@ def calcular_engramscore(
         'P_B_ou_E': round(p_b + p_e, 4),
     }
 
-# ==================== FUNÇÕES DE DESCRIÇÃO ====================
+# ==================== FUNÇÕES DE DESCRIÇÃO (MELHORADAS) ====================
 def descrever_fg(valor, nome):
     if valor >= 70: return f"{nome} apresenta **Força Geral muito acima da média** ({valor:.0f})."
     elif valor >= 55: return f"{nome} tem **Força Geral acima da média** ({valor:.0f})."
@@ -124,22 +123,47 @@ def descrever_estilo(vetor, nome):
 
 def gerar_descricao_completa(nome, ma, fg, cpp, estilo, psic, vetor_estilo, dados_fg, dados_estilo, prat):
     linhas = []
-    linhas.append(f"### {nome}")
+    linhas.append(f"### 📋 Análise de {nome}")
     linhas.append(descrever_fg(fg, nome))
+
+    # Detalhamento dos subíndices da FG (ataque, defesa, meio)
+    if dados_fg:
+        atq = dados_fg.get('GM', None)
+        defe = dados_fg.get('GS', None)
+        meio = dados_fg.get('Posse', None)
+        if atq is not None:
+            if atq > 1.6: linhas.append(f"- **Ataque** forte: média de {atq:.1f} gols/jogo.")
+            elif atq < 1.0: linhas.append(f"- **Ataque** frágil: apenas {atq:.1f} gols/jogo.")
+        if defe is not None:
+            if defe < 1.0: linhas.append(f"- **Defesa** sólida: sofre só {defe:.1f} gols/jogo.")
+            elif defe > 1.6: linhas.append(f"- **Defesa** vulnerável: sofre {defe:.1f} gols/jogo.")
+        if meio is not None:
+            if meio > 55: linhas.append(f"- **Meio-campo** dominante: {meio:.0f}% posse.")
+            elif meio < 45: linhas.append(f"- **Meio-campo** cedido: apenas {meio:.0f}% posse.")
+
     if ma is not None:
-        if ma >= 70: linhas.append(f"O Momento Atual é excelente ({ma:.0f}), indicando ótima fase.")
+        if ma >= 70: linhas.append(f"O Momento Atual é excelente ({ma:.0f}), indicando ótima fase recente.")
         elif ma >= 50: linhas.append(f"O Momento Atual é estável ({ma:.0f}).")
         else: linhas.append(f"O Momento Atual preocupa ({ma:.0f}), mostrando fase ruim.")
+
     if cpp is not None:
-        if cpp >= 70: linhas.append(f"Histórico muito favorável contra esta prateleira ({cpp:.0f}).")
-        elif cpp >= 50: linhas.append(f"Histórico equilibrado contra esta prateleira ({cpp:.0f}).")
-        else: linhas.append(f"Histórico desfavorável contra esta prateleira ({cpp:.0f}).")
+        if cpp >= 70: linhas.append(f"Histórico muito favorável contra times da prateleira {prat} ({cpp:.0f}).")
+        elif cpp >= 50: linhas.append(f"Histórico equilibrado contra times da prateleira {prat} ({cpp:.0f}).")
+        else: linhas.append(f"Histórico desfavorável contra times da prateleira {prat} ({cpp:.0f}).")
+
     if vetor_estilo:
         linhas.append(descrever_estilo(vetor_estilo, nome))
+        # Complementar com outras dimensões fortes
+        outras = [(k, v) for k, v in vetor_estilo.items() if v is not None and v > 60]
+        if len(outras) > 1:
+            outras_str = ", ".join([f"{k.replace('_',' ').title()} ({v:.0f})" for k, v in outras[:3]])
+            linhas.append(f"Outros estilos notáveis: {outras_str}.")
+
     if psic is not None:
-        if psic >= 70: linhas.append(f"Fator psicológico muito positivo ({psic:.0f}).")
+        if psic >= 70: linhas.append(f"Fator psicológico muito positivo ({psic:.0f}). Time confiante.")
         elif psic >= 45: linhas.append(f"Fator psicológico neutro ({psic:.0f}).")
-        else: linhas.append(f"Fator psicológico pode atrapalhar ({psic:.0f}).")
+        else: linhas.append(f"Fator psicológico pode atrapalhar ({psic:.0f}). Momento de pressão.")
+
     return "\n".join(linhas)
 
 # ==================== INTERFACE STREAMLIT ====================
@@ -162,17 +186,27 @@ st.markdown("""
     .winner-card {
         border: 2px solid #FFD700; box-shadow: 0 0 30px rgba(255,215,0,0.6);
     }
-    .metric-row { display: flex; justify-content: space-between; }
-    .selo { background-color: #FFD700; color: #0a0a0a; padding: 5px 10px; border-radius: 20px; font-weight: bold; }
+    .highlight-box {
+        background: #FFD700; color: #0a0a0a; font-weight: bold; border-radius: 10px;
+        padding: 10px 20px; text-align: center; font-size: 1.2em;
+        display: inline-block; margin: 5px;
+    }
+    .selo {
+        background: #FFD700; color: #0a0a0a; padding: 8px 15px; border-radius: 20px;
+        font-weight: bold; font-size: 1.1em; text-align: center; margin: 10px 0;
+    }
+    .selo-alert {
+        background: #8B0000; color: #FFD700; padding: 8px 15px; border-radius: 20px;
+        font-weight: bold; text-align: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("⚽ ENGRAMS CORE")
 st.markdown("<p style='color:#FFD700; font-size:1.2em;'>Sistema de Análise Esportiva Diferencial</p>", unsafe_allow_html=True)
 
-# ==================== ENTRADA DE DADOS ====================
+# ==================== ENTRADA DE DADOS (ENXUTA, SEM EXPANDERS) ====================
 st.header("📝 Dados do Confronto")
-
 st.subheader("📊 Liga (Referências)")
 col_l1, col_l2, col_l3 = st.columns(3)
 with col_l1:
@@ -324,7 +358,7 @@ if gerar:
 
     # ==================== RESULTADOS EM ABAS ====================
     tab_visao, tab_graficos, tab_mercados, tab_descritivo = st.tabs([
-        "📊 Visão Geral", "📈 Gráficos", "💰 Mercados & Probabilidades", "📝 Análise Descritiva"
+        "📊 Visão Geral", "📈 Gráficos Avançados", "💰 Mercados & Probabilidades", "📝 Análise Descritiva"
     ])
 
     pilares = ['MA', 'FG', 'CPP', 'Estilo', 'Psicológico']
@@ -339,64 +373,95 @@ if gerar:
             win_a = vals_a[i] > vals_b[i]
             win_b = vals_b[i] > vals_a[i]
             with c1:
-                st.markdown(f"<div class='big-card {'winner-card' if win_a else ''}'>", unsafe_allow_html=True)
-                st.metric(f"{p} - {nome_a}", f"{vals_a[i]:.0f}", delta=f"{vals_a[i]-vals_b[i]:.0f}")
+                card_class = 'winner-card' if win_a else 'big-card'
+                st.markdown(f"<div class='{card_class}'>", unsafe_allow_html=True)
+                st.markdown(f"<h4 style='color:#FFD700;'>{p} - {nome_a}</h4>", unsafe_allow_html=True)
+                st.markdown(f"<div class='highlight-box'>{vals_a[i]:.0f}</div>", unsafe_allow_html=True)
+                st.metric("", f"{vals_a[i]:.0f}", delta=f"{vals_a[i]-vals_b[i]:.0f} vs {nome_b}")
                 st.progress(int(vals_a[i]))
                 st.markdown("</div>", unsafe_allow_html=True)
             with c2:
-                st.markdown(f"<div class='big-card {'winner-card' if win_b else ''}'>", unsafe_allow_html=True)
-                st.metric(f"{p} - {nome_b}", f"{vals_b[i]:.0f}", delta=f"{vals_b[i]-vals_a[i]:.0f}")
+                card_class = 'winner-card' if win_b else 'big-card'
+                st.markdown(f"<div class='{card_class}'>", unsafe_allow_html=True)
+                st.markdown(f"<h4 style='color:#FFD700;'>{p} - {nome_b}</h4>", unsafe_allow_html=True)
+                st.markdown(f"<div class='highlight-box'>{vals_b[i]:.0f}</div>", unsafe_allow_html=True)
+                st.metric("", f"{vals_b[i]:.0f}", delta=f"{vals_b[i]-vals_a[i]:.0f} vs {nome_a}")
                 st.progress(int(vals_b[i]))
                 st.markdown("</div>", unsafe_allow_html=True)
 
         st.subheader("🏆 EngramsCore")
         col_ec1, col_ec2 = st.columns(2)
         with col_ec1:
-            st.markdown(f"<div class='big-card {'winner-card' if ec['EC_A'] > ec['EC_B'] else ''}'>", unsafe_allow_html=True)
-            st.markdown(f"<h2>{nome_a}</h2><h1>{ec['EC_A']:.1f}</h1>", unsafe_allow_html=True)
+            card_class = 'winner-card' if ec['EC_A'] > ec['EC_B'] else 'big-card'
+            st.markdown(f"<div class='{card_class}'>", unsafe_allow_html=True)
+            st.markdown(f"<h2>{nome_a}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<div class='highlight-box'>{ec['EC_A']:.1f}</div>", unsafe_allow_html=True)
             st.progress(int(ec['EC_A']))
             st.markdown("</div>", unsafe_allow_html=True)
         with col_ec2:
-            st.markdown(f"<div class='big-card {'winner-card' if ec['EC_B'] > ec['EC_A'] else ''}'>", unsafe_allow_html=True)
-            st.markdown(f"<h2>{nome_b}</h2><h1>{ec['EC_B']:.1f}</h1>", unsafe_allow_html=True)
+            card_class = 'winner-card' if ec['EC_B'] > ec['EC_A'] else 'big-card'
+            st.markdown(f"<div class='{card_class}'>", unsafe_allow_html=True)
+            st.markdown(f"<h2>{nome_b}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<div class='highlight-box'>{ec['EC_B']:.1f}</div>", unsafe_allow_html=True)
             st.progress(int(ec['EC_B']))
             st.markdown("</div>", unsafe_allow_html=True)
 
         st.subheader("🔮 Projeções Rápidas")
         proj = [
-            ("Probabilidade de Vitória do Mandante", f"{ec['P_A']:.2%}"),
-            ("Probabilidade de Vitória do Visitante", f"{ec['P_B']:.2%}"),
-            ("Probabilidade de Empate", f"{ec['P_E']:.2%}"),
-            ("Dupla Chance Mandante/Empate", f"{ec['P_A_ou_E']:.2%}"),
-            ("Dupla Chance Visitante/Empate", f"{ec['P_B_ou_E']:.2%}"),
-            ("Diferença de Força (EC)", f"{abs(ec['EC_A']-ec['EC_B']):.1f}"),
-            ("Média de Gols Esperada (modelo)", f"{calcular_mercado_gols(gm_a, gs_a, gm_b, gs_b, max(n_jogos_a,n_jogos_b), ma_a, ma_b, {'ataque':fg_a,'defesa':fg_a,'meio':fg_a}, {'ataque':fg_b,'defesa':fg_b,'meio':fg_b}, cpp_a, cpp_b, vetor_a, vetor_b, {'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a}, {'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b}, ec['EC_A'], ec['EC_B'], prat_a_num, prat_b_num, 1.90)['lambda_final']:.2f}"),
-            ("Vantagem Tática (Estilo)", f"{estilo_a - estilo_b:.1f}"),
-            ("Pressão Psicológica", f"{psic_a - psic_b:.1f}"),
-            ("Consistência Recente", f"{ma_a - ma_b:.1f}"),
+            ("Probabilidade Vitória Mandante", ec['P_A']),
+            ("Probabilidade Vitória Visitante", ec['P_B']),
+            ("Probabilidade Empate", ec['P_E']),
+            ("Dupla Chance Mandante/Empate", ec['P_A_ou_E']),
+            ("Dupla Chance Visitante/Empate", ec['P_B_ou_E']),
+            ("Diferença de Força (EC)", abs(ec['EC_A']-ec['EC_B'])/100),
+            ("Média de Gols Esperada (modelo)", calcular_mercado_gols(gm_a, gs_a, gm_b, gs_b, max(n_jogos_a,n_jogos_b), ma_a, ma_b, {'ataque':fg_a,'defesa':fg_a,'meio':fg_a}, {'ataque':fg_b,'defesa':fg_b,'meio':fg_b}, cpp_a, cpp_b, vetor_a, vetor_b, {'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a}, {'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b}, ec['EC_A'], ec['EC_B'], prat_a_num, prat_b_num, 1.90)['lambda_final']),
+            ("Vantagem Tática (Estilo)", (estilo_a - estilo_b)/100),
+            ("Pressão Psicológica", (psic_a - psic_b)/100),
+            ("Consistência Recente", (ma_a - ma_b)/100),
         ]
         df_proj = pd.DataFrame(proj, columns=["Indicador", "Valor"])
-        st.table(df_proj)
+        st.dataframe(df_proj.style.format({'Valor': '{:.2%}'}).background_gradient(subset=['Valor'], cmap='YlOrBr'), use_container_width=True)
 
-    # ---------- ABA GRÁFICOS ----------
+    # ---------- ABA GRÁFICOS AVANÇADOS ----------
     with tab_graficos:
-        st.subheader("Radar Comparativo")
+        st.subheader("📊 Painel Gráfico")
+        # Gráfico 1: Radar dos Pilares
         fig_radar = go.Figure()
         fig_radar.add_trace(go.Scatterpolar(r=vals_a, theta=pilares, fill='toself', name=nome_a, marker=dict(color='#FFD700')))
         fig_radar.add_trace(go.Scatterpolar(r=vals_b, theta=pilares, fill='toself', name=nome_b, marker=dict(color='#B8860B')))
-        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0,100])), template='plotly_dark')
+        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0,100])), title="Radar de Pilares", template='plotly_dark')
         st.plotly_chart(fig_radar, use_container_width=True)
 
-        st.subheader("Estilos de Jogo")
+        # Gráfico 2: Radar da Força Geral (Ataque, Defesa, Meio) estilo FIFA
+        # Usamos dados reais para estimar subnotas 0-100
+        def sub_nota(valor, media, limite_sup=100, limite_inf=45):
+            if valor is None or media == 0: return 50.0
+            return max(limite_inf, min(limite_sup, (valor/media)*50))
+        atq_a = sub_nota(gm_a, l_gm)
+        def_a = sub_nota(gs_a, l_gs, limite_sup=100, limite_inf=45) # inverter: menor sofrimento = maior nota
+        def_a = 100 - def_a + 45  # ajuste grosseiro
+        mei_a = sub_nota(posse_a, l_posse)
+        atq_b = sub_nota(gm_b, l_gm)
+        def_b = sub_nota(gs_b, l_gs); def_b = 100 - def_b + 45
+        mei_b = sub_nota(posse_b, l_posse)
+
+        fig_fifa = go.Figure()
+        categorias = ['Ataque', 'Defesa', 'Meio']
+        fig_fifa.add_trace(go.Scatterpolar(r=[atq_a, def_a, mei_a], theta=categorias, fill='toself', name=nome_a, marker=dict(color='#FFD700')))
+        fig_fifa.add_trace(go.Scatterpolar(r=[atq_b, def_b, mei_b], theta=categorias, fill='toself', name=nome_b, marker=dict(color='#B8860B')))
+        fig_fifa.update_layout(polar=dict(radialaxis=dict(visible=True, range=[45,100])), title="Força Geral (estilo FIFA)", template='plotly_dark')
+        st.plotly_chart(fig_fifa, use_container_width=True)
+
+        # Gráfico 3: Barras de estilo
         col_e1, col_e2 = st.columns(2)
         for col, vetor, nome in [(col_e1, vetor_a, nome_a), (col_e2, vetor_b, nome_b)]:
             with col:
-                st.markdown(f"**{nome}**")
+                st.markdown(f"**Estilos - {nome}**")
                 if vetor:
                     dims = list(vetor.keys())
                     vals_dim = [vetor[d] if vetor[d] is not None else 0 for d in dims]
                     max_dim = dims[vals_dim.index(max(vals_dim))]
-                    st.markdown(f"🔷 Ênfase: **{max_dim.replace('_',' ').title()}** ({max(vals_dim):.0f})")
+                    st.markdown(f"🔷 Ênfase: **{max_dim.replace('_',' ').title()}**")
                     fig = px.bar(x=vals_dim, y=dims, orientation='h',
                                  color=[1 if d==max_dim else 0 for d in dims],
                                  color_continuous_scale=['#B8860B','#FFD700'])
@@ -405,12 +470,58 @@ if gerar:
                 else:
                     st.info("Sem dados de estilo.")
 
+        # Gráfico 4: Sequência de resultados (momentum)
+        st.subheader("Sequência de Resultados Recentes")
+        def plot_sequencia(res_str, nome):
+            cores = {'V': '#FFD700', 'E': '#B8860B', 'D': '#8B0000'}
+            pontos = [cores.get(c, '#FFFFFF') for c in res_str]
+            fig = go.Figure(data=go.Scatter(x=list(range(len(res_str))), y=[1]*len(res_str),
+                            mode='markers', marker=dict(color=pontos, size=20)))
+            fig.update_layout(title=nome, yaxis_visible=False, xaxis_title="Jogos (antigo → recente)", template='plotly_dark', height=150)
+            st.plotly_chart(fig, use_container_width=True)
+        col_s1, col_s2 = st.columns(2)
+        with col_s1: plot_sequencia(res_a, nome_a)
+        with col_s2: plot_sequencia(res_b, nome_b)
+
+        # Gráfico 5: Mapa de Calor de Vantagem Tática (estilos cruzados)
+        st.subheader("Mapa de Vantagem Tática")
+        if vetor_a and vetor_b:
+            # Matriz de interação simples: diferença entre scores
+            dims_comuns = [d for d in vetor_a.keys() if vetor_a[d] is not None and vetor_b[d] is not None]
+            if dims_comuns:
+                matriz = []
+                for d in dims_comuns:
+                    matriz.append(vetor_a[d] - vetor_b[d])
+                df_matriz = pd.DataFrame({'Dimensão': dims_comuns, 'Vantagem A sobre B': matriz})
+                fig_heat = px.bar(df_matriz, x='Vantagem A sobre B', y='Dimensão', orientation='h',
+                                 color='Vantagem A sobre B', color_continuous_scale=['#8B0000', '#B8860B', '#FFD700'])
+                fig_heat.update_layout(template='plotly_dark', title="Vantagem de A sobre B por dimensão de estilo")
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.info("Sem dimensões comuns para comparar.")
+        else:
+            st.info("Dados de estilo insuficientes.")
+
+        # Gráfico 6: Distribuição de gols (Poisson) modelo final
+        odd_over25 = 1.90  # placeholder
+        gols_temp = calcular_mercado_gols(gm_a, gs_a, gm_b, gs_b, max(n_jogos_a,n_jogos_b), ma_a, ma_b, {'ataque':fg_a,'defesa':fg_a,'meio':fg_a}, {'ataque':fg_b,'defesa':fg_b,'meio':fg_b}, cpp_a, cpp_b, vetor_a, vetor_b, {'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a}, {'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b}, ec['EC_A'], ec['EC_B'], prat_a_num, prat_b_num, odd_over25)
+        lamb = gols_temp['lambda_final']
+        x = np.arange(0, 8)
+        y = [np.exp(-lamb)*lamb**k/np.math.factorial(k) for k in x]
+        fig_pois = px.bar(x=x, y=y, labels={'x':'Gols', 'y':'Probabilidade'}, title=f"Distribuição de Gols Esperados (λ={lamb:.2f})")
+        fig_pois.update_traces(marker_color='#FFD700')
+        fig_pois.update_layout(template='plotly_dark')
+        st.plotly_chart(fig_pois, use_container_width=True)
+
     # ---------- ABA MERCADOS & PROBABILIDADES ----------
     with tab_mercados:
         st.header("Probabilidades 1X2")
         col_p1, col_p2, col_p3 = st.columns(3)
+        col_p1.markdown(f"<div class='highlight-box'>{ec['P_A']:.2%}</div>", unsafe_allow_html=True)
         col_p1.metric(f"Vitória {nome_a}", f"{ec['P_A']:.2%}")
+        col_p2.markdown(f"<div class='highlight-box'>{ec['P_E']:.2%}</div>", unsafe_allow_html=True)
         col_p2.metric("Empate", f"{ec['P_E']:.2%}")
+        col_p3.markdown(f"<div class='highlight-box'>{ec['P_B']:.2%}</div>", unsafe_allow_html=True)
         col_p3.metric(f"Vitória {nome_b}", f"{ec['P_B']:.2%}")
         col_d1, col_d2 = st.columns(2)
         col_d1.metric(f"Dupla {nome_a} ou Empate", f"{ec['P_A_ou_E']:.2%}")
@@ -434,11 +545,16 @@ if gerar:
             odd_over25=odd_over25
         )
         col_g1, col_g2, col_g3 = st.columns(3)
+        col_g1.markdown(f"<div class='highlight-box'>{gols['over_1.5']:.2%}</div>", unsafe_allow_html=True)
         col_g1.metric("Over 1.5", f"{gols['over_1.5']:.2%}")
+        col_g2.markdown(f"<div class='highlight-box'>{gols['over_2.5']:.2%}</div>", unsafe_allow_html=True)
         col_g2.metric("Over 2.5", f"{gols['over_2.5']:.2%}")
+        col_g3.markdown(f"<div class='highlight-box'>{gols['over_3.5']:.2%}</div>", unsafe_allow_html=True)
         col_g3.metric("Over 3.5", f"{gols['over_3.5']:.2%}")
         col_g4, col_g5 = st.columns(2)
+        col_g4.markdown(f"<div class='highlight-box'>{gols['btts_yes']:.2%}</div>", unsafe_allow_html=True)
         col_g4.metric("BTTS Sim", f"{gols['btts_yes']:.2%}")
+        col_g5.markdown(f"<div class='highlight-box'>{gols['btts_no']:.2%}</div>", unsafe_allow_html=True)
         col_g5.metric("BTTS Não", f"{gols['btts_no']:.2%}")
 
         st.subheader("🔍 Selos de Validação")
@@ -446,22 +562,22 @@ if gerar:
         nosso_over = gols['over_2.5']
         edge = nosso_over - prob_mercado
         if edge > 0.1:
-            st.success(f"🚀 Edge Over 2.5: +{edge:.2%} (Confiança Alta)")
+            st.markdown(f"<div class='selo'>🚀 Edge Over 2.5: +{edge:.2%} (Confiança Alta)</div>", unsafe_allow_html=True)
         elif edge > 0.05:
-            st.info(f"📈 Edge Over 2.5: +{edge:.2%} (Confiança Média)")
+            st.markdown(f"<div class='selo'>📈 Edge Over 2.5: +{edge:.2%} (Confiança Média)</div>", unsafe_allow_html=True)
         elif edge < -0.1:
-            st.error(f"🔻 Under 2.5 favorecido: {1-nosso_over:.2%} (modelo) vs {1-prob_mercado:.2%} (mercado)")
+            st.markdown(f"<div class='selo-alert'>🔻 Under 2.5 favorecido: {1-nosso_over:.2%} (modelo) vs {1-prob_mercado:.2%} (mercado)</div>", unsafe_allow_html=True)
         else:
             st.warning("Sem edge significativo no Over/Under 2.5.")
 
         prob_1 = 1.0 / odd_a if odd_a > 0 else 0
         edge_1 = ec['P_A'] - prob_1
         if edge_1 > 0.1:
-            st.success(f"🏆 Edge Vitória {nome_a}: +{edge_1:.2%}")
+            st.markdown(f"<div class='selo'>🏆 Edge Vitória {nome_a}: +{edge_1:.2%}</div>", unsafe_allow_html=True)
         prob_2 = 1.0 / odd_b if odd_b > 0 else 0
         edge_2 = ec['P_B'] - prob_2
         if edge_2 > 0.1:
-            st.success(f"🏆 Edge Vitória {nome_b}: +{edge_2:.2%}")
+            st.markdown(f"<div class='selo'>🏆 Edge Vitória {nome_b}: +{edge_2:.2%}</div>", unsafe_allow_html=True)
 
     # ---------- ABA ANÁLISE DESCRITIVA ----------
     with tab_descritivo:
