@@ -164,7 +164,7 @@ with col_odd3:
 # BOTÃO DE ANÁLISE
 # ------------------------------------------------------------
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=True):
+if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     # -------------------------------
     # PROCESSAMENTO DOS DADOS
     # -------------------------------
@@ -263,17 +263,13 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
     # -------------------------------
     # GOL NO 1º TEMPO (MODELO PRÓPRIO)
     # -------------------------------
-    # Fator de 1º tempo: ~44% dos gols ocorrem no 1º tempo (média histórica)
     FATOR_HT = 0.44
-    # Ajuste por estilo: times de pressão alta marcam mais cedo; times reativos sofrem menos cedo
     ajuste_estilo = 0
     if perfil_A in ["Pressão Alta", "Dominante"]:
         ajuste_estilo += 0.05
     if perfil_B in ["Pressão Alta", "Dominante"]:
         ajuste_estilo -= 0.05
-    # Ajuste por momento (MA alto = time confiante, tende a atacar cedo)
     ajuste_ma = (ma_A - 50) * 0.001 + (ma_B - 50) * 0.001
-    # Lambda do 1º tempo
     lambda_ht = (lambda_casa + lambda_fora) * (FATOR_HT + ajuste_estilo + ajuste_ma)
     prob_gol_ht = 1 - math.exp(-lambda_ht)
 
@@ -342,7 +338,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         fig = px.bar(df, x='Pilar', y='Força', color='Time', barmode='group', text_auto='.1f',
                      color_discrete_map={nome_casa:'#F0C040', nome_fora:'#4a90d9'})
         fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         st.markdown("<small>Barras mais altas = melhor desempenho no pilar. A soma ponderada gera o MyEngramScore.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -363,7 +359,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
                                             fill='toself', name=nome_fora, marker_color='#4a90d9'))
         fig_radar.update_layout(polar=dict(radialaxis=dict(range=[0,100])),
                                 template='plotly_dark', paper_bgcolor='#0A0E17')
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, width='stretch')
         st.markdown("<small>Quanto mais próximo da borda, melhor o setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -405,7 +401,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         fig_field.update_xaxes(visible=False, range=[0,100])
         fig_field.update_yaxes(visible=False, range=[0,100])
         fig_field.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17', height=400)
-        st.plotly_chart(fig_field, use_container_width=True)
+        st.plotly_chart(fig_field, width='stretch')
         st.markdown("<small>Dourado = Casa, Azul = Visitante. Intensidade da cor reflete a força no setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -502,7 +498,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
             ("Ajuste Estilo", ajuste_estilo),
             ("Ajuste MA", ajuste_ma),
         ], columns=["Parâmetro", "Valor"])
-        st.dataframe(params_df, use_container_width=True)
+        st.dataframe(params_df, width='stretch')
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ----- ABA 6: MERCADOS & EDGE (COM INPUTS REAIS) -----
@@ -513,11 +509,11 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
 
         col_odd_over25, col_odd_btts, col_odd_ht = st.columns(3)
         with col_odd_over25:
-            odd_over25_real = st.number_input("Odd Over 2.5 Gols", min_value=1.01, max_value=20.0, value=0.0, step=0.01, format="%.2f", key="odd_over25_real")
+            odd_over25_real = st.number_input("Odd Over 2.5 Gols", min_value=1.01, max_value=20.0, value=None, step=0.01, format="%.2f", key="odd_over25_real")
         with col_odd_btts:
-            odd_btts_real = st.number_input("Odd BTTS Sim", min_value=1.01, max_value=20.0, value=0.0, step=0.01, format="%.2f", key="odd_btts_real")
+            odd_btts_real = st.number_input("Odd BTTS Sim", min_value=1.01, max_value=20.0, value=None, step=0.01, format="%.2f", key="odd_btts_real")
         with col_odd_ht:
-            odd_ht_real = st.number_input("Odd Gol 1º Tempo (Sim)", min_value=1.01, max_value=20.0, value=0.0, step=0.01, format="%.2f", key="odd_ht_real")
+            odd_ht_real = st.number_input("Odd Gol 1º Tempo (Sim)", min_value=1.01, max_value=20.0, value=None, step=0.01, format="%.2f", key="odd_ht_real")
 
         st.markdown("---")
         st.markdown("<div class='card-header'>📈 Comparação Modelo vs Mercado (Edge)</div>", unsafe_allow_html=True)
@@ -535,9 +531,9 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
             f"Vitória {nome_casa}": odd_casa,
             "Empate": odd_empate,
             f"Vitória {nome_fora}": odd_fora,
-            "Over 2.5 Gols": odd_over25_real if odd_over25_real > 0 else None,
-            "BTTS Sim": odd_btts_real if odd_btts_real > 0 else None,
-            "Gol 1º Tempo": odd_ht_real if odd_ht_real > 0 else None,
+            "Over 2.5 Gols": odd_over25_real if odd_over25_real is not None and odd_over25_real > 0 else None,
+            "BTTS Sim": odd_btts_real if odd_btts_real is not None and odd_btts_real > 0 else None,
+            "Gol 1º Tempo": odd_ht_real if odd_ht_real is not None and odd_ht_real > 0 else None,
         }
 
         linhas = []
@@ -551,7 +547,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
                 linhas.append((mercado, f"{odd_mod:.2f}", "-", "-", "⚪ Sem odd real"))
 
         df_edge = pd.DataFrame(linhas, columns=["Mercado", "Odd Modelo", "Odd Real", "Edge", "Indicação"])
-        st.dataframe(df_edge, use_container_width=True)
+        st.dataframe(df_edge, width='stretch')
         st.markdown("<small>Edge positivo = a odd real está pagando mais do que a probabilidade justa. Indica possível valor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
