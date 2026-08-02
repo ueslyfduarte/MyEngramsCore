@@ -165,11 +165,6 @@ st.markdown("""
 <style>
     .stApp { background-color: #0a0a0a; color: #FFD700; }
     h1, h2, h3, h4, h5, h6 { color: #FFD700 !important; }
-    .stExpander, div[data-testid="stExpander"] {
-        background-color: #1a1a1a; border: 1px solid #FFD700;
-        border-radius: 10px; padding: 15px; margin-bottom: 15px;
-        box-shadow: 0px 0px 15px rgba(255,215,0,0.3);
-    }
     .stProgress > div > div { background-color: #FFD700; }
     .stMetric label, .stMetric [data-testid="stMetricValue"] { color: #FFD700 !important; }
     .stButton>button, .stTextInput>div>input, .stNumberInput>div>input {
@@ -177,48 +172,46 @@ st.markdown("""
         border: 1px solid #FFD700; border-radius: 5px;
     }
     .stSlider>div>div>div { background-color: #FFD700; }
-    section[data-testid="stSidebar"] { background-color: #111; border-right: 2px solid #FFD700; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("⚽ ENGRAMS CORE")
 st.markdown("<p style='color:#FFD700; font-size:1.2em;'>Sistema de Análise Esportiva Diferencial</p>", unsafe_allow_html=True)
 
-# ==================== ABA DE ENTRADA DE DADOS ====================
+# ==================== ENTRADA DE DADOS (SEM MACRODIVISÕES) ====================
 st.header("📝 Dados do Confronto")
 
-# --- LIGA ---
+# --- LIGA (campos diretos) ---
 st.subheader("📊 Liga (Referências)")
-with st.expander("Médias da Liga", expanded=True):
-    medias_liga = {}
-    col_l1, col_l2, col_l3 = st.columns(3)
-    with col_l1:
-        medias_liga['GM'] = st.number_input("Média Gols marcados/j", 0.1, 5.0, 1.4, 0.1, key="l_gm")
-        medias_liga['FA'] = st.number_input("Média Finalizações alvo/j", 0.0, 10.0, 4.0, 0.1, key="l_fa")
-        medias_liga['xG'] = st.number_input("Média xG/j", 0.0, 5.0, 1.4, 0.1, key="l_xg")
-    with col_l2:
-        medias_liga['GS'] = st.number_input("Média Gols sofridos/j", 0.1, 5.0, 1.4, 0.1, key="l_gs")
-        medias_liga['xGA'] = st.number_input("Média xG contra/j", 0.0, 5.0, 1.4, 0.1, key="l_xga")
-        medias_liga['CB'] = st.number_input("Média Chutes bloqueados/j", 0.0, 10.0, 2.0, 0.1, key="l_cb")
-    with col_l3:
-        medias_liga['Posse'] = st.number_input("Média Posse %", 0.0, 100.0, 50.0, 1.0, key="l_posse")
+col_l1, col_l2, col_l3 = st.columns(3)
+with col_l1:
+    l_gm = st.number_input("Média Gols marcados/j", 0.1, 5.0, 1.4, 0.1, key="l_gm")
+    l_fa = st.number_input("Média Finalizações alvo/j", 0.0, 10.0, 4.0, 0.1, key="l_fa")
+    l_xg = st.number_input("Média xG/j", 0.0, 5.0, 1.4, 0.1, key="l_xg")
+    l_posse = st.number_input("Média Posse %", 0.0, 100.0, 50.0, 1.0, key="l_posse")
+with col_l2:
+    l_gs = st.number_input("Média Gols sofridos/j", 0.1, 5.0, 1.4, 0.1, key="l_gs")
+    l_xga = st.number_input("Média xG contra/j", 0.0, 5.0, 1.4, 0.1, key="l_xga")
+    l_cb = st.number_input("Média Chutes bloqueados/j", 0.0, 10.0, 2.0, 0.1, key="l_cb")
+with col_l3:
+    l_ppda = st.number_input("Média PPDA", 0.0, 20.0, 10.0, 0.1, key="l_ppda")
+    l_acoes_to = st.number_input("Média Desarmes/j", 0.0, 50.0, 15.0, 0.1, key="l_acoes_to")
+    l_gols_ca = st.number_input("Média Gols contra-ataque/j", 0.0, 5.0, 0.5, 0.1, key="l_gols_ca")
+    l_passes_longos = st.number_input("Média Passes longos/j", 0.0, 100.0, 40.0, 0.1, key="l_passes_longos")
+    l_cruzamentos = st.number_input("Média Cruzamentos/j", 0.0, 50.0, 15.0, 0.1, key="l_cruzamentos")
+    l_escanteios = st.number_input("Média Escanteios/j", 0.0, 20.0, 5.0, 0.1, key="l_escanteios")
+    l_chutes_trans = st.number_input("Média Chutes transição/j", 0.0, 10.0, 3.0, 0.1, key="l_chutes_trans")
 
-    st.markdown("---")
-    st.markdown("**Médias para Estilo de Jogo**")
-    col_est1, col_est2, col_est3 = st.columns(3)
-    with col_est1:
-        medias_liga['posse'] = medias_liga['Posse']
-        medias_liga['ppda'] = st.number_input("Média PPDA", 0.0, 20.0, 10.0, 0.1, key="l_ppda")
-        medias_liga['acoes_to'] = st.number_input("Média Desarmes/j", 0.0, 50.0, 15.0, 0.1, key="l_acoes_to")
-    with col_est2:
-        medias_liga['gols_ca'] = st.number_input("Média Gols contra-ataque/j", 0.0, 5.0, 0.5, 0.1, key="l_gols_ca")
-        medias_liga['passes_longos'] = st.number_input("Média Passes longos/j", 0.0, 100.0, 40.0, 0.1, key="l_passes_longos")
-        medias_liga['cruzamentos'] = st.number_input("Média Cruzamentos/j", 0.0, 50.0, 15.0, 0.1, key="l_cruzamentos")
-    with col_est3:
-        medias_liga['escanteios'] = st.number_input("Média Escanteios/j", 0.0, 20.0, 5.0, 0.1, key="l_escanteios")
-        medias_liga['chutes_trans'] = st.number_input("Média Chutes transição/j", 0.0, 10.0, 3.0, 0.1, key="l_chutes_trans")
+medias_liga = {
+    'GM': l_gm, 'FA': l_fa, 'xG': l_xg, 'GS': l_gs, 'xGA': l_xga, 'CB': l_cb,
+    'Posse': l_posse, 'posse': l_posse, 'ppda': l_ppda, 'acoes_to': l_acoes_to,
+    'gols_ca': l_gols_ca, 'passes_longos': l_passes_longos,
+    'cruzamentos': l_cruzamentos, 'escanteios': l_escanteios, 'chutes_trans': l_chutes_trans
+}
 
-# --- TIMES ---
+st.markdown("---")
+
+# --- TIMES A E B (todos os campos visíveis) ---
 col_a, col_b = st.columns(2)
 
 with col_a:
@@ -226,53 +219,48 @@ with col_a:
     nome_a = st.text_input("Nome", "Time A", key="nome_a")
     n_jogos_a = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_a")
 
-    with st.expander("📈 Momento Atual (MA)"):
-        odd_a = st.number_input("Odd Vitória", 1.01, 10.0, 1.80, 0.01, key="odd_a")
-        res_a = st.text_input("Últ. resultados (V/E/D)", "VVEDV", key="res_a").upper()
+    st.markdown("**Momento Atual**")
+    odd_a = st.number_input("Odd Vitória", 1.01, 10.0, 1.80, 0.01, key="odd_a")
+    res_a = st.text_input("Últ. resultados (V/E/D)", "VVEDV", key="res_a").upper()
 
-    with st.expander("💪 Força Geral (FG)"):
-        gm_a = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_a")
-        fa_a = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_a")
-        xg_a = st.number_input("xG/j", 0.0, 5.0, 1.8, 0.1, key="xg_a")
-        gs_a = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_a")
-        xga_a = st.number_input("xG contra/j", 0.0, 5.0, 0.9, 0.1, key="xga_a")
-        cb_a = st.number_input("Chutes bloqueados/j", 0.0, 10.0, 2.0, 0.1, key="cb_a")
-        posse_a = st.slider("Posse %", 0, 100, 55, key="posse_a")
+    st.markdown("**Força Geral**")
+    gm_a = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_a")
+    fa_a = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_a")
+    xg_a = st.number_input("xG/j", 0.0, 5.0, 1.8, 0.1, key="xg_a")
+    gs_a = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_a")
+    xga_a = st.number_input("xG contra/j", 0.0, 5.0, 0.9, 0.1, key="xga_a")
+    cb_a = st.number_input("Chutes bloqueados/j", 0.0, 10.0, 2.0, 0.1, key="cb_a")
+    posse_a = st.slider("Posse %", 0, 100, 55, key="posse_a")
 
-    with st.expander("🏆 Confronto por Prateleira (CPP)"):
-        pts_cpp_a = st.number_input("Pontos", 0, 30, 6, key="pcpp_a")
-        jogos_cpp_a = st.number_input("Jogos", 0, 10, 3, key="jcpp_a")
+    st.markdown("**Confronto por Prateleira**")
+    pts_cpp_a = st.number_input("Pontos", 0, 30, 6, key="pcpp_a")
+    jogos_cpp_a = st.number_input("Jogos", 0, 10, 3, key="jcpp_a")
 
-    with st.expander("🎨 Estilo de Jogo"):
-        st.markdown("**Indicadores (preencha os que tiver dados)**")
-        dados_estilo_a_input = {}
-        st.caption("Posse/Paciência")
-        posse_est_a = st.number_input("Posse %", 0.0, 100.0, 55.0, key="a_posse")
-        if posse_est_a > 0: dados_estilo_a_input['posse'] = posse_est_a
-        st.caption("Pressão Alta")
-        ppda_a = st.number_input("PPDA", 0.0, 20.0, 0.0, key="a_ppda")
-        if ppda_a > 0: dados_estilo_a_input['ppda'] = ppda_a
-        acoes_to_a = st.number_input("Desarmes/j", 0.0, 50.0, 0.0, key="a_acoes_to")
-        if acoes_to_a > 0: dados_estilo_a_input['acoes_to'] = acoes_to_a
-        st.caption("Contra-ataque")
-        gols_ca_a = st.number_input("Gols contra-ataque/j", 0.0, 5.0, 0.0, key="a_gols_ca")
-        if gols_ca_a > 0: dados_estilo_a_input['gols_ca'] = gols_ca_a
-        chutes_trans_a = st.number_input("Chutes transição/j", 0.0, 10.0, 0.0, key="a_chutes_trans")
-        if chutes_trans_a > 0: dados_estilo_a_input['chutes_trans'] = chutes_trans_a
-        st.caption("Jogo pelas Laterais")
-        cruzamentos_a = st.number_input("Cruzamentos/j", 0.0, 50.0, 0.0, key="a_cruzamentos")
-        if cruzamentos_a > 0: dados_estilo_a_input['cruzamentos'] = cruzamentos_a
-        escanteios_a = st.number_input("Escanteios/j", 0.0, 20.0, 0.0, key="a_escanteios")
-        if escanteios_a > 0: dados_estilo_a_input['escanteios'] = escanteios_a
-        st.caption("Transição Rápida")
-        passes_longos_a = st.number_input("Passes longos/j", 0.0, 100.0, 0.0, key="a_passes_longos")
-        if passes_longos_a > 0: dados_estilo_a_input['passes_longos'] = passes_longos_a
+    st.markdown("**Estilo de Jogo**")
+    dados_estilo_a_input = {}
+    posse_est_a = st.number_input("Posse %", 0.0, 100.0, 55.0, key="a_posse")
+    if posse_est_a > 0: dados_estilo_a_input['posse'] = posse_est_a
+    ppda_a = st.number_input("PPDA", 0.0, 20.0, 0.0, key="a_ppda")
+    if ppda_a > 0: dados_estilo_a_input['ppda'] = ppda_a
+    acoes_to_a = st.number_input("Desarmes/j", 0.0, 50.0, 0.0, key="a_acoes_to")
+    if acoes_to_a > 0: dados_estilo_a_input['acoes_to'] = acoes_to_a
+    gols_ca_a = st.number_input("Gols contra-ataque/j", 0.0, 5.0, 0.0, key="a_gols_ca")
+    if gols_ca_a > 0: dados_estilo_a_input['gols_ca'] = gols_ca_a
+    chutes_trans_a = st.number_input("Chutes transição/j", 0.0, 10.0, 0.0, key="a_chutes_trans")
+    if chutes_trans_a > 0: dados_estilo_a_input['chutes_trans'] = chutes_trans_a
+    cruzamentos_a = st.number_input("Cruzamentos/j", 0.0, 50.0, 0.0, key="a_cruzamentos")
+    if cruzamentos_a > 0: dados_estilo_a_input['cruzamentos'] = cruzamentos_a
+    escanteios_a = st.number_input("Escanteios/j", 0.0, 20.0, 0.0, key="a_escanteios")
+    if escanteios_a > 0: dados_estilo_a_input['escanteios'] = escanteios_a
+    passes_longos_a = st.number_input("Passes longos/j", 0.0, 100.0, 0.0, key="a_passes_longos")
+    if passes_longos_a > 0: dados_estilo_a_input['passes_longos'] = passes_longos_a
 
-    with st.expander("🧠 Psicológico"):
-        cons_a = st.text_input("Últ. 10 resultados", "VVEDVVEDVV", key="cons_a").upper()
-        moral_a = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_a")
-        p_obj_a = st.slider("Pressão", 0, 100, 40, key="pobj_a")
-        sens_a = st.slider("Sensibilidade", -1.0, 1.0, 0.0, 0.1, key="sens_a")
+    st.markdown("**Psicológico**")
+    cons_a = st.text_input("Últ. 10 resultados", "VVEDVVEDVV", key="cons_a").upper()
+    moral_a = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_a")
+    p_obj_a = st.slider("Pressão", 0, 100, 40, key="pobj_a")
+    sens_a = st.slider("Sensibilidade", -1.0, 1.0, 0.0, 0.1, key="sens_a")
+
     prat_a = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítico"], key="prat_a")
 
 with col_b:
@@ -280,53 +268,48 @@ with col_b:
     nome_b = st.text_input("Nome", "Time B", key="nome_b")
     n_jogos_b = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_b")
 
-    with st.expander("📈 Momento Atual (MA)"):
-        odd_b = st.number_input("Odd Vitória", 1.01, 10.0, 4.00, 0.01, key="odd_b")
-        res_b = st.text_input("Últ. resultados (V/E/D)", "DDVVE", key="res_b").upper()
+    st.markdown("**Momento Atual**")
+    odd_b = st.number_input("Odd Vitória", 1.01, 10.0, 4.00, 0.01, key="odd_b")
+    res_b = st.text_input("Últ. resultados (V/E/D)", "DDVVE", key="res_b").upper()
 
-    with st.expander("💪 Força Geral (FG)"):
-        gm_b = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_b")
-        fa_b = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_b")
-        xg_b = st.number_input("xG/j", 0.0, 5.0, 1.2, 0.1, key="xg_b")
-        gs_b = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_b")
-        xga_b = st.number_input("xG contra/j", 0.0, 5.0, 1.4, 0.1, key="xga_b")
-        cb_b = st.number_input("Chutes bloqueados/j", 0.0, 10.0, 1.5, 0.1, key="cb_b")
-        posse_b = st.slider("Posse %", 0, 100, 48, key="posse_b")
+    st.markdown("**Força Geral**")
+    gm_b = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_b")
+    fa_b = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_b")
+    xg_b = st.number_input("xG/j", 0.0, 5.0, 1.2, 0.1, key="xg_b")
+    gs_b = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_b")
+    xga_b = st.number_input("xG contra/j", 0.0, 5.0, 1.4, 0.1, key="xga_b")
+    cb_b = st.number_input("Chutes bloqueados/j", 0.0, 10.0, 1.5, 0.1, key="cb_b")
+    posse_b = st.slider("Posse %", 0, 100, 48, key="posse_b")
 
-    with st.expander("🏆 Confronto por Prateleira (CPP)"):
-        pts_cpp_b = st.number_input("Pontos", 0, 30, 4, key="pcpp_b")
-        jogos_cpp_b = st.number_input("Jogos", 0, 10, 2, key="jcpp_b")
+    st.markdown("**Confronto por Prateleira**")
+    pts_cpp_b = st.number_input("Pontos", 0, 30, 4, key="pcpp_b")
+    jogos_cpp_b = st.number_input("Jogos", 0, 10, 2, key="jcpp_b")
 
-    with st.expander("🎨 Estilo de Jogo"):
-        st.markdown("**Indicadores (preencha os que tiver dados)**")
-        dados_estilo_b_input = {}
-        st.caption("Posse/Paciência")
-        posse_est_b = st.number_input("Posse %", 0.0, 100.0, 48.0, key="b_posse")
-        if posse_est_b > 0: dados_estilo_b_input['posse'] = posse_est_b
-        st.caption("Pressão Alta")
-        ppda_b = st.number_input("PPDA", 0.0, 20.0, 0.0, key="b_ppda")
-        if ppda_b > 0: dados_estilo_b_input['ppda'] = ppda_b
-        acoes_to_b = st.number_input("Desarmes/j", 0.0, 50.0, 0.0, key="b_acoes_to")
-        if acoes_to_b > 0: dados_estilo_b_input['acoes_to'] = acoes_to_b
-        st.caption("Contra-ataque")
-        gols_ca_b = st.number_input("Gols contra-ataque/j", 0.0, 5.0, 0.0, key="b_gols_ca")
-        if gols_ca_b > 0: dados_estilo_b_input['gols_ca'] = gols_ca_b
-        chutes_trans_b = st.number_input("Chutes transição/j", 0.0, 10.0, 0.0, key="b_chutes_trans")
-        if chutes_trans_b > 0: dados_estilo_b_input['chutes_trans'] = chutes_trans_b
-        st.caption("Jogo pelas Laterais")
-        cruzamentos_b = st.number_input("Cruzamentos/j", 0.0, 50.0, 0.0, key="b_cruzamentos")
-        if cruzamentos_b > 0: dados_estilo_b_input['cruzamentos'] = cruzamentos_b
-        escanteios_b = st.number_input("Escanteios/j", 0.0, 20.0, 0.0, key="b_escanteios")
-        if escanteios_b > 0: dados_estilo_b_input['escanteios'] = escanteios_b
-        st.caption("Transição Rápida")
-        passes_longos_b = st.number_input("Passes longos/j", 0.0, 100.0, 0.0, key="b_passes_longos")
-        if passes_longos_b > 0: dados_estilo_b_input['passes_longos'] = passes_longos_b
+    st.markdown("**Estilo de Jogo**")
+    dados_estilo_b_input = {}
+    posse_est_b = st.number_input("Posse %", 0.0, 100.0, 48.0, key="b_posse")
+    if posse_est_b > 0: dados_estilo_b_input['posse'] = posse_est_b
+    ppda_b = st.number_input("PPDA", 0.0, 20.0, 0.0, key="b_ppda")
+    if ppda_b > 0: dados_estilo_b_input['ppda'] = ppda_b
+    acoes_to_b = st.number_input("Desarmes/j", 0.0, 50.0, 0.0, key="b_acoes_to")
+    if acoes_to_b > 0: dados_estilo_b_input['acoes_to'] = acoes_to_b
+    gols_ca_b = st.number_input("Gols contra-ataque/j", 0.0, 5.0, 0.0, key="b_gols_ca")
+    if gols_ca_b > 0: dados_estilo_b_input['gols_ca'] = gols_ca_b
+    chutes_trans_b = st.number_input("Chutes transição/j", 0.0, 10.0, 0.0, key="b_chutes_trans")
+    if chutes_trans_b > 0: dados_estilo_b_input['chutes_trans'] = chutes_trans_b
+    cruzamentos_b = st.number_input("Cruzamentos/j", 0.0, 50.0, 0.0, key="b_cruzamentos")
+    if cruzamentos_b > 0: dados_estilo_b_input['cruzamentos'] = cruzamentos_b
+    escanteios_b = st.number_input("Escanteios/j", 0.0, 20.0, 0.0, key="b_escanteios")
+    if escanteios_b > 0: dados_estilo_b_input['escanteios'] = escanteios_b
+    passes_longos_b = st.number_input("Passes longos/j", 0.0, 100.0, 0.0, key="b_passes_longos")
+    if passes_longos_b > 0: dados_estilo_b_input['passes_longos'] = passes_longos_b
 
-    with st.expander("🧠 Psicológico"):
-        cons_b = st.text_input("Últ. 10 resultados", "DDVVEDDVV", key="cons_b").upper()
-        moral_b = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_b")
-        p_obj_b = st.slider("Pressão", 0, 100, 60, key="pobj_b")
-        sens_b = st.slider("Sensibilidade", -1.0, 1.0, -0.3, 0.1, key="sens_b")
+    st.markdown("**Psicológico**")
+    cons_b = st.text_input("Últ. 10 resultados", "DDVVEDDVV", key="cons_b").upper()
+    moral_b = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_b")
+    p_obj_b = st.slider("Pressão", 0, 100, 60, key="pobj_b")
+    sens_b = st.slider("Sensibilidade", -1.0, 1.0, -0.3, 0.1, key="sens_b")
+
     prat_b = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítico"], key="prat_b")
 
 # Botão Gerar
