@@ -58,8 +58,27 @@ st.markdown("""
     .prob-box {
         background: #141824; border-radius: 16px; padding: 20px;
         text-align: center; border: 1px solid #2A2F3B;
+        position: relative;
     }
     .prob-value { font-size: 2.5em; font-weight: bold; color: #F0C040; }
+    .selo-dourado {
+        border: 3px solid #F0C040; border-radius: 12px;
+        padding: 4px 12px; background: #F0C040; color: #000;
+        font-weight: bold; font-size: 0.8em; display: inline-block;
+        margin-top: 8px;
+    }
+    .selo-verde {
+        border: 2px solid #00cc66; border-radius: 10px;
+        padding: 4px 12px; background: #0A0E17; color: #00cc66;
+        font-weight: bold; font-size: 0.8em; display: inline-block;
+        margin-top: 8px;
+    }
+    .selo-amarelo {
+        border: 2px solid #F0C040; border-radius: 10px;
+        padding: 4px 12px; background: #0A0E17; color: #F0C040;
+        font-weight: bold; font-size: 0.8em; display: inline-block;
+        margin-top: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -274,6 +293,99 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     prob_gol_ht = 1 - math.exp(-lambda_ht)
 
     # -------------------------------
+    # FUNÇÕES AUXILIARES (VISUALIZAÇÃO)
+    # -------------------------------
+    def desenhar_campo_heatmap(fA, fB, nome_casa, nome_fora):
+        fig = go.Figure()
+        fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
+                      line=dict(color="white", width=2), fillcolor="#0A0E17")
+        fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
+                      line=dict(color="white", width=2))
+        fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
+                      line=dict(color="white", width=2))
+        fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
+                      line=dict(color="white", width=1.5))
+        fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
+                      line=dict(color="white", width=1.5))
+        fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
+                      line=dict(color="white", width=1))
+        fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
+                      line=dict(color="white", width=1))
+        zonas = ['Defesa', 'Meio', 'Ataque']
+        for i, (zona, fa, fb) in enumerate(zip(zonas, fA, fB)):
+            y0 = i * 33.33
+            y1 = (i+1) * 33.33
+            fig.add_shape(type="rect", x0=0, y0=y0, x1=50, y1=y1,
+                          fillcolor=f"rgba(240,192,64,{fa})", line_width=0)
+            fig.add_shape(type="rect", x0=50, y0=y0, x1=100, y1=y1,
+                          fillcolor=f"rgba(74,144,217,{fb})", line_width=0)
+            fig.add_annotation(x=25, y=(y0+y1)/2, text=f"{nome_casa}<br>{fa*100:.0f}%",
+                               showarrow=False, font=dict(color="white", size=10))
+            fig.add_annotation(x=75, y=(y0+y1)/2, text=f"{nome_fora}<br>{fb*100:.0f}%",
+                               showarrow=False, font=dict(color="white", size=10))
+        fig.update_xaxes(visible=False, range=[0,100])
+        fig.update_yaxes(visible=False, range=[0,100])
+        fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17', height=450,
+                          margin=dict(l=20, r=20, t=30, b=20))
+        return fig
+
+    def gerar_cenarios():
+        """Retorna 5 cenários descritivos com probabilidades."""
+        cenarios = []
+        prob_vc_2 = sum(p for gA,gB,p in results if gA >= gB+2)
+        prob_empate = sum(p for gA,gB,p in results if gA==gB)
+        prob_vf = sum(p for gA,gB,p in results if gA < gB)
+        prob_over25 = sum(p for gA,gB,p in results if gA+gB > 2.5)
+        prob_btts = sum(p for gA,gB,p in results if gA>0 and gB>0)
+
+        if prob_vc_2 > 0.05:
+            cenarios.append({
+                'titulo': f'Domínio do {nome_casa}',
+                'descricao': f'{nome_casa} vence por 2 ou mais gols, impondo seu ritmo e explorando a defesa adversária.',
+                'prob': prob_vc_2,
+            })
+        if prob_empate > 0.05:
+            cenarios.append({
+                'titulo': 'Empate tático',
+                'descricao': 'As equipes se neutralizam, com poucas chances claras e um resultado igualado.',
+                'prob': prob_empate,
+            })
+        if prob_vf > 0.05:
+            cenarios.append({
+                'titulo': f'Triunfo visitante',
+                'descricao': f'{nome_fora} surpreende fora de casa, aproveitando contra-ataques e eficiência.',
+                'prob': prob_vf,
+            })
+        if prob_over25 > 0.05:
+            cenarios.append({
+                'titulo': 'Jogo movimentado (+2.5)',
+                'descricao': 'Partida com muitos gols, defesas vulneráveis e ataques inspirados.',
+                'prob': prob_over25,
+            })
+        if prob_btts > 0.05:
+            cenarios.append({
+                'titulo': 'Ambos marcam',
+                'descricao': 'Ataques superam defesas: ambas as equipes balançam as redes.',
+                'prob': prob_btts,
+            })
+
+        while len(cenarios) < 5:
+            # Adiciona um cenário genérico se necessário (nunca deve acontecer)
+            break
+
+        return sorted(cenarios, key=lambda x: x['prob'], reverse=True)[:5]
+
+    def selo(prob):
+        if prob >= 0.75:
+            return '<span class="selo-dourado">🏅 MyEngramScore Ouro</span>'
+        elif prob >= 0.60:
+            return '<span class="selo-verde">✅ Confiável</span>'
+        elif prob >= 0.50:
+            return '<span class="selo-amarelo">⚠️ Moderado</span>'
+        else:
+            return ''
+
+    # -------------------------------
     # MY ENGRAM SCORE (APENAS OS DOIS ÍNDICES)
     # -------------------------------
     st.markdown("---")
@@ -382,92 +494,41 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
             st.markdown(f"**{nome}**: {nome_casa} {vA:.1f} vs {nome_fora} {vB:.1f} → Vantagem: **{vant}**")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 3: Heatmap -----
+    # ----- ABA 3: Heatmap (campo real) -----
     with tabs[2]:
         st.markdown("<div class='card'><div class='card-header'>🗺️ Heatmap Tático (Força por Zona)</div>", unsafe_allow_html=True)
-        zonas = ['Defesa', 'Meio', 'Ataque']
         fA = [def_A/100, mei_A/100, atq_A/100]
         fB = [def_B/100, mei_B/100, atq_B/100]
-        fig_field = go.Figure()
-        fig_field.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, line=dict(color="#2A2F3B"), fillcolor="#0A0E17")
-        fig_field.add_shape(type="rect", x0=0, y0=30, x1=100, y1=70, line=dict(color="#F0C040", width=2), fillcolor="rgba(0,0,0,0)")
-        for i, (zona, fa, fb) in enumerate(zip(zonas, fA, fB)):
-            y0 = i * 33.33
-            y1 = (i+1) * 33.33
-            fig_field.add_shape(type="rect", x0=0, y0=y0, x1=50, y1=y1, fillcolor=f"rgba(240,192,64,{fa})", line_width=0)
-            fig_field.add_shape(type="rect", x0=50, y0=y0, x1=100, y1=y1, fillcolor=f"rgba(74,144,217,{fb})", line_width=0)
-            fig_field.add_annotation(x=25, y=(y0+y1)/2, text=f"{nome_casa}<br>{fa*100:.0f}%", showarrow=False, font=dict(color="white"))
-            fig_field.add_annotation(x=75, y=(y0+y1)/2, text=f"{nome_fora}<br>{fb*100:.0f}%", showarrow=False, font=dict(color="white"))
-        fig_field.update_xaxes(visible=False, range=[0,100])
-        fig_field.update_yaxes(visible=False, range=[0,100])
-        fig_field.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17', height=400)
+        fig_field = desenhar_campo_heatmap(fA, fB, nome_casa, nome_fora)
         st.plotly_chart(fig_field, width='stretch')
         st.markdown("<small>Dourado = Casa, Azul = Visitante. Intensidade da cor reflete a força no setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 4: Simulação de Cenários -----
+    # ----- ABA 4: Simulação de Cenários (5 cenários) -----
     with tabs[3]:
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>🎲 Simulação de Cenários</div>", unsafe_allow_html=True)
-
-        st.markdown("**📝 Análise do Confronto**")
-        if posse_casa > posse_fora + 5:
-            dominio = f"{nome_casa} deve controlar a posse de bola e ditar o ritmo."
-        elif posse_fora > posse_casa + 5:
-            dominio = f"{nome_fora} deve ter mais posse, mesmo atuando fora de casa."
-        else:
-            dominio = "A posse de bola tende a ser equilibrada, com ambos tentando propor jogo."
-        if fa_casa > fa_fora + 2:
-            final = f"{nome_casa} deve criar mais volume ofensivo, finalizando mais vezes ao gol."
-        elif fa_fora > fa_casa + 2:
-            final = f"{nome_fora} deve ser mais incisivo nas finalizações, explorando contra-ataques."
-        else:
-            final = "O número de finalizações deve ser parelho, com chances para os dois lados."
-        if perfil_A == "Dominante" and perfil_B == "Reativo / Contra-ataque":
-            estilo_txt = f"{nome_casa} (Dominante) pressionará a saída de bola, enquanto {nome_fora} (Reativo) apostará em transições rápidas."
-        elif perfil_B == "Dominante" and perfil_A == "Reativo / Contra-ataque":
-            estilo_txt = f"{nome_fora} (Dominante) tentará impor seu jogo mesmo fora, e {nome_casa} (Reativo) usará contra-ataques."
-        elif perfil_A == "Pressão Alta" and perfil_B in ["Defensivo", "Reativo / Contra-ataque"]:
-            estilo_txt = f"{nome_casa} sufocará com pressão alta, forçando erros do {nome_fora}."
-        elif perfil_B == "Pressão Alta" and perfil_A in ["Defensivo", "Reativo / Contra-ataque"]:
-            estilo_txt = f"{nome_fora} tentará pressionar a saída do {nome_casa}, que deverá se fechar."
-        else:
-            estilo_txt = "Os estilos de jogo são compatíveis, sem um claro desequilíbrio tático."
-        if p_A > 0.45:
-            cenario = f"O cenário mais provável é a vitória do {nome_casa}."
-        elif p_B > 0.45:
-            cenario = f"O cenário mais provável é a vitória do {nome_fora}."
-        else:
-            cenario = "O empate surge como o resultado mais provável, tamanho o equilíbrio."
-
-        st.markdown(f"""
-        > {dominio} {final} {estilo_txt}
-
-        **{cenario}** (Probabilidades: {nome_casa} {p_A:.1%} | Empate {p_emp:.1%} | {nome_fora} {p_B:.1%})
-        """)
-
-        st.markdown("---")
-        st.markdown("**⚽ Placar mais provável (simulação estatística)**")
-        top5 = sorted(results, key=lambda x: x[2], reverse=True)[:5]
-        for idx, (gA, gB, prob) in enumerate(top5):
-            st.markdown(f"{idx+1}. {nome_casa} {gA} x {gB} {nome_fora} — {prob*100:.1f}%")
-
-        st.markdown("---")
-        st.markdown("**📊 Referência de Gols (Poisson)**")
-        st.markdown(f"Over 1.5: {over15*100:.1f}% | Over 2.5: {over25*100:.1f}% | Over 3.5: {over35*100:.1f}% | BTTS: {btts*100:.1f}%")
+        st.markdown("<div class='card'><div class='card-header'>🎲 Cinco Cenários Prováveis</div>", unsafe_allow_html=True)
+        cenarios = gerar_cenarios()
+        for i, c in enumerate(cenarios):
+            st.markdown(f"**{i+1}. {c['titulo']}** ({c['prob']:.1%}): {c['descricao']}")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 5: DADOS PARA OS MERCADOS (PROBABILIDADES DO MODELO) -----
+    # ----- ABA 5: DADOS PARA OS MERCADOS (explicação + selos) -----
     with tabs[4]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>📊 Probabilidades 1X2 (Modelo)</div>", unsafe_allow_html=True)
         col_p1, col_p2, col_p3 = st.columns(3)
-        col_p1.markdown(f"<div class='prob-box'><span style='color:#00cc66;'>Vitória {nome_casa}</span><br>"
-                        f"<span class='prob-value'>{p_A:.1%}</span></div>", unsafe_allow_html=True)
-        col_p2.markdown(f"<div class='prob-box'><span style='color:#F0C040;'>Empate</span><br>"
-                        f"<span class='prob-value'>{p_emp:.1%}</span></div>", unsafe_allow_html=True)
-        col_p3.markdown(f"<div class='prob-box'><span style='color:#4a90d9;'>Vitória {nome_fora}</span><br>"
-                        f"<span class='prob-value'>{p_B:.1%}</span></div>", unsafe_allow_html=True)
+        with col_p1:
+            st.markdown(f"<div class='prob-box'><span style='color:#00cc66;'>Vitória {nome_casa}</span><br>"
+                        f"<span class='prob-value'>{p_A:.1%}</span><br>{selo(p_A)}<br>"
+                        f"<small>MyEngramScore: {EC_A:.1f} vs {EC_B:.1f}</small></div>", unsafe_allow_html=True)
+        with col_p2:
+            st.markdown(f"<div class='prob-box'><span style='color:#F0C040;'>Empate</span><br>"
+                        f"<span class='prob-value'>{p_emp:.1%}</span><br>{selo(p_emp)}<br>"
+                        f"<small>Equilíbrio: {1-diff_rel:.1%}</small></div>", unsafe_allow_html=True)
+        with col_p3:
+            st.markdown(f"<div class='prob-box'><span style='color:#4a90d9;'>Vitória {nome_fora}</span><br>"
+                        f"<span class='prob-value'>{p_B:.1%}</span><br>{selo(p_B)}<br>"
+                        f"<small>MyEngramScore: {EC_B:.1f} vs {EC_A:.1f}</small></div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -479,12 +540,22 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         col_g4, col_g5 = st.columns(2)
         col_g4.metric("Ambos Marcam (BTTS)", f"{btts:.1%}")
         col_g5.metric("BTTS Não", f"{1-btts:.1%}")
+        st.markdown("""
+        **Explicação:** As probabilidades de gols são calculadas via distribuição de Poisson,
+        usando a média de gols marcados/sofridos de cada time. Over 1.5 reflete a chance de
+        pelo menos 2 gols na partida, Over 2.5 pelo menos 3, etc.
+        """)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>⏱️ Gol no 1º Tempo (Modelo Proprietário)</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='big-number'>{prob_gol_ht:.1%}</div>", unsafe_allow_html=True)
-        st.markdown(f"<small>Probabilidade de pelo menos um gol no 1º tempo. Base: λ={lambda_ht:.2f} gols esperados.</small>", unsafe_allow_html=True)
+        st.markdown(f"""
+        **Explicação:** A probabilidade de gol no 1º tempo é {prob_gol_ht:.1%}. 
+        Baseia-se na média de gols esperada no 1º tempo (λ={lambda_ht:.2f}), ajustada por 
+        um fator histórico de 44% dos gols ocorrerem antes do intervalo, com bônus para 
+        times de Pressão Alta/Dominantes (+5%) e pelo momento atual (MA).
+        """)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
