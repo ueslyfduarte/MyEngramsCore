@@ -146,26 +146,11 @@ def gerar_descricao_completa(nome, ma, fg, cpp, estilo, psic, vetor_estilo, dado
 
 # ==================== MODELOS AUXILIARES DE MERCADO ====================
 def prob_gol_ht(ma, fg, estilo, psic, ataque, defesa_adv, mandante=True):
-    """
-    Estima probabilidade de ocorrer gol no 1º tempo.
-    Base: ataque, defesa adversária, momento, estilo (pressão alta favorece gol cedo).
-    """
     base = (ataque * 0.6 + (100 - defesa_adv) * 0.4) / 100
     ajuste = ma / 200 + psic / 200
     if estilo and 'pressao_alta' in estilo and estilo['pressao_alta'] is not None:
         ajuste += (estilo['pressao_alta'] - 50) / 200
     return max(0.05, min(0.95, base + ajuste))
-
-def estimar_escanteios_time(gm, gs, posse, cruzamentos, escanteios, media_escanteios_liga):
-    """Lambda de escanteios para um time."""
-    base = (posse / 50) * media_escanteios_liga
-    if cruzamentos is not None and escanteios is not None:
-        return (cruzamentos * 0.5 + escanteios * 0.5) / 2  # média simples como estimativa
-    if escanteios is not None:
-        return escanteios
-    if cruzamentos is not None:
-        return cruzamentos * 0.8
-    return base
 
 # ==================== INTERFACE STREAMLIT ====================
 st.set_page_config(page_title="EngramsCore ⚽", page_icon="⚽", layout="wide")
@@ -395,19 +380,15 @@ if gerar:
     )
 
     # Novos cálculos
-    # Gol HT
     prob_ht_a = prob_gol_ht(ma_a, fg_a, vetor_a, psic_a, gm_a, gs_b, mandante=True)
     prob_ht_b = prob_gol_ht(ma_b, fg_b, vetor_b, psic_b, gm_b, gs_a, mandante=False)
     prob_gol_ht_any = 1 - (1-prob_ht_a)*(1-prob_ht_b)
 
-    # Over 1.5 (já existe em gols)
     over_1_5 = gols['over_1.5']
 
-    # Escanteios
     esc_a = dados_estilo_a.get('escanteios', l_escanteios) or l_escanteios
     esc_b = dados_estilo_b.get('escanteios', l_escanteios) or l_escanteios
-    lambda_esc = (esc_a + esc_b) / 2  # estimativa simples de total de escanteios
-    # Probabilidades over X.5 escanteios
+    lambda_esc = (esc_a + esc_b) / 2
     def poisson_prob(lmbda, k):
         return math.exp(-lmbda) * lmbda**k / math.factorial(k)
     def prob_over_esc(lmbda, linha):
@@ -586,7 +567,6 @@ if gerar:
 
     with tabs[3]:
         st.header("🔗 Ligações de Mercado")
-        # Matriz de influência (já existente)
         chaves_pesos = list(PESOS_PADRAO.keys())
         contrib_a = {}
         contrib_b = {}
@@ -617,7 +597,6 @@ if gerar:
         st.plotly_chart(fig_matriz, width='stretch')
 
         st.subheader("📈 Correlação Ponderada entre Pilares e Resultados Esperados")
-        # Ampliamos para incluir novos mercados
         correlacoes = {
             'Mercado': ['Vitória Mand.', 'Vitória Visit.', 'Empate', 'Over 2.5 Gols', 'Ambas Marcam',
                         'Gol 1º Tempo', 'Over 1.5 Gols', 'Over 6.5 Esc', 'Over 7.5 Esc', 'Over 8.5 Esc', 'Over 9.5 Esc'],
@@ -636,46 +615,34 @@ if gerar:
         # Super Seleção de Apostas
         st.subheader("🏆 Super Seleção de Apostas")
         picks = []
-        # Função para adicionar pick
         def add_pick(mercado, prob, odd_mercado=None):
             edge = prob - (1/odd_mercado if odd_mercado else 0) if odd_mercado else None
             confianca = "Alta" if (edge and edge > 0.1) or (not edge and prob > 0.7) else "Média" if (edge and edge > 0.05) or (not edge and prob > 0.6) else "Baixa"
             picks.append({'Mercado': mercado, 'Probabilidade': prob, 'Odd Mercado': odd_mercado, 'Edge': edge, 'Confiança': confianca})
 
-        # 1X2
         add_pick(f"Vitória {nome_a}", ec['P_A'], odd_a if odd_a else None)
         add_pick(f"Vitória {nome_b}", ec['P_B'], odd_b if odd_b else None)
         add_pick("Empate", ec['P_E'], None)
-
-        # Over 2.5
         add_pick("Over 2.5", gols['over_2.5'], odd_over25)
-
-        # BTTS
         add_pick("BTTS Sim", gols['btts_yes'], None)
-
-        # Gol HT
         add_pick("Gol 1º Tempo", prob_gol_ht_any, None)
-
-        # Over 1.5
         add_pick("Over 1.5", over_1_5, None)
-
-        # Escanteios
         add_pick("Over 6.5 Escanteios", esc_6_5, None)
         add_pick("Over 7.5 Escanteios", esc_7_5, None)
         add_pick("Over 8.5 Escanteios", esc_8_5, None)
         add_pick("Over 9.5 Escanteios", esc_9_5, None)
 
-        # Filtrar melhores (prob > 0.6 ou edge > 0.05) e ordenar por edge/prob
         melhores = [p for p in picks if (p['Edge'] and p['Edge'] > 0.05) or (p['Probabilidade'] > 0.6)]
         melhores.sort(key=lambda x: x['Edge'] if x['Edge'] else x['Probabilidade'], reverse=True)
 
         if melhores:
-            for pick in melhores[:6]:  # top 6
+            for pick in melhores[:6]:
                 cor = '#00cc66' if pick['Confiança'] == 'Alta' else '#f0c040' if pick['Confiança'] == 'Média' else '#cc3333'
+                edge_str = f"{pick['Edge']:.2%}" if pick['Edge'] is not None else "N/A"
                 st.markdown(f"""
                 <div class='super-pick'>
                     <h4 style='color:{cor};'>{pick['Mercado']}  |  {pick['Probabilidade']:.2%}</h4>
-                    <small>Confiança: {pick['Confiança']}  |  Edge: {pick['Edge']:.2% if pick['Edge'] else 'N/A'}</small>
+                    <small>Confiança: {pick['Confiança']}  |  Edge: {edge_str}</small>
                 </div>
                 """, unsafe_allow_html=True)
         else:
