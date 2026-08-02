@@ -17,8 +17,8 @@ from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo
 from src.metricas.psicologico import calcular_psicologico
 from src.mercados.gols import calcular_mercado_gols
 
-# ==================== ENGRAMS CORE (MA ajustado) ====================
-K_MA = 0.30  # peso do ajuste de odds (aumentado)
+# ==================== ENGRAMS CORE ====================
+K_MA = 0.30
 PESOS_PADRAO = {
     'MA': 0.20,
     'FG': 0.25,
@@ -196,7 +196,7 @@ st.markdown("""
 st.title("⚽ ENGRAMS CORE")
 st.markdown("<p style='color:#f0c040; font-size:1.2em;'>Sistema de Análise Esportiva Diferencial</p>", unsafe_allow_html=True)
 
-# ==================== ENTRADA DE DADOS (incluindo odd over 2.5 fixa) ====================
+# ==================== ENTRADA DE DADOS ====================
 st.header("📝 Dados do Confronto")
 st.subheader("📊 Liga (Referências)")
 col_l1, col_l2, col_l3 = st.columns(3)
@@ -304,7 +304,6 @@ with col_b:
     sens_b = st.slider("Sensibilidade", -1.0, 1.0, -0.3, 0.1, key="sens_b")
     prat_b = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítico"], key="prat_b")
 
-# Seção fixa para a odd de gols (agora fora do botão)
 st.markdown("---")
 st.subheader("⚽ Configuração de Mercado")
 odd_over25 = st.number_input("Odd Over 2.5 (referência)", min_value=1.01, max_value=10.0, value=1.90, step=0.01, key="odd_over_fixo")
@@ -352,7 +351,6 @@ if gerar:
         time_mandante='A'
     )
 
-    # Cálculo do mercado de gols usando a odd fixa
     gols = calcular_mercado_gols(
         gols_marcados_a=gm_a, gols_sofridos_a=gs_a,
         gols_marcados_b=gm_b, gols_sofridos_b=gs_b,
@@ -366,7 +364,7 @@ if gerar:
         psic_b={'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b},
         ec_a=ec['EC_A'], ec_b=ec['EC_B'],
         prateleira_a=prat_a_num, prateleira_b=prat_b_num,
-        odd_over25=odd_over25  # usa o valor fixo
+        odd_over25=odd_over25
     )
 
     # ==================== RESULTADOS EM ABAS ====================
@@ -391,7 +389,7 @@ if gerar:
                 st.markdown(f"<h4 style='color:#f0c040;'>{p} - {nome_a}</h4>", unsafe_allow_html=True)
                 color = '#00cc66' if win_a else '#cc3333' if win_b else '#f0c040'
                 st.markdown(f"<div style='background:{color}; color:#000; font-weight:bold; border-radius:10px; padding:8px 18px; text-align:center;'>{vals_a[i]:.0f}</div>", unsafe_allow_html=True)
-                st.metric("", f"{vals_a[i]:.0f}", delta=f"{vals_a[i]-vals_b[i]:.0f} vs {nome_b}")
+                st.metric(" ", f"{vals_a[i]:.0f}", delta=f"{vals_a[i]-vals_b[i]:.0f} vs {nome_b}")
                 st.progress(int(vals_a[i]))
                 st.markdown("</div>", unsafe_allow_html=True)
             with c2:
@@ -400,7 +398,7 @@ if gerar:
                 st.markdown(f"<h4 style='color:#f0c040;'>{p} - {nome_b}</h4>", unsafe_allow_html=True)
                 color = '#00cc66' if win_b else '#cc3333' if win_a else '#f0c040'
                 st.markdown(f"<div style='background:{color}; color:#000; font-weight:bold; border-radius:10px; padding:8px 18px; text-align:center;'>{vals_b[i]:.0f}</div>", unsafe_allow_html=True)
-                st.metric("", f"{vals_b[i]:.0f}", delta=f"{vals_b[i]-vals_a[i]:.0f} vs {nome_a}")
+                st.metric(" ", f"{vals_b[i]:.0f}", delta=f"{vals_b[i]-vals_a[i]:.0f} vs {nome_a}")
                 st.progress(int(vals_b[i]))
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -431,7 +429,7 @@ if gerar:
         fig_bar = px.bar(df_bar, x='Pilar', y='Valor', color='Time', barmode='group',
                          color_discrete_map={nome_a: '#00cc66', nome_b: '#0066cc'})
         fig_bar.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14')
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width='stretch')
 
         def sub_nota(valor, media, limite_sup=100, limite_inf=45):
             if valor is None or media == 0: return 50.0
@@ -447,7 +445,7 @@ if gerar:
         fig_fifa.add_trace(go.Scatterpolar(r=[atq_a, def_a, mei_a], theta=categorias, fill='toself', name=nome_a, marker=dict(color='#00cc66')))
         fig_fifa.add_trace(go.Scatterpolar(r=[atq_b, def_b, mei_b], theta=categorias, fill='toself', name=nome_b, marker=dict(color='#0066cc')))
         fig_fifa.update_layout(polar=dict(radialaxis=dict(visible=True, range=[45,100])), title="Força Geral (estilo FIFA)", template='plotly_dark', paper_bgcolor='#0a0e14')
-        st.plotly_chart(fig_fifa, use_container_width=True)
+        st.plotly_chart(fig_fifa, width='stretch')
 
         st.subheader("🔥 Mapa de Calor dos Estilos")
         if vetor_a and vetor_b:
@@ -460,7 +458,7 @@ if gerar:
                 df_heat = pd.DataFrame(dados_heat)
                 fig_heat = px.density_heatmap(df_heat, x='Time', y='Dimensão', z='Valor', color_continuous_scale=['#cc3333', '#f0c040', '#00cc66'])
                 fig_heat.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14')
-                st.plotly_chart(fig_heat, use_container_width=True)
+                st.plotly_chart(fig_heat, width='stretch')
             else:
                 st.info("Sem dados suficientes para mapa de calor.")
         else:
@@ -473,7 +471,7 @@ if gerar:
             fig = go.Figure(data=go.Scatter(x=list(range(len(res_str))), y=[1]*len(res_str),
                             mode='markers', marker=dict(color=pontos, size=20)))
             fig.update_layout(title=nome, yaxis_visible=False, xaxis_title="Jogos", template='plotly_dark', height=150, paper_bgcolor='#0a0e14')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         col_s1, col_s2 = st.columns(2)
         with col_s1: plot_sequencia(res_a, nome_a)
         with col_s2: plot_sequencia(res_b, nome_b)
@@ -485,7 +483,7 @@ if gerar:
         fig_pois = px.bar(x=x, y=y, labels={'x':'Gols', 'y':'Probabilidade'}, title=f"λ={lamb:.2f}")
         fig_pois.update_traces(marker_color='#00cc66')
         fig_pois.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14')
-        st.plotly_chart(fig_pois, use_container_width=True)
+        st.plotly_chart(fig_pois, width='stretch')
 
     with tabs[2]:
         st.header("Probabilidades 1X2")
@@ -540,34 +538,36 @@ if gerar:
         st.header("🔗 Influência dos Pilares nos Mercados")
         st.markdown("""
         Esta matriz mostra como cada pilar contribui para a probabilidade de cada mercado,
-        baseado nos pesos do modelo e nos valores calculados. Valores positivos indicam 
-        favorecimento para o lado correspondente.
+        baseado nos pesos do modelo e nos valores calculados.
         """)
-        # Contribuição ponderada
-        pesos_ec = PESOS_PADRAO.copy()
+        chaves_pesos = list(PESOS_PADRAO.keys())
         contrib_a = {}
         contrib_b = {}
-        for p in pilares:
-            idx = pilares.index(p)
-            contrib_a[p] = pesos_ec[p] * vals_a[idx]
-            contrib_b[p] = pesos_ec[p] * vals_b[idx]
+        for p in chaves_pesos:
+            idx = pilares.index(p) if p in pilares else -1
+            if idx >= 0:
+                contrib_a[p] = PESOS_PADRAO[p] * vals_a[idx]
+                contrib_b[p] = PESOS_PADRAO[p] * vals_b[idx]
+            else:
+                contrib_a[p] = 0.0
+                contrib_b[p] = 0.0
         total_contrib = sum(contrib_a.values()) + sum(contrib_b.values())
         if total_contrib > 0:
-            for p in pilares:
+            for p in chaves_pesos:
                 contrib_a[p] /= total_contrib
                 contrib_b[p] /= total_contrib
         mercados = ['Vitória A', 'Empate', 'Vitória B', 'Over 2.5', 'BTTS']
-        influencia = pd.DataFrame(index=pilares, columns=mercados, data=0.0)
-        for p in pilares:
+        influencia = pd.DataFrame(index=chaves_pesos, columns=mercados, data=0.0)
+        for p in chaves_pesos:
             influencia.loc[p, 'Vitória A'] = contrib_a[p] * 1.5
             influencia.loc[p, 'Vitória B'] = contrib_b[p] * 1.5
             influencia.loc[p, 'Empate'] = 1.0 - abs(contrib_a[p] - contrib_b[p])
-            influencia.loc[p, 'Over 2.5'] = (contrib_a['FG'] + contrib_b['FG']) * 0.8
-            influencia.loc[p, 'BTTS'] = (contrib_a['FG'] + contrib_b['FG']) * 0.7 + contrib_a['Estilo'] * 0.3
+            influencia.loc[p, 'Over 2.5'] = (contrib_a.get('FG', 0.0) + contrib_b.get('FG', 0.0)) * 0.8
+            influencia.loc[p, 'BTTS'] = (contrib_a.get('FG', 0.0) + contrib_b.get('FG', 0.0)) * 0.7 + contrib_a.get('Estilo', 0.0) * 0.3
         influencia = influencia.clip(lower=0, upper=1)
         fig_matriz = px.imshow(influencia, text_auto='.2f', aspect='auto', color_continuous_scale=['#cc3333', '#f0c040', '#00cc66'])
         fig_matriz.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14', title="Mapa de Influência Pilares x Mercados")
-        st.plotly_chart(fig_matriz, use_container_width=True)
+        st.plotly_chart(fig_matriz, width='stretch')
 
         st.subheader("📈 Correlação Ponderada entre Pilares e Resultados Esperados")
         correlacoes = {
