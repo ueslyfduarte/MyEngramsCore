@@ -379,7 +379,6 @@ if gerar:
         odd_over25=odd_over25
     )
 
-    # Novos cálculos
     prob_ht_a = prob_gol_ht(ma_a, fg_a, vetor_a, psic_a, gm_a, gs_b, mandante=True)
     prob_ht_b = prob_gol_ht(ma_b, fg_b, vetor_b, psic_b, gm_b, gs_a, mandante=False)
     prob_gol_ht_any = 1 - (1-prob_ht_a)*(1-prob_ht_b)
@@ -596,21 +595,29 @@ if gerar:
         fig_matriz.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14', title="Mapa de Influência Pilares x Mercados")
         st.plotly_chart(fig_matriz, width='stretch')
 
-        st.subheader("📈 Correlação Ponderada entre Pilares e Resultados Esperados")
-        correlacoes = {
-            'Mercado': ['Vitória Mand.', 'Vitória Visit.', 'Empate', 'Over 2.5 Gols', 'Ambas Marcam',
-                        'Gol 1º Tempo', 'Over 1.5 Gols', 'Over 6.5 Esc', 'Over 7.5 Esc', 'Over 8.5 Esc', 'Over 9.5 Esc'],
-            'MA Mandante': [ma_a/100, 0, (100-ma_a)/100, ma_a/100, ma_a/200, ma_a/150, ma_a/100, 0, 0, 0, 0],
-            'MA Visitante': [0, ma_b/100, (100-ma_b)/100, ma_b/100, ma_b/200, ma_b/150, ma_b/100, 0, 0, 0, 0],
-            'FG Mandante': [fg_a/100, 0, (100-fg_a)/100, fg_a/100, fg_a/100, fg_a/150, fg_a/100, 0, 0, 0, 0],
-            'FG Visitante': [0, fg_b/100, (100-fg_b)/100, fg_b/100, fg_b/100, fg_b/150, fg_b/100, 0, 0, 0, 0],
-            'Estilo Mandante': [estilo_a/100, 0, 0, estilo_a/200, estilo_a/100, estilo_a/200, estilo_a/100,
-                                (cruzamentos_a or 0)/100, (cruzamentos_a or 0)/100, (cruzamentos_a or 0)/100, (cruzamentos_a or 0)/100],
-            'Estilo Visitante': [0, estilo_b/100, 0, estilo_b/200, estilo_b/100, estilo_b/200, estilo_b/100,
-                                 (cruzamentos_b or 0)/100, (cruzamentos_b or 0)/100, (cruzamentos_b or 0)/100, (cruzamentos_b or 0)/100],
+        st.subheader("📈 Correlação Ponderada Real (positivo = favorece Time A)")
+        # Diferenças normalizadas entre A e B para cada pilar
+        dif_ma = (ma_a - ma_b) / 100
+        dif_fg = (fg_a - fg_b) / 100
+        dif_cpp = (cpp_a - cpp_b) / 100
+        dif_estilo = (estilo_a - estilo_b) / 100
+        dif_psic = (psic_a - psic_b) / 100
+
+        mercados_list = ['Vitória Mand.', 'Vitória Visit.', 'Empate', 'Over 2.5 Gols', 'Ambas Marcam',
+                         'Gol 1º Tempo', 'Over 1.5 Gols', 'Over 6.5 Esc', 'Over 7.5 Esc', 'Over 8.5 Esc', 'Over 9.5 Esc']
+        dados_corr = {
+            'Mercado': mercados_list,
+            'MA (dif A-B)': [dif_ma, -dif_ma, -abs(dif_ma), dif_ma*0.5, dif_ma*0.3, dif_ma*0.4, dif_ma*0.2, 0, 0, 0, 0],
+            'FG (dif A-B)': [dif_fg*0.8, -dif_fg*0.8, -abs(dif_fg)*0.5, dif_fg*0.7, dif_fg*0.5, dif_fg*0.3, dif_fg*0.4, 0, 0, 0, 0],
+            'CPP (dif A-B)': [dif_cpp*0.7, -dif_cpp*0.7, -abs(dif_cpp)*0.3, dif_cpp*0.4, dif_cpp*0.3, dif_cpp*0.2, dif_cpp*0.1, 0, 0, 0, 0],
+            'Estilo (dif A-B)': [dif_estilo*0.6, -dif_estilo*0.6, -abs(dif_estilo)*0.4, dif_estilo*0.5, dif_estilo*0.5, dif_estilo*0.3, dif_estilo*0.2, dif_estilo*0.8, dif_estilo*0.8, dif_estilo*0.8, dif_estilo*0.8],
+            'Psicológico (dif A-B)': [dif_psic*0.5, -dif_psic*0.5, -abs(dif_psic)*0.2, dif_psic*0.3, dif_psic*0.3, dif_psic*0.2, dif_psic*0.1, 0, 0, 0, 0],
         }
-        df_corr = pd.DataFrame(correlacoes).set_index('Mercado')
-        st.dataframe(df_corr.style.format("{:.2%}").background_gradient(cmap='RdYlGn', axis=1), use_container_width=True)
+        df_corr_real = pd.DataFrame(dados_corr).set_index('Mercado')
+        # Limitar valores entre -1 e 1
+        df_corr_real = df_corr_real.clip(-1, 1)
+        st.dataframe(df_corr_real.style.format("{:.2f}").background_gradient(cmap='RdYlGn', vmin=-1, vmax=1), use_container_width=True)
+        st.caption("Valores positivos indicam favorecimento ao Time A (Mandante); negativos ao Time B (Visitante).")
 
         # Super Seleção de Apostas
         st.subheader("🏆 Super Seleção de Apostas")
