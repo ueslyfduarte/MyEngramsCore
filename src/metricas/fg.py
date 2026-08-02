@@ -1,59 +1,58 @@
-"""
-Métrica FG - Força Geral
-
-Avalia a força intrínseca de uma equipe com base em estatísticas da temporada,
-agregando sub-métricas de Ataque, Defesa e Meio de Campo.
-
-Cada sub-métrica é composta por indicadores normalizados em relação à média
-da liga. Se um indicador não estiver disponível, é ignorado.
-A FG é a média simples das sub-métricas ativas, escala [45,100].
-"""
-
+# fg.py (versão corrigida)
 from typing import Dict, Optional
-from src.utils import (
-    normalizar_indicador,
-    atualizacao_bayesiana,
-    truncar,
-    media_ativos,
-    PRIOR_PADRAO,
-    ALPHA_PADRAO
-)
+from utils import atualizacao_bayesiana, truncar, media_ativos, PRIOR_PADRAO, ALPHA_PADRAO
 
-# ----------------------------------------------------------
-# Configuração dos indicadores por sub-métrica
-# ----------------------------------------------------------
+# Conjuntos de indicadores a serem invertidos (menor é melhor)
+INDICADORES_INVERTIDOS = {'GS', 'xGA', 'FAS'}
+
+# Mapas de indicadores (não alterados)
 INDICADORES_ATAQUE = {
-    'Gols marcados':        'GM',
+    'Gols marcados': 'GM',
     'Finalizações no alvo': 'FA',
-    'xG':                   'xG',
-    'Conversão':            'Conv',
-    'Grandes chances':      'GC',
+    'xG': 'xG',
+    'Conversão': 'Conv',
+    'Grandes chances': 'GC',
 }
 
 INDICADORES_DEFESA = {
-    'Gols sofridos':                'GS',
-    'xG contra':                    'xGA',
+    'Gols sofridos': 'GS',
+    'xG contra': 'xGA',
     'Finalizações no alvo sofridas': 'FAS',
-    'Chutes bloqueados':            'CB',
-    'Duelos aéreos defensivos':     'DA',
+    'Chutes bloqueados': 'CB',
+    'Duelos aéreos defensivos': 'DA',
 }
 
 INDICADORES_MEIO = {
-    'Posse de bola (%)':            'Posse',
+    'Posse de bola (%)': 'Posse',
     'Passes certos no terço central': 'PTC',
-    'Passes progressivos':          'PP',
-    'Duelos ganhos no meio':        'DGM',
-    'Assistências esperadas':       'xA',
+    'Passes progressivos': 'PP',
+    'Duelos ganhos no meio': 'DGM',
+    'Assistências esperadas': 'xA',
 }
+
+
+def normalizar_indicador(valor_time: float, media_liga: float, menor_melhor: bool = False) -> float:
+    """Normaliza o indicador em relação à média da liga. Inverte se menor_melhor=True."""
+    if media_liga == 0:
+        return 50.0
+    pct = (valor_time - media_liga) / media_liga
+    if menor_melhor:
+        pct = -pct
+    # Limita a diferença percentual para não explodir
+    pct = max(-1.0, min(1.0, pct))
+    nota = 50.0 + pct * 50.0   # usando 50 como amplitude total para manter 0-100
+    return nota
 
 
 def _calcular_indicador(valor_time: Optional[float],
                         media_liga: float,
                         n_jogos: int,
+                        codigo_indicador: str,
                         alpha: float = ALPHA_PADRAO) -> Optional[float]:
     if valor_time is None:
         return None
-    bruto = normalizar_indicador(valor_time, media_liga)
+    menor_melhor = codigo_indicador in INDICADORES_INVERTIDOS
+    bruto = normalizar_indicador(valor_time, media_liga, menor_melhor)
     posterior = atualizacao_bayesiana(PRIOR_PADRAO, bruto, n_jogos, alpha)
     return truncar(posterior)
 
@@ -64,10 +63,10 @@ def _calcular_submetrica(dados_time: Dict[str, float],
                          mapa_indicadores: Dict[str, str],
                          alpha: float = ALPHA_PADRAO) -> Optional[float]:
     valores = []
-    for chave_dado in mapa_indicadores.values():
-        valor_time = dados_time.get(chave_dado)
-        media_liga = medias_liga.get(chave_dado, 0.0)
-        ind = _calcular_indicador(valor_time, media_liga, n_jogos, alpha)
+    for chave_dado, codigo in mapa_indicadores.items():
+        valor_time = dados_time.get(codigo)
+        media_liga = medias_liga.get(codigo, 0.0)
+        ind = _calcular_indicador(valor_time, media_liga, n_jogos, codigo, alpha)
         valores.append(ind)
     return media_ativos(valores)
 
