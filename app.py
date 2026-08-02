@@ -12,11 +12,11 @@ from typing import Dict, Optional, Tuple
 from src.metricas.ma import calcular_ma, calcular_pontos_e_resultados
 from src.metricas.fg import calcular_fg
 from src.metricas.cpp import calcular_cpp
-from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo, INDICADORES_ESTILO
+from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo
 from src.metricas.psicologico import calcular_psicologico
 from src.mercados.gols import calcular_mercado_gols
 
-# ==================== ENGRAMS CORE (incorporado) ====================
+# ==================== ENGRAMS CORE (com empate realista) ====================
 PESOS_PADRAO = {
     'MA': 0.20,
     'FG': 0.25,
@@ -27,8 +27,7 @@ PESOS_PADRAO = {
 THR_MANDANTE = 10
 THR_VISITANTE = 8
 
-def _redistribuir_pesos(pilares_disponiveis: Dict[str, Optional[float]],
-                        pesos: Dict[str, float]) -> Dict[str, float]:
+def _redistribuir_pesos(pilares_disponiveis, pesos):
     ativos = {k: v for k, v in pilares_disponiveis.items() if v is not None}
     if not ativos:
         return {}
@@ -38,53 +37,28 @@ def _redistribuir_pesos(pilares_disponiveis: Dict[str, Optional[float]],
         return {k: 1.0/n for k in ativos}
     return {k: pesos.get(k, 0.0)/peso_total for k in ativos}
 
-def _aplicar_fator_casa(ma_casa: float, ma_fora: float,
-                        thr_casa: float = THR_MANDANTE,
-                        thr_fora: float = THR_VISITANTE) -> Tuple[float, float]:
-    diff_casa = ma_casa - ma_fora
-    diff_fora = ma_fora - ma_casa
-    if diff_casa >= thr_casa:
+def _aplicar_fator_casa(ma_casa, ma_fora, thr_casa=THR_MANDANTE, thr_fora=THR_VISITANTE):
+    if ma_casa - ma_fora >= thr_casa:
         return 1.0, 0.0
-    elif diff_fora >= thr_fora:
+    elif ma_fora - ma_casa >= thr_fora:
         return 0.0, 1.0
     else:
         return 0.0, 0.0
 
 def calcular_engramscore(
-    ma_a: Optional[float] = None, fg_a: Optional[float] = None,
-    cpp_a: Optional[float] = None, estilo_a: Optional[float] = None,
-    psicologico_a: Optional[float] = None,
-    ma_b: Optional[float] = None, fg_b: Optional[float] = None,
-    cpp_b: Optional[float] = None, estilo_b: Optional[float] = None,
-    psicologico_b: Optional[float] = None,
-    time_mandante: str = 'A',
-    pesos: Dict[str, float] = None,
-    thr_mandante: float = THR_MANDANTE,
-    thr_visitante: float = THR_VISITANTE,
+    ma_a=None, fg_a=None, cpp_a=None, estilo_a=None, psicologico_a=None,
+    ma_b=None, fg_b=None, cpp_b=None, estilo_b=None, psicologico_b=None,
+    time_mandante='A', pesos=None, thr_mandante=THR_MANDANTE, thr_visitante=THR_VISITANTE
 ) -> Dict[str, float]:
     if pesos is None:
         pesos = PESOS_PADRAO.copy()
 
-    pilares_a = {
-        'MA': ma_a, 'FG': fg_a, 'CPP': cpp_a,
-        'Estilo': estilo_a, 'Psicologico': psicologico_a,
-    }
-    pilares_b = {
-        'MA': ma_b, 'FG': fg_b, 'CPP': cpp_b,
-        'Estilo': estilo_b, 'Psicologico': psicologico_b,
-    }
+    pilares_a = {'MA': ma_a, 'FG': fg_a, 'CPP': cpp_a, 'Estilo': estilo_a, 'Psicologico': psicologico_a}
+    pilares_b = {'MA': ma_b, 'FG': fg_b, 'CPP': cpp_b, 'Estilo': estilo_b, 'Psicologico': psicologico_b}
 
-    ativos_ambos = {}
-    for pilar in ['MA', 'FG', 'CPP', 'Estilo', 'Psicologico']:
-        if pilares_a[pilar] is not None and pilares_b[pilar] is not None:
-            ativos_ambos[pilar] = True
-
+    ativos_ambos = {p for p in pilares_a if pilares_a[p] is not None and pilares_b[p] is not None}
     if not ativos_ambos:
-        return {
-            'EC_A': 50.0, 'EC_B': 50.0,
-            'P_A': 0.333, 'P_B': 0.333, 'P_E': 0.334,
-            'P_A_ou_E': 0.667, 'P_B_ou_E': 0.667,
-        }
+        return {'EC_A': 50.0, 'EC_B': 50.0, 'P_A': 0.333, 'P_B': 0.333, 'P_E': 0.334, 'P_A_ou_E': 0.667, 'P_B_ou_E': 0.667}
 
     peso_ativos = {p: pesos[p] for p in ativos_ambos}
     soma_pesos = sum(peso_ativos.values())
@@ -103,25 +77,19 @@ def calcular_engramscore(
             raise ValueError("time_mandante deve ser 'A' ou 'B'")
         bonus_a, bonus_b = b_a, b_b
 
-    ec_a += bonus_a
-    ec_b += bonus_b
-    ec_a = max(0.0, min(100.0, ec_a))
-    ec_b = max(0.0, min(100.0, ec_b))
+    ec_a = max(0.0, min(100.0, ec_a + bonus_a))
+    ec_b = max(0.0, min(100.0, ec_b + bonus_b))
 
+    # Probabilidade de empate baseada na diferença relativa
     soma = ec_a + ec_b
     if soma == 0:
         p_a = p_b = 0.333
         p_e = 0.334
     else:
-        p_a = ec_a / soma
-        p_b = ec_b / soma
-        p_e = 1.0 - p_a - p_b
-        if p_e < 0:
-            p_e = 0.0
-            total = p_a + p_b
-            if total > 0:
-                p_a /= total
-                p_b /= total
+        diff_rel = abs(ec_a - ec_b) / soma  # 0 a 1
+        p_e = max(0.10, 0.35 - diff_rel * 0.3)  # mínimo 10% de empate
+        p_a = (1.0 - p_e) * (ec_a / soma)
+        p_b = (1.0 - p_e) * (ec_b / soma)
 
     return {
         'EC_A': round(ec_a, 2),
@@ -133,12 +101,12 @@ def calcular_engramscore(
         'P_B_ou_E': round(p_b + p_e, 4),
     }
 
-# ==================== FUNÇÕES DE DESCRIÇÃO TEXTUAL ====================
-def descrever_fg(valor, nome_time):
-    if valor >= 70: return f"{nome_time} apresenta uma **Força Geral muito acima da média** ({valor:.0f})."
-    elif valor >= 55: return f"{nome_time} tem uma **Força Geral acima da média** ({valor:.0f})."
-    elif valor >= 45: return f"{nome_time} está com uma **Força Geral dentro da média** ({valor:.0f})."
-    else: return f"{nome_time} mostra uma **Força Geral abaixo da média** ({valor:.0f})."
+# ==================== FUNÇÕES DE DESCRIÇÃO ====================
+def descrever_fg(valor, nome):
+    if valor >= 70: return f"{nome} apresenta **Força Geral muito acima da média** ({valor:.0f})."
+    elif valor >= 55: return f"{nome} tem **Força Geral acima da média** ({valor:.0f})."
+    elif valor >= 45: return f"{nome} está com **Força Geral dentro da média** ({valor:.0f})."
+    else: return f"{nome} mostra **Força Geral abaixo da média** ({valor:.0f})."
 
 def descrever_estilo(vetor, nome):
     if not vetor: return ""
@@ -146,17 +114,33 @@ def descrever_estilo(vetor, nome):
     if not dims: return ""
     dim_max, valor_max = max(dims, key=lambda x: x[1])
     nomes = {
-        'posse': 'Posse/Paciência',
-        'pressao_alta': 'Pressão Alta',
-        'contra_ataque': 'Contra-ataque',
-        'jogo_laterais': 'Jogo pelas Laterais',
-        'jogo_meio': 'Jogo pelo Meio',
-        'transicao_rapida': 'Transição Rápida',
-        'defesa_bloco_baixo': 'Defesa em Bloco Baixo',
+        'posse': 'Posse/Paciência', 'pressao_alta': 'Pressão Alta', 'contra_ataque': 'Contra-ataque',
+        'jogo_laterais': 'Jogo pelas Laterais', 'jogo_meio': 'Jogo pelo Meio',
+        'transicao_rapida': 'Transição Rápida', 'defesa_bloco_baixo': 'Defesa em Bloco Baixo',
         'pressao_pos_perda': 'Pressão Pós-Perda'
     }
     nome_dim = nomes.get(dim_max, dim_max)
     return f"{nome} se destaca no estilo **{nome_dim}** ({valor_max:.0f}/100)."
+
+def gerar_descricao_completa(nome, ma, fg, cpp, estilo, psic, vetor_estilo, dados_fg, dados_estilo, prat):
+    linhas = []
+    linhas.append(f"### {nome}")
+    linhas.append(descrever_fg(fg, nome))
+    if ma is not None:
+        if ma >= 70: linhas.append(f"O Momento Atual é excelente ({ma:.0f}), indicando ótima fase.")
+        elif ma >= 50: linhas.append(f"O Momento Atual é estável ({ma:.0f}).")
+        else: linhas.append(f"O Momento Atual preocupa ({ma:.0f}), mostrando fase ruim.")
+    if cpp is not None:
+        if cpp >= 70: linhas.append(f"Histórico muito favorável contra esta prateleira ({cpp:.0f}).")
+        elif cpp >= 50: linhas.append(f"Histórico equilibrado contra esta prateleira ({cpp:.0f}).")
+        else: linhas.append(f"Histórico desfavorável contra esta prateleira ({cpp:.0f}).")
+    if vetor_estilo:
+        linhas.append(descrever_estilo(vetor_estilo, nome))
+    if psic is not None:
+        if psic >= 70: linhas.append(f"Fator psicológico muito positivo ({psic:.0f}).")
+        elif psic >= 45: linhas.append(f"Fator psicológico neutro ({psic:.0f}).")
+        else: linhas.append(f"Fator psicológico pode atrapalhar ({psic:.0f}).")
+    return "\n".join(linhas)
 
 # ==================== INTERFACE STREAMLIT ====================
 st.set_page_config(page_title="EngramsCore ⚽", page_icon="⚽", layout="wide")
@@ -168,15 +152,18 @@ st.markdown("""
     .stProgress > div > div { background-color: #FFD700; }
     .stMetric label, .stMetric [data-testid="stMetricValue"] { color: #FFD700 !important; }
     .stButton>button, .stTextInput>div>input, .stNumberInput>div>input {
-        background-color: #2a2a2a; color: #FFD700;
-        border: 1px solid #FFD700; border-radius: 5px;
+        background-color: #2a2a2a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px;
     }
     .stSlider>div>div>div { background-color: #FFD700; }
     .big-card {
         background: #1a1a1a; border: 1px solid #FFD700; border-radius: 15px;
         padding: 20px; margin: 10px 0; box-shadow: 0 0 20px rgba(255,215,0,0.2);
     }
+    .winner-card {
+        border: 2px solid #FFD700; box-shadow: 0 0 30px rgba(255,215,0,0.6);
+    }
     .metric-row { display: flex; justify-content: space-between; }
+    .selo { background-color: #FFD700; color: #0a0a0a; padding: 5px 10px; border-radius: 20px; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,7 +173,6 @@ st.markdown("<p style='color:#FFD700; font-size:1.2em;'>Sistema de Análise Espo
 # ==================== ENTRADA DE DADOS ====================
 st.header("📝 Dados do Confronto")
 
-# --- LIGA ---
 st.subheader("📊 Liga (Referências)")
 col_l1, col_l2, col_l3 = st.columns(3)
 with col_l1:
@@ -215,20 +201,14 @@ medias_liga = {
 }
 
 st.markdown("---")
-
-# --- TIMES A E B ---
 col_a, col_b = st.columns(2)
 
 with col_a:
     st.subheader("🏠 Time A (Mandante)")
     nome_a = st.text_input("Nome", "Time A", key="nome_a")
     n_jogos_a = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_a")
-
-    st.markdown("**Momento Atual**")
     odd_a = st.number_input("Odd Vitória", 1.01, 10.0, 1.80, 0.01, key="odd_a")
     res_a = st.text_input("Últ. resultados (V/E/D)", "VVEDV", key="res_a").upper()
-
-    st.markdown("**Força Geral**")
     gm_a = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_a")
     fa_a = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_a")
     xg_a = st.number_input("xG/j", 0.0, 5.0, 1.8, 0.1, key="xg_a")
@@ -236,48 +216,37 @@ with col_a:
     xga_a = st.number_input("xG contra/j", 0.0, 5.0, 0.9, 0.1, key="xga_a")
     cb_a = st.number_input("Chutes bloqueados/j", 0.0, 10.0, 2.0, 0.1, key="cb_a")
     posse_a = st.slider("Posse %", 0, 100, 55, key="posse_a")
-
-    st.markdown("**Confronto por Prateleira**")
-    pts_cpp_a = st.number_input("Pontos", 0, 30, 6, key="pcpp_a")
-    jogos_cpp_a = st.number_input("Jogos", 0, 10, 3, key="jcpp_a")
-
-    st.markdown("**Estilo de Jogo**")
-    dados_estilo_a_input = {}
-    posse_est_a = st.number_input("Posse %", 0.0, 100.0, 55.0, key="a_posse")
-    if posse_est_a > 0: dados_estilo_a_input['posse'] = posse_est_a
+    pts_cpp_a = st.number_input("Pontos CPP", 0, 30, 6, key="pcpp_a")
+    jogos_cpp_a = st.number_input("Jogos CPP", 0, 10, 3, key="jcpp_a")
+    dados_estilo_a = {}
+    posse_est_a = st.number_input("Posse % (estilo)", 0.0, 100.0, 55.0, key="a_posse")
+    if posse_est_a > 0: dados_estilo_a['posse'] = posse_est_a
     ppda_a = st.number_input("PPDA", 0.0, 20.0, 0.0, key="a_ppda")
-    if ppda_a > 0: dados_estilo_a_input['ppda'] = ppda_a
+    if ppda_a > 0: dados_estilo_a['ppda'] = ppda_a
     acoes_to_a = st.number_input("Desarmes/j", 0.0, 50.0, 0.0, key="a_acoes_to")
-    if acoes_to_a > 0: dados_estilo_a_input['acoes_to'] = acoes_to_a
+    if acoes_to_a > 0: dados_estilo_a['acoes_to'] = acoes_to_a
     gols_ca_a = st.number_input("Gols contra-ataque/j", 0.0, 5.0, 0.0, key="a_gols_ca")
-    if gols_ca_a > 0: dados_estilo_a_input['gols_ca'] = gols_ca_a
+    if gols_ca_a > 0: dados_estilo_a['gols_ca'] = gols_ca_a
     chutes_trans_a = st.number_input("Chutes transição/j", 0.0, 10.0, 0.0, key="a_chutes_trans")
-    if chutes_trans_a > 0: dados_estilo_a_input['chutes_trans'] = chutes_trans_a
+    if chutes_trans_a > 0: dados_estilo_a['chutes_trans'] = chutes_trans_a
     cruzamentos_a = st.number_input("Cruzamentos/j", 0.0, 50.0, 0.0, key="a_cruzamentos")
-    if cruzamentos_a > 0: dados_estilo_a_input['cruzamentos'] = cruzamentos_a
+    if cruzamentos_a > 0: dados_estilo_a['cruzamentos'] = cruzamentos_a
     escanteios_a = st.number_input("Escanteios/j", 0.0, 20.0, 0.0, key="a_escanteios")
-    if escanteios_a > 0: dados_estilo_a_input['escanteios'] = escanteios_a
+    if escanteios_a > 0: dados_estilo_a['escanteios'] = escanteios_a
     passes_longos_a = st.number_input("Passes longos/j", 0.0, 100.0, 0.0, key="a_passes_longos")
-    if passes_longos_a > 0: dados_estilo_a_input['passes_longos'] = passes_longos_a
-
-    st.markdown("**Psicológico**")
-    cons_a = st.text_input("Últ. 10 resultados", "VVEDVVEDVV", key="cons_a").upper()
+    if passes_longos_a > 0: dados_estilo_a['passes_longos'] = passes_longos_a
+    cons_a = st.text_input("Últ. 10 resultados (psic.)", "VVEDVVEDVV", key="cons_a").upper()
     moral_a = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_a")
     p_obj_a = st.slider("Pressão", 0, 100, 40, key="pobj_a")
     sens_a = st.slider("Sensibilidade", -1.0, 1.0, 0.0, 0.1, key="sens_a")
-
     prat_a = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítico"], key="prat_a")
 
 with col_b:
     st.subheader("✈️ Time B (Visitante)")
     nome_b = st.text_input("Nome", "Time B", key="nome_b")
     n_jogos_b = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_b")
-
-    st.markdown("**Momento Atual**")
     odd_b = st.number_input("Odd Vitória", 1.01, 10.0, 4.00, 0.01, key="odd_b")
     res_b = st.text_input("Últ. resultados (V/E/D)", "DDVVE", key="res_b").upper()
-
-    st.markdown("**Força Geral**")
     gm_b = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_b")
     fa_b = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_b")
     xg_b = st.number_input("xG/j", 0.0, 5.0, 1.2, 0.1, key="xg_b")
@@ -285,45 +254,35 @@ with col_b:
     xga_b = st.number_input("xG contra/j", 0.0, 5.0, 1.4, 0.1, key="xga_b")
     cb_b = st.number_input("Chutes bloqueados/j", 0.0, 10.0, 1.5, 0.1, key="cb_b")
     posse_b = st.slider("Posse %", 0, 100, 48, key="posse_b")
-
-    st.markdown("**Confronto por Prateleira**")
-    pts_cpp_b = st.number_input("Pontos", 0, 30, 4, key="pcpp_b")
-    jogos_cpp_b = st.number_input("Jogos", 0, 10, 2, key="jcpp_b")
-
-    st.markdown("**Estilo de Jogo**")
-    dados_estilo_b_input = {}
-    posse_est_b = st.number_input("Posse %", 0.0, 100.0, 48.0, key="b_posse")
-    if posse_est_b > 0: dados_estilo_b_input['posse'] = posse_est_b
+    pts_cpp_b = st.number_input("Pontos CPP", 0, 30, 4, key="pcpp_b")
+    jogos_cpp_b = st.number_input("Jogos CPP", 0, 10, 2, key="jcpp_b")
+    dados_estilo_b = {}
+    posse_est_b = st.number_input("Posse % (estilo)", 0.0, 100.0, 48.0, key="b_posse")
+    if posse_est_b > 0: dados_estilo_b['posse'] = posse_est_b
     ppda_b = st.number_input("PPDA", 0.0, 20.0, 0.0, key="b_ppda")
-    if ppda_b > 0: dados_estilo_b_input['ppda'] = ppda_b
+    if ppda_b > 0: dados_estilo_b['ppda'] = ppda_b
     acoes_to_b = st.number_input("Desarmes/j", 0.0, 50.0, 0.0, key="b_acoes_to")
-    if acoes_to_b > 0: dados_estilo_b_input['acoes_to'] = acoes_to_b
+    if acoes_to_b > 0: dados_estilo_b['acoes_to'] = acoes_to_b
     gols_ca_b = st.number_input("Gols contra-ataque/j", 0.0, 5.0, 0.0, key="b_gols_ca")
-    if gols_ca_b > 0: dados_estilo_b_input['gols_ca'] = gols_ca_b
+    if gols_ca_b > 0: dados_estilo_b['gols_ca'] = gols_ca_b
     chutes_trans_b = st.number_input("Chutes transição/j", 0.0, 10.0, 0.0, key="b_chutes_trans")
-    if chutes_trans_b > 0: dados_estilo_b_input['chutes_trans'] = chutes_trans_b
+    if chutes_trans_b > 0: dados_estilo_b['chutes_trans'] = chutes_trans_b
     cruzamentos_b = st.number_input("Cruzamentos/j", 0.0, 50.0, 0.0, key="b_cruzamentos")
-    if cruzamentos_b > 0: dados_estilo_b_input['cruzamentos'] = cruzamentos_b
+    if cruzamentos_b > 0: dados_estilo_b['cruzamentos'] = cruzamentos_b
     escanteios_b = st.number_input("Escanteios/j", 0.0, 20.0, 0.0, key="b_escanteios")
-    if escanteios_b > 0: dados_estilo_b_input['escanteios'] = escanteios_b
+    if escanteios_b > 0: dados_estilo_b['escanteios'] = escanteios_b
     passes_longos_b = st.number_input("Passes longos/j", 0.0, 100.0, 0.0, key="b_passes_longos")
-    if passes_longos_b > 0: dados_estilo_b_input['passes_longos'] = passes_longos_b
-
-    st.markdown("**Psicológico**")
-    cons_b = st.text_input("Últ. 10 resultados", "DDVVEDDVV", key="cons_b").upper()
+    if passes_longos_b > 0: dados_estilo_b['passes_longos'] = passes_longos_b
+    cons_b = st.text_input("Últ. 10 resultados (psic.)", "DDVVEDDVV", key="cons_b").upper()
     moral_b = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_b")
     p_obj_b = st.slider("Pressão", 0, 100, 60, key="pobj_b")
     sens_b = st.slider("Sensibilidade", -1.0, 1.0, -0.3, 0.1, key="sens_b")
-
     prat_b = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítico"], key="prat_b")
 
-# Botão Gerar
-st.markdown("---")
 gerar = st.button("⚡ Gerar Engrama", type="primary")
 
-# ==================== RESULTADOS ====================
 if gerar:
-    # --- Processamento ---
+    # --- Cálculos ---
     _, v_a, d_a = calcular_pontos_e_resultados(list(res_a))
     ma_a = calcular_ma(sum(3 if c=='V' else 1 if c=='E' else 0 for c in res_a), v_a, d_a, odd_a)
     _, v_b, d_b = calcular_pontos_e_resultados(list(res_b))
@@ -339,10 +298,10 @@ if gerar:
     cpp_a = calcular_cpp(pts_cpp_a, jogos_cpp_a, odd_a)
     cpp_b = calcular_cpp(pts_cpp_b, jogos_cpp_b, odd_b)
 
-    vetor_a = calcular_vetor_estilo(dados_estilo_a_input, medias_liga, n_jogos_a)
-    vetor_b = calcular_vetor_estilo(dados_estilo_b_input, medias_liga, n_jogos_b)
-    estilo_a = calcular_estilo(dados_estilo_a_input, medias_liga, n_jogos_a, vetor_b) if vetor_b else 50.0
-    estilo_b = calcular_estilo(dados_estilo_b_input, medias_liga, n_jogos_b, vetor_a) if vetor_a else 50.0
+    vetor_a = calcular_vetor_estilo(dados_estilo_a, medias_liga, n_jogos_a)
+    vetor_b = calcular_vetor_estilo(dados_estilo_b, medias_liga, n_jogos_b)
+    estilo_a = calcular_estilo(dados_estilo_a, medias_liga, n_jogos_a, vetor_b) if vetor_b else 50.0
+    estilo_b = calcular_estilo(dados_estilo_b, medias_liga, n_jogos_b, vetor_a) if vetor_a else 50.0
 
     psic_a = calcular_psicologico(
         consistencia_pontos=[3 if c=='V' else 1 if c=='E' else 0 for c in cons_a],
@@ -363,115 +322,100 @@ if gerar:
         time_mandante='A'
     )
 
-    # --- EXIBIÇÃO DOS RESULTADOS (MODERNA) ---
-    st.header("📊 Dashboard do Confronto")
+    # ==================== RESULTADOS EM ABAS ====================
+    tab_visao, tab_graficos, tab_mercados, tab_descritivo = st.tabs([
+        "📊 Visão Geral", "📈 Gráficos", "💰 Mercados & Probabilidades", "📝 Análise Descritiva"
+    ])
 
-    # 1. CARDS DOS PILARES (A vs B lado a lado)
     pilares = ['MA', 'FG', 'CPP', 'Estilo', 'Psicológico']
     vals_a = [ma_a, fg_a, cpp_a, estilo_a, psic_a]
     vals_b = [ma_b, fg_b, cpp_b, estilo_b, psic_b]
 
-    st.subheader("📈 Pilares de Força")
-    for i, p in enumerate(pilares):
-        col1, col2 = st.columns(2)
-        with col1:
-            with st.container():
-                st.markdown(f"<div class='big-card'><h4 style='color:#FFD700;'>{p} - {nome_a}</h4>", unsafe_allow_html=True)
-                st.metric("", f"{vals_a[i]:.0f}", delta=f"{vals_a[i]-vals_b[i]:.0f} vs {nome_b}")
+    # ---------- ABA VISÃO GERAL ----------
+    with tab_visao:
+        st.header("Confronto Direto")
+        for i, p in enumerate(pilares):
+            c1, c2 = st.columns(2)
+            win_a = vals_a[i] > vals_b[i]
+            win_b = vals_b[i] > vals_a[i]
+            with c1:
+                st.markdown(f"<div class='big-card {'winner-card' if win_a else ''}'>", unsafe_allow_html=True)
+                st.metric(f"{p} - {nome_a}", f"{vals_a[i]:.0f}", delta=f"{vals_a[i]-vals_b[i]:.0f}")
                 st.progress(int(vals_a[i]))
                 st.markdown("</div>", unsafe_allow_html=True)
-        with col2:
-            with st.container():
-                st.markdown(f"<div class='big-card'><h4 style='color:#FFD700;'>{p} - {nome_b}</h4>", unsafe_allow_html=True)
-                st.metric("", f"{vals_b[i]:.0f}", delta=f"{vals_b[i]-vals_a[i]:.0f} vs {nome_a}")
+            with c2:
+                st.markdown(f"<div class='big-card {'winner-card' if win_b else ''}'>", unsafe_allow_html=True)
+                st.metric(f"{p} - {nome_b}", f"{vals_b[i]:.0f}", delta=f"{vals_b[i]-vals_a[i]:.0f}")
                 st.progress(int(vals_b[i]))
                 st.markdown("</div>", unsafe_allow_html=True)
 
-    # 2. GRÁFICO RADAR
-    st.subheader("🎯 Radar Comparativo")
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(r=vals_a, theta=pilares, fill='toself', name=nome_a, marker=dict(color='#FFD700')))
-    fig_radar.add_trace(go.Scatterpolar(r=vals_b, theta=pilares, fill='toself', name=nome_b, marker=dict(color='#B8860B')))
-    fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0,100])), showlegend=True, template='plotly_dark')
-    st.plotly_chart(fig_radar, use_container_width=True)
+        st.subheader("🏆 EngramsCore")
+        col_ec1, col_ec2 = st.columns(2)
+        with col_ec1:
+            st.markdown(f"<div class='big-card {'winner-card' if ec['EC_A'] > ec['EC_B'] else ''}'>", unsafe_allow_html=True)
+            st.markdown(f"<h2>{nome_a}</h2><h1>{ec['EC_A']:.1f}</h1>", unsafe_allow_html=True)
+            st.progress(int(ec['EC_A']))
+            st.markdown("</div>", unsafe_allow_html=True)
+        with col_ec2:
+            st.markdown(f"<div class='big-card {'winner-card' if ec['EC_B'] > ec['EC_A'] else ''}'>", unsafe_allow_html=True)
+            st.markdown(f"<h2>{nome_b}</h2><h1>{ec['EC_B']:.1f}</h1>", unsafe_allow_html=True)
+            st.progress(int(ec['EC_B']))
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    # 3. ESTILOS DE JOGO
-    st.subheader("🎨 Estilos de Jogo")
-    col_est1, col_est2 = st.columns(2)
-    with col_est1:
-        st.markdown(f"**{nome_a}**")
-        if vetor_a:
-            dims = list(vetor_a.keys())
-            vals_dim_a = [vetor_a[d] if vetor_a[d] is not None else 0 for d in dims]
-            max_dim_a = dims[vals_dim_a.index(max(vals_dim_a))]
-            st.markdown(f"🔷 **Ênfase principal:** {max_dim_a.replace('_',' ').title()} ({max(vals_dim_a):.0f})")
-            fig_bar_a = px.bar(x=vals_dim_a, y=dims, orientation='h',
-                               color=[1 if d==max_dim_a else 0 for d in dims],
-                               color_continuous_scale=['#B8860B','#FFD700'])
-            fig_bar_a.update_layout(template='plotly_dark', showlegend=False, height=300)
-            st.plotly_chart(fig_bar_a, use_container_width=True)
-            st.markdown(descrever_estilo(vetor_a, nome_a))
-        else:
-            st.info("Nenhum dado de estilo fornecido.")
-    with col_est2:
-        st.markdown(f"**{nome_b}**")
-        if vetor_b:
-            dims = list(vetor_b.keys())
-            vals_dim_b = [vetor_b[d] if vetor_b[d] is not None else 0 for d in dims]
-            max_dim_b = dims[vals_dim_b.index(max(vals_dim_b))]
-            st.markdown(f"🔷 **Ênfase principal:** {max_dim_b.replace('_',' ').title()} ({max(vals_dim_b):.0f})")
-            fig_bar_b = px.bar(x=vals_dim_b, y=dims, orientation='h',
-                               color=[1 if d==max_dim_b else 0 for d in dims],
-                               color_continuous_scale=['#B8860B','#FFD700'])
-            fig_bar_b.update_layout(template='plotly_dark', showlegend=False, height=300)
-            st.plotly_chart(fig_bar_b, use_container_width=True)
-            st.markdown(descrever_estilo(vetor_b, nome_b))
-        else:
-            st.info("Nenhum dado de estilo fornecido.")
+        st.subheader("🔮 Projeções Rápidas")
+        proj = [
+            ("Probabilidade de Vitória do Mandante", f"{ec['P_A']:.2%}"),
+            ("Probabilidade de Vitória do Visitante", f"{ec['P_B']:.2%}"),
+            ("Probabilidade de Empate", f"{ec['P_E']:.2%}"),
+            ("Dupla Chance Mandante/Empate", f"{ec['P_A_ou_E']:.2%}"),
+            ("Dupla Chance Visitante/Empate", f"{ec['P_B_ou_E']:.2%}"),
+            ("Diferença de Força (EC)", f"{abs(ec['EC_A']-ec['EC_B']):.1f}"),
+            ("Média de Gols Esperada (modelo)", f"{calcular_mercado_gols(gm_a, gs_a, gm_b, gs_b, max(n_jogos_a,n_jogos_b), ma_a, ma_b, {'ataque':fg_a,'defesa':fg_a,'meio':fg_a}, {'ataque':fg_b,'defesa':fg_b,'meio':fg_b}, cpp_a, cpp_b, vetor_a, vetor_b, {'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a}, {'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b}, ec['EC_A'], ec['EC_B'], prat_a_num, prat_b_num, 1.90)['lambda_final']:.2f}"),
+            ("Vantagem Tática (Estilo)", f"{estilo_a - estilo_b:.1f}"),
+            ("Pressão Psicológica", f"{psic_a - psic_b:.1f}"),
+            ("Consistência Recente", f"{ma_a - ma_b:.1f}"),
+        ]
+        df_proj = pd.DataFrame(proj, columns=["Indicador", "Valor"])
+        st.table(df_proj)
 
-    # 4. ENGRAMS CORE & PROBABILIDADES
-    st.subheader("⚡ EngramsCore & Probabilidades")
-    col_ec1, col_ec2 = st.columns(2)
-    with col_ec1:
-        st.markdown(f"<div class='big-card'><h2 style='text-align:center;color:#FFD700;'>{nome_a}</h2>", unsafe_allow_html=True)
-        st.markdown(f"<h1 style='text-align:center;color:#FFD700;'>{ec['EC_A']:.1f}</h1>", unsafe_allow_html=True)
-        st.progress(int(ec['EC_A']))
-        st.markdown("</div>", unsafe_allow_html=True)
-    with col_ec2:
-        st.markdown(f"<div class='big-card'><h2 style='text-align:center;color:#FFD700;'>{nome_b}</h2>", unsafe_allow_html=True)
-        st.markdown(f"<h1 style='text-align:center;color:#FFD700;'>{ec['EC_B']:.1f}</h1>", unsafe_allow_html=True)
-        st.progress(int(ec['EC_B']))
-        st.markdown("</div>", unsafe_allow_html=True)
+    # ---------- ABA GRÁFICOS ----------
+    with tab_graficos:
+        st.subheader("Radar Comparativo")
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(r=vals_a, theta=pilares, fill='toself', name=nome_a, marker=dict(color='#FFD700')))
+        fig_radar.add_trace(go.Scatterpolar(r=vals_b, theta=pilares, fill='toself', name=nome_b, marker=dict(color='#B8860B')))
+        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0,100])), template='plotly_dark')
+        st.plotly_chart(fig_radar, use_container_width=True)
 
-    st.markdown("---")
-    st.markdown("**Probabilidades 1X2**")
-    prob_df = pd.DataFrame({
-        'Resultado': [f'{nome_a} Vitória', 'Empate', f'{nome_b} Vitória'],
-        'Probabilidade': [ec['P_A'], ec['P_E'], ec['P_B']]
-    })
-    fig_prob = px.bar(prob_df, x='Resultado', y='Probabilidade',
-                      color='Resultado', color_discrete_sequence=['#FFD700','#B8860B','#8B7500'])
-    st.plotly_chart(fig_prob, use_container_width=True)
+        st.subheader("Estilos de Jogo")
+        col_e1, col_e2 = st.columns(2)
+        for col, vetor, nome in [(col_e1, vetor_a, nome_a), (col_e2, vetor_b, nome_b)]:
+            with col:
+                st.markdown(f"**{nome}**")
+                if vetor:
+                    dims = list(vetor.keys())
+                    vals_dim = [vetor[d] if vetor[d] is not None else 0 for d in dims]
+                    max_dim = dims[vals_dim.index(max(vals_dim))]
+                    st.markdown(f"🔷 Ênfase: **{max_dim.replace('_',' ').title()}** ({max(vals_dim):.0f})")
+                    fig = px.bar(x=vals_dim, y=dims, orientation='h',
+                                 color=[1 if d==max_dim else 0 for d in dims],
+                                 color_continuous_scale=['#B8860B','#FFD700'])
+                    fig.update_layout(template='plotly_dark', showlegend=False, height=300)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Sem dados de estilo.")
 
-    col_dc1, col_dc2 = st.columns(2)
-    with col_dc1:
-        st.markdown(f"<div class='big-card'><h4 style='color:#FFD700;'>Dupla Chance {nome_a} ou Empate</h4><h2>{ec['P_A_ou_E']:.2%}</h2></div>", unsafe_allow_html=True)
-    with col_dc2:
-        st.markdown(f"<div class='big-card'><h4 style='color:#FFD700;'>Dupla Chance {nome_b} ou Empate</h4><h2>{ec['P_B_ou_E']:.2%}</h2></div>", unsafe_allow_html=True)
+    # ---------- ABA MERCADOS & PROBABILIDADES ----------
+    with tab_mercados:
+        st.header("Probabilidades 1X2")
+        col_p1, col_p2, col_p3 = st.columns(3)
+        col_p1.metric(f"Vitória {nome_a}", f"{ec['P_A']:.2%}")
+        col_p2.metric("Empate", f"{ec['P_E']:.2%}")
+        col_p3.metric(f"Vitória {nome_b}", f"{ec['P_B']:.2%}")
+        col_d1, col_d2 = st.columns(2)
+        col_d1.metric(f"Dupla {nome_a} ou Empate", f"{ec['P_A_ou_E']:.2%}")
+        col_d2.metric(f"Dupla {nome_b} ou Empate", f"{ec['P_B_ou_E']:.2%}")
 
-    # 5. DESCRIÇÕES
-    st.subheader("📝 Análise Descritiva")
-    desc_a = [descrever_fg(fg_a, nome_a)]
-    if vetor_a: desc_a.append(descrever_estilo(vetor_a, nome_a))
-    st.markdown(" ".join(desc_a))
-    desc_b = [descrever_fg(fg_b, nome_b)]
-    if vetor_b: desc_b.append(descrever_estilo(vetor_b, nome_b))
-    st.markdown(" ".join(desc_b))
-
-    # 6. MERCADO DE GOLS (ABA SEPARADA)
-    st.markdown("---")
-    tabs = st.tabs(["⚽ Mercado de Gols"])
-    with tabs[0]:
         st.header("⚽ Mercado de Gols")
         odd_over25 = st.number_input("Odd Over 2.5", 1.01, 10.0, 1.90, 0.01, key="odd_over")
         gols = calcular_mercado_gols(
@@ -496,4 +440,34 @@ if gerar:
         col_g4, col_g5 = st.columns(2)
         col_g4.metric("BTTS Sim", f"{gols['btts_yes']:.2%}")
         col_g5.metric("BTTS Não", f"{gols['btts_no']:.2%}")
-        st.caption(f"λ modelo: {gols['lambda_modelo']:.3f} | λ mercado: {gols['lambda_mercado']:.3f} | λ final: {gols['lambda_final']:.3f}")
+
+        st.subheader("🔍 Selos de Validação")
+        prob_mercado = 1.0 / odd_over25 if odd_over25 > 0 else 0
+        nosso_over = gols['over_2.5']
+        edge = nosso_over - prob_mercado
+        if edge > 0.1:
+            st.success(f"🚀 Edge Over 2.5: +{edge:.2%} (Confiança Alta)")
+        elif edge > 0.05:
+            st.info(f"📈 Edge Over 2.5: +{edge:.2%} (Confiança Média)")
+        elif edge < -0.1:
+            st.error(f"🔻 Under 2.5 favorecido: {1-nosso_over:.2%} (modelo) vs {1-prob_mercado:.2%} (mercado)")
+        else:
+            st.warning("Sem edge significativo no Over/Under 2.5.")
+
+        prob_1 = 1.0 / odd_a if odd_a > 0 else 0
+        edge_1 = ec['P_A'] - prob_1
+        if edge_1 > 0.1:
+            st.success(f"🏆 Edge Vitória {nome_a}: +{edge_1:.2%}")
+        prob_2 = 1.0 / odd_b if odd_b > 0 else 0
+        edge_2 = ec['P_B'] - prob_2
+        if edge_2 > 0.1:
+            st.success(f"🏆 Edge Vitória {nome_b}: +{edge_2:.2%}")
+
+    # ---------- ABA ANÁLISE DESCRITIVA ----------
+    with tab_descritivo:
+        st.header("Análise Inteligente")
+        desc_a = gerar_descricao_completa(nome_a, ma_a, fg_a, cpp_a, estilo_a, psic_a, vetor_a, dados_fg_a, dados_estilo_a, prat_a)
+        desc_b = gerar_descricao_completa(nome_b, ma_b, fg_b, cpp_b, estilo_b, psic_b, vetor_b, dados_fg_b, dados_estilo_b, prat_b)
+        st.markdown(desc_a)
+        st.markdown("---")
+        st.markdown(desc_b)
