@@ -1,36 +1,23 @@
-"""
-Métrica CPP - Confronto por Prateleira
-
-Avalia o desempenho histórico de uma equipe contra adversários da mesma
-prateleira que o oponente do próximo jogo.
-
-- Se houver pelo menos N_MIN jogos, usa o aproveitamento real (0–100).
-- Caso contrário, combina o pouco histórico com a odd fornecida manualmente,
-  usando o parâmetro ALPHA_CPP.
-"""
-
-# Parâmetros do método (não são dados fictícios)
-N_MIN = 3        # número mínimo de jogos para confiar apenas no histórico
-ALPHA_CPP = 3.0  # peso da odd na mistura quando n < N_MIN
-
-
+# cpp.py
 def _aproveitamento(pontos: int, jogos: int) -> float:
-    """Retorna o aproveitamento percentual (0–100)."""
+    """Aproveitamento percentual (0-100)."""
     if jogos == 0:
         return 0.0
     return (pontos / (3 * jogos)) * 100
 
 
-def calcular_cpp(pontos: int, jogos: int, odd: float,
-                 n_min: int = N_MIN, alpha: float = ALPHA_CPP) -> float:
+def calcular_cpp(pontos: int, jogos: int,
+                 prob_vitoria: float, prob_empate: float,
+                 n_min: int = 3, alpha: float = 3.0) -> float:
     """
-    Calcula o CPP de um time contra a prateleira do adversário.
+    CPP corrigido: usa probabilidades justas de vitória e empate.
 
     Parâmetros:
-        pontos: total de pontos conquistados nos jogos contra a prateleira alvo.
-        jogos: número de jogos contra essa prateleira.
-        odd: odd de vitória do time no próximo jogo (1X2).
-        n_min: jogos mínimos para usar só histórico.
+        pontos: total de pontos (3 por vitória, 1 por empate).
+        jogos: número de jogos contra a prateleira.
+        prob_vitoria: probabilidade justa de vitória (0–1).
+        prob_empate: probabilidade justa de empate (0–1).
+        n_min: jogos mínimos para confiar só no histórico.
         alpha: peso da odd na mistura.
 
     Retorna:
@@ -39,12 +26,14 @@ def calcular_cpp(pontos: int, jogos: int, odd: float,
     if jogos >= n_min:
         return _aproveitamento(pontos, jogos)
 
-    # Mistura entre histórico real e probabilidade implícita da odd
-    apro = _aproveitamento(pontos, jogos)
-    prob_odd = (1.0 / odd) * 100.0
+    if prob_vitoria + prob_empate > 1.0:
+        raise ValueError("prob_vitoria + prob_empate > 1.0")
+
+    apro_real = _aproveitamento(pontos, jogos)
+    pontos_esperados = prob_vitoria * 3 + prob_empate * 1
+    apro_esperado = (pontos_esperados / 3) * 100.0
 
     if jogos == 0:
-        return prob_odd
+        return apro_esperado
 
-    # Média ponderada: histórico (peso jogos) + odd (peso alpha)
-    return (jogos * apro + alpha * prob_odd) / (jogos + alpha)
+    return (jogos * apro_real + alpha * apro_esperado) / (jogos + alpha)
