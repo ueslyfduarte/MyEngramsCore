@@ -203,7 +203,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
     cpp_A = calcular_cpp(pts_cpp_casa, jogos_cpp_casa, prob_v_casa, prob_emp)
     cpp_B = calcular_cpp(pts_cpp_fora, jogos_cpp_fora, prob_v_fora, prob_emp)
 
-    # Estilo (nota de dominância)
+    # Estilo
     estilo_A = calcular_estilo(dados_A, medias_liga, n_casa)
     estilo_B = calcular_estilo(dados_B, medias_liga, n_fora)
 
@@ -212,7 +212,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
     perfil_B = obter_perfil_time(dados_B, medias_liga)
 
     # Pressão
-    dif_pts = (pos_casa - pos_fora) * 3  # simplificação
+    dif_pts = (pos_casa - pos_fora) * 3
     p_obj_A = calcular_pressao_tabela(pos_casa, 20, pos_fora, dif_pts)
     p_obj_B = calcular_pressao_tabela(pos_fora, 20, pos_casa, -dif_pts)
 
@@ -230,8 +230,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
     PESOS = {'MA': 0.25, 'FG': 0.25, 'CPP': 0.25, 'Psicologico': 0.25}
     EC_A = (ma_A*PESOS['MA'] + fg_A*PESOS['FG'] + cpp_A*PESOS['CPP'] + psic_A*PESOS['Psicologico'])
     EC_B = (ma_B*PESOS['MA'] + fg_B*PESOS['FG'] + cpp_B*PESOS['CPP'] + psic_B*PESOS['Psicologico'])
-    # bônus casa
-    EC_A += 2.0
+    EC_A += 2.0  # bônus casa
     EC_A = max(0, min(100, EC_A))
     EC_B = max(0, min(100, EC_B))
 
@@ -241,6 +240,42 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
     p_emp = max(0.18, 0.40 - diff_rel*0.3)
     p_A = (1 - p_emp) * (EC_A/total) if total>0 else 0.33
     p_B = 1 - p_A - p_emp
+
+    # -------------------------------
+    # PROBABILIDADES DE GOLS (POISSON)
+    # -------------------------------
+    lambda_casa = (gm_casa + gs_fora) / 2
+    lambda_fora = (gm_fora + gs_casa) / 2
+    results = []
+    for i in range(6):
+        for j in range(6):
+            prob = math.exp(-lambda_casa)*(lambda_casa**i)/math.factorial(i) * \
+                   math.exp(-lambda_fora)*(lambda_fora**j)/math.factorial(j)
+            results.append((i, j, prob))
+    vitoria_casa = sum(p for gA,gB,p in results if gA>gB)
+    empate = sum(p for gA,gB,p in results if gA==gB)
+    vitoria_fora = sum(p for gA,gB,p in results if gA<gB)
+    over15 = sum(p for gA,gB,p in results if gA+gB > 1.5)
+    over25 = sum(p for gA,gB,p in results if gA+gB > 2.5)
+    over35 = sum(p for gA,gB,p in results if gA+gB > 3.5)
+    btts = sum(p for gA,gB,p in results if gA>0 and gB>0)
+
+    # -------------------------------
+    # GOL NO 1º TEMPO (MODELO PRÓPRIO)
+    # -------------------------------
+    # Fator de 1º tempo: ~44% dos gols ocorrem no 1º tempo (média histórica)
+    FATOR_HT = 0.44
+    # Ajuste por estilo: times de pressão alta marcam mais cedo; times reativos sofrem menos cedo
+    ajuste_estilo = 0
+    if perfil_A in ["Pressão Alta", "Dominante"]:
+        ajuste_estilo += 0.05
+    if perfil_B in ["Pressão Alta", "Dominante"]:
+        ajuste_estilo -= 0.05
+    # Ajuste por momento (MA alto = time confiante, tende a atacar cedo)
+    ajuste_ma = (ma_A - 50) * 0.001 + (ma_B - 50) * 0.001
+    # Lambda do 1º tempo
+    lambda_ht = (lambda_casa + lambda_fora) * (FATOR_HT + ajuste_estilo + ajuste_ma)
+    prob_gol_ht = 1 - math.exp(-lambda_ht)
 
     # -------------------------------
     # MY ENGRAM SCORE (APENAS OS DOIS ÍNDICES)
@@ -291,6 +326,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         "⚔️ Comparação Setorial",
         "🗺️ Heatmap Tático",
         "🎲 Simulação de Cenários",
+        "📋 Dados para os Mercados",
         "💰 Mercados & Edge"
     ])
 
@@ -331,7 +367,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         st.markdown("<small>Quanto mais próximo da borda, melhor o setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 2: Comparação Setorial (mantida) -----
+    # ----- ABA 2: Comparação Setorial -----
     with tabs[1]:
         st.markdown("<div class='card'><div class='card-header'>⚔️ Confronto por Estatística</div>", unsafe_allow_html=True)
         stats = [
@@ -350,7 +386,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
             st.markdown(f"**{nome}**: {nome_casa} {vA:.1f} vs {nome_fora} {vB:.1f} → Vantagem: **{vant}**")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 3: Heatmap (mantido) -----
+    # ----- ABA 3: Heatmap -----
     with tabs[2]:
         st.markdown("<div class='card'><div class='card-header'>🗺️ Heatmap Tático (Força por Zona)</div>", unsafe_allow_html=True)
         zonas = ['Defesa', 'Meio', 'Ataque']
@@ -373,31 +409,24 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         st.markdown("<small>Dourado = Casa, Azul = Visitante. Intensidade da cor reflete a força no setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 4: Simulação de Cenários (Análise Narrativa + Placar) -----
+    # ----- ABA 4: Simulação de Cenários -----
     with tabs[3]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>🎲 Simulação de Cenários</div>", unsafe_allow_html=True)
 
-        # ---- ANÁLISE NARRATIVA ----
         st.markdown("**📝 Análise do Confronto**")
-
-        # Determinar quem tem vantagem em posse e ataque
         if posse_casa > posse_fora + 5:
             dominio = f"{nome_casa} deve controlar a posse de bola e ditar o ritmo."
         elif posse_fora > posse_casa + 5:
             dominio = f"{nome_fora} deve ter mais posse, mesmo atuando fora de casa."
         else:
             dominio = "A posse de bola tende a ser equilibrada, com ambos tentando propor jogo."
-
-        # Finalizações
         if fa_casa > fa_fora + 2:
             final = f"{nome_casa} deve criar mais volume ofensivo, finalizando mais vezes ao gol."
         elif fa_fora > fa_casa + 2:
             final = f"{nome_fora} deve ser mais incisivo nas finalizações, explorando contra-ataques."
         else:
             final = "O número de finalizações deve ser parelho, com chances para os dois lados."
-
-        # Estilos táticos
         if perfil_A == "Dominante" and perfil_B == "Reativo / Contra-ataque":
             estilo_txt = f"{nome_casa} (Dominante) pressionará a saída de bola, enquanto {nome_fora} (Reativo) apostará em transições rápidas."
         elif perfil_B == "Dominante" and perfil_A == "Reativo / Contra-ataque":
@@ -408,8 +437,6 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
             estilo_txt = f"{nome_fora} tentará pressionar a saída do {nome_casa}, que deverá se fechar."
         else:
             estilo_txt = "Os estilos de jogo são compatíveis, sem um claro desequilíbrio tático."
-
-        # Probabilidades de resultado
         if p_A > 0.45:
             cenario = f"O cenário mais provável é a vitória do {nome_casa}."
         elif p_B > 0.45:
@@ -417,47 +444,24 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         else:
             cenario = "O empate surge como o resultado mais provável, tamanho o equilíbrio."
 
-        # Texto final
         st.markdown(f"""
         > {dominio} {final} {estilo_txt}
 
         **{cenario}** (Probabilidades: {nome_casa} {p_A:.1%} | Empate {p_emp:.1%} | {nome_fora} {p_B:.1%})
         """)
 
-        # ---- PLACARES MAIS PROVÁVEIS (POISSON) ----
         st.markdown("---")
         st.markdown("**⚽ Placar mais provável (simulação estatística)**")
-        lambda_casa = (gm_casa + gs_fora) / 2
-        lambda_fora = (gm_fora + gs_casa) / 2
-        results = []
-        for i in range(6):
-            for j in range(6):
-                prob = math.exp(-lambda_casa)*(lambda_casa**i)/math.factorial(i) * \
-                       math.exp(-lambda_fora)*(lambda_fora**j)/math.factorial(j)
-                results.append((i, j, prob))
-        results.sort(key=lambda x: x[2], reverse=True)
-        top5 = results[:5]
-
+        top5 = sorted(results, key=lambda x: x[2], reverse=True)[:5]
         for idx, (gA, gB, prob) in enumerate(top5):
             st.markdown(f"{idx+1}. {nome_casa} {gA} x {gB} {nome_fora} — {prob*100:.1f}%")
 
-        # Agregados (opcional, já aparece na análise, mas podemos manter)
-        vitoria_casa = sum(p for gA,gB,p in results if gA>gB)
-        empate = sum(p for gA,gB,p in results if gA==gB)
-        vitoria_fora = sum(p for gA,gB,p in results if gA<gB)
-        over15 = sum(p for gA,gB,p in results if gA+gB > 1.5)
-        over25 = sum(p for gA,gB,p in results if gA+gB > 2.5)
-        over35 = sum(p for gA,gB,p in results if gA+gB > 3.5)
-        btts = sum(p for gA,gB,p in results if gA>0 and gB>0)
-
-        # Mostrar probabilidades de gols como referência (não duplicar com mercados, mas reforçar)
         st.markdown("---")
         st.markdown("**📊 Referência de Gols (Poisson)**")
         st.markdown(f"Over 1.5: {over15*100:.1f}% | Over 2.5: {over25*100:.1f}% | Over 3.5: {over35*100:.1f}% | BTTS: {btts*100:.1f}%")
-
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 5: MERCADOS & EDGE (inclui 1X2) -----
+    # ----- ABA 5: DADOS PARA OS MERCADOS (PROBABILIDADES DO MODELO) -----
     with tabs[4]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>📊 Probabilidades 1X2 (Modelo)</div>", unsafe_allow_html=True)
@@ -471,7 +475,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>⚽ Probabilidades de Gols</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>⚽ Probabilidades de Gols (Modelo)</div>", unsafe_allow_html=True)
         col_g1, col_g2, col_g3 = st.columns(3)
         col_g1.metric("Over 1.5", f"{over15:.1%}")
         col_g2.metric("Over 2.5", f"{over25:.1%}")
@@ -482,28 +486,70 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", use_container_width=Tru
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>💰 Comparação Modelo vs Mercado (Edge)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>⏱️ Gol no 1º Tempo (Modelo Proprietário)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='big-number'>{prob_gol_ht:.1%}</div>", unsafe_allow_html=True)
+        st.markdown(f"<small>Probabilidade de pelo menos um gol no 1º tempo. Base: λ={lambda_ht:.2f} gols esperados.</small>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>📈 Parâmetros do Modelo</div>", unsafe_allow_html=True)
+        params_df = pd.DataFrame([
+            ("Lambda Casa", lambda_casa),
+            ("Lambda Fora", lambda_fora),
+            ("Lambda Total", lambda_casa + lambda_fora),
+            ("Lambda 1º Tempo", lambda_ht),
+            ("Fator HT Base", 0.44),
+            ("Ajuste Estilo", ajuste_estilo),
+            ("Ajuste MA", ajuste_ma),
+        ], columns=["Parâmetro", "Valor"])
+        st.dataframe(params_df, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ----- ABA 6: MERCADOS & EDGE (COM INPUTS REAIS) -----
+    with tabs[5]:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>💰 Insira as Odds Reais de Mercado</div>", unsafe_allow_html=True)
+        st.markdown("<small>Preencha as odds para ver o edge (valor esperado). Deixe em branco para mercados não disponíveis.</small>", unsafe_allow_html=True)
+
+        col_odd_over25, col_odd_btts, col_odd_ht = st.columns(3)
+        with col_odd_over25:
+            odd_over25_real = st.number_input("Odd Over 2.5 Gols", min_value=1.01, max_value=20.0, value=0.0, step=0.01, format="%.2f", key="odd_over25_real")
+        with col_odd_btts:
+            odd_btts_real = st.number_input("Odd BTTS Sim", min_value=1.01, max_value=20.0, value=0.0, step=0.01, format="%.2f", key="odd_btts_real")
+        with col_odd_ht:
+            odd_ht_real = st.number_input("Odd Gol 1º Tempo (Sim)", min_value=1.01, max_value=20.0, value=0.0, step=0.01, format="%.2f", key="odd_ht_real")
+
+        st.markdown("---")
+        st.markdown("<div class='card-header'>📈 Comparação Modelo vs Mercado (Edge)</div>", unsafe_allow_html=True)
+
         odds_modelo = {
             f"Vitória {nome_casa}": 1/p_A if p_A>0 else 999,
             "Empate": 1/p_emp if p_emp>0 else 999,
             f"Vitória {nome_fora}": 1/p_B if p_B>0 else 999,
             "Over 2.5 Gols": 1/over25 if over25>0 else 999,
             "BTTS Sim": 1/btts if btts>0 else 999,
+            "Gol 1º Tempo": 1/prob_gol_ht if prob_gol_ht>0 else 999,
         }
-        # Você pode adicionar campos para odds reais de Over/BTTS se desejar
+
         odds_reais = {
             f"Vitória {nome_casa}": odd_casa,
             "Empate": odd_empate,
             f"Vitória {nome_fora}": odd_fora,
+            "Over 2.5 Gols": odd_over25_real if odd_over25_real > 0 else None,
+            "BTTS Sim": odd_btts_real if odd_btts_real > 0 else None,
+            "Gol 1º Tempo": odd_ht_real if odd_ht_real > 0 else None,
         }
+
         linhas = []
         for mercado, odd_mod in odds_modelo.items():
-            odd_real = odds_reais.get(mercado, None)
-            if odd_real is not None:
+            odd_real = odds_reais.get(mercado)
+            if odd_real is not None and odd_real > 0:
                 edge = (1/odd_real) - (1/odd_mod)
-                linhas.append((mercado, f"{odd_mod:.2f}", f"{odd_real:.2f}", f"{edge*100:+.1f}%", "💚 Valor" if edge>0 else "🔴 Sem Valor"))
+                indicacao = "💚 Valor" if edge > 0 else "🔴 Sem Valor"
+                linhas.append((mercado, f"{odd_mod:.2f}", f"{odd_real:.2f}", f"{edge*100:+.1f}%", indicacao))
             else:
                 linhas.append((mercado, f"{odd_mod:.2f}", "-", "-", "⚪ Sem odd real"))
+
         df_edge = pd.DataFrame(linhas, columns=["Mercado", "Odd Modelo", "Odd Real", "Edge", "Indicação"])
         st.dataframe(df_edge, use_container_width=True)
         st.markdown("<small>Edge positivo = a odd real está pagando mais do que a probabilidade justa. Indica possível valor.</small>", unsafe_allow_html=True)
