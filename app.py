@@ -8,6 +8,7 @@ import numpy as np
 import math
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 from typing import Dict
 
 # Seus módulos
@@ -295,85 +296,73 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     # -------------------------------
     # FUNÇÕES AUXILIARES (VISUALIZAÇÃO)
     # -------------------------------
-    def desenhar_campo_heatmap(fA, fB, nome_casa, nome_fora):
-        fig = go.Figure()
-        fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
-                      line=dict(color="white", width=2), fillcolor="#0A0E17")
-        fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
-                      line=dict(color="white", width=2))
-        fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
-                      line=dict(color="white", width=2))
-        fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
-                      line=dict(color="white", width=1.5))
-        fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
-                      line=dict(color="white", width=1.5))
-        fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
-                      line=dict(color="white", width=1))
-        fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
-                      line=dict(color="white", width=1))
-        zonas = ['Defesa', 'Meio', 'Ataque']
-        for i, (zona, fa, fb) in enumerate(zip(zonas, fA, fB)):
-            y0 = i * 33.33
-            y1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=0, y0=y0, x1=50, y1=y1,
-                          fillcolor=f"rgba(240,192,64,{fa})", line_width=0)
-            fig.add_shape(type="rect", x0=50, y0=y0, x1=100, y1=y1,
-                          fillcolor=f"rgba(74,144,217,{fb})", line_width=0)
-            fig.add_annotation(x=25, y=(y0+y1)/2, text=f"{nome_casa}<br>{fa*100:.0f}%",
-                               showarrow=False, font=dict(color="white", size=10))
-            fig.add_annotation(x=75, y=(y0+y1)/2, text=f"{nome_fora}<br>{fb*100:.0f}%",
-                               showarrow=False, font=dict(color="white", size=10))
+    def desenhar_dois_campos(fA, fB, nome_casa, nome_fora):
+        """Retorna figura com dois campos verticais (casa em cima, fora embaixo)."""
+        fig = make_subplots(rows=2, cols=1, subplot_titles=(f"{nome_casa}", f"{nome_fora}"),
+                            vertical_spacing=0.15)
+        for idx, (f, nome) in enumerate([(fA, nome_casa), (fB, nome_fora)]):
+            row = idx + 1
+            # Campo base
+            fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
+                          line=dict(color="white", width=2), fillcolor="#0A0E17",
+                          row=row, col=1)
+            fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
+                          line=dict(color="white", width=2), row=row, col=1)
+            fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
+                          line=dict(color="white", width=2), row=row, col=1)
+            fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
+                          line=dict(color="white", width=1.5), row=row, col=1)
+            fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
+                          line=dict(color="white", width=1.5), row=row, col=1)
+            fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
+                          line=dict(color="white", width=1), row=row, col=1)
+            fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
+                          line=dict(color="white", width=1), row=row, col=1)
+
+            # Zonas coloridas (3 faixas horizontais)
+            zonas = ['Defesa', 'Meio', 'Ataque']
+            for i, (zona, fa) in enumerate(zip(zonas, f)):
+                y0 = i * 33.33
+                y1 = (i+1) * 33.33
+                color = "rgba(240,192,64,{})" if nome == nome_casa else "rgba(74,144,217,{})"
+                fig.add_shape(type="rect", x0=0, y0=y0, x1=100, y1=y1,
+                              fillcolor=color.format(fa), line_width=0,
+                              row=row, col=1)
+                fig.add_annotation(x=50, y=(y0+y1)/2, text=f"{zona}: {fa*100:.0f}%",
+                                   showarrow=False, font=dict(color="white", size=10),
+                                   row=row, col=1)
         fig.update_xaxes(visible=False, range=[0,100])
         fig.update_yaxes(visible=False, range=[0,100])
-        fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17', height=450,
-                          margin=dict(l=20, r=20, t=30, b=20))
+        fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17', height=700,
+                          margin=dict(l=20, r=20, t=50, b=20))
         return fig
 
-    def gerar_cenarios():
-        """Retorna 5 cenários descritivos com probabilidades."""
+    def gerar_cenarios_justificados():
+        """Retorna os 5 cenários mais prováveis com justificativas."""
         cenarios = []
-        prob_vc_2 = sum(p for gA,gB,p in results if gA >= gB+2)
-        prob_empate = sum(p for gA,gB,p in results if gA==gB)
-        prob_vf = sum(p for gA,gB,p in results if gA < gB)
-        prob_over25 = sum(p for gA,gB,p in results if gA+gB > 2.5)
-        prob_btts = sum(p for gA,gB,p in results if gA>0 and gB>0)
-
-        if prob_vc_2 > 0.05:
-            cenarios.append({
-                'titulo': f'Domínio do {nome_casa}',
-                'descricao': f'{nome_casa} vence por 2 ou mais gols, impondo seu ritmo e explorando a defesa adversária.',
-                'prob': prob_vc_2,
-            })
-        if prob_empate > 0.05:
-            cenarios.append({
-                'titulo': 'Empate tático',
-                'descricao': 'As equipes se neutralizam, com poucas chances claras e um resultado igualado.',
-                'prob': prob_empate,
-            })
-        if prob_vf > 0.05:
-            cenarios.append({
-                'titulo': f'Triunfo visitante',
-                'descricao': f'{nome_fora} surpreende fora de casa, aproveitando contra-ataques e eficiência.',
-                'prob': prob_vf,
-            })
-        if prob_over25 > 0.05:
-            cenarios.append({
-                'titulo': 'Jogo movimentado (+2.5)',
-                'descricao': 'Partida com muitos gols, defesas vulneráveis e ataques inspirados.',
-                'prob': prob_over25,
-            })
-        if prob_btts > 0.05:
-            cenarios.append({
-                'titulo': 'Ambos marcam',
-                'descricao': 'Ataques superam defesas: ambas as equipes balançam as redes.',
-                'prob': prob_btts,
-            })
-
-        while len(cenarios) < 5:
-            # Adiciona um cenário genérico se necessário (nunca deve acontecer)
-            break
-
-        return sorted(cenarios, key=lambda x: x['prob'], reverse=True)[:5]
+        cenarios.append(('Vitória do ' + nome_casa + ' por 2+ gols',
+                         sum(p for gA,gB,p in results if gA >= gB+2),
+                         f"Baseado no ataque do {nome_casa} ({gm_casa:.1f} gols/jogo) e defesa do {nome_fora} ({gs_fora:.1f} sofridos)."))
+        cenarios.append(('Empate',
+                         empate,
+                         f"Equilíbrio entre os times (EC {EC_A:.1f} vs {EC_B:.1f}) e histórico de confrontos disputados."))
+        cenarios.append(('Vitória do ' + nome_fora,
+                         vitoria_fora,
+                         f"Aproveitando os {gm_fora:.1f} gols/jogo do {nome_fora} contra a defesa do {nome_casa} ({gs_casa:.1f} sofridos)."))
+        cenarios.append(('Over 1.5 Gols',
+                         over15,
+                         f"Média total de {lambda_casa+lambda_fora:.2f} gols esperados, indicando alta chance de pelo menos 2 gols."))
+        cenarios.append(('Over 2.5 Gols',
+                         over25,
+                         f"Com {lambda_casa+lambda_fora:.2f} gols esperados, a probabilidade de 3 ou mais gols é significativa."))
+        cenarios.append(('Over 3.5 Gols',
+                         over35,
+                         f"Embora menos provável, os ataques eficientes podem gerar um placar elástico."))
+        cenarios.append(('Ambos Marcam (BTTS)',
+                         btts,
+                         f"{nome_casa} marca {gm_casa:.1f} e sofre {gs_casa:.1f}; {nome_fora} marca {gm_fora:.1f} e sofre {gs_fora:.1f}, favorecendo gols mútuos."))
+        cenarios.sort(key=lambda x: x[1], reverse=True)
+        return cenarios[:5]
 
     def selo(prob):
         if prob >= 0.75:
@@ -454,6 +443,12 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("<small>Barras mais altas = melhor desempenho no pilar. A soma ponderada gera o MyEngramScore.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # Perfis táticos
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>🎭 Estilos de Jogo</div>", unsafe_allow_html=True)
+        st.markdown(f"**{nome_casa}:** {perfil_A}  |  **{nome_fora}:** {perfil_B}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
         st.markdown("<div class='card'><div class='card-header'>🎯 Força Setorial (Ataque / Defesa / Meio)</div>", unsafe_allow_html=True)
         def norm_rad(val, media):
             if media==0: return 50
@@ -494,22 +489,23 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
             st.markdown(f"**{nome}**: {nome_casa} {vA:.1f} vs {nome_fora} {vB:.1f} → Vantagem: **{vant}**")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 3: Heatmap (campo real) -----
+    # ----- ABA 3: Heatmap (dois campos) -----
     with tabs[2]:
         st.markdown("<div class='card'><div class='card-header'>🗺️ Heatmap Tático (Força por Zona)</div>", unsafe_allow_html=True)
         fA = [def_A/100, mei_A/100, atq_A/100]
         fB = [def_B/100, mei_B/100, atq_B/100]
-        fig_field = desenhar_campo_heatmap(fA, fB, nome_casa, nome_fora)
+        fig_field = desenhar_dois_campos(fA, fB, nome_casa, nome_fora)
         st.plotly_chart(fig_field, width='stretch')
-        st.markdown("<small>Dourado = Casa, Azul = Visitante. Intensidade da cor reflete a força no setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 4: Simulação de Cenários (5 cenários) -----
+    # ----- ABA 4: Simulação de Cenários (5 cenários justificados) -----
     with tabs[3]:
-        st.markdown("<div class='card'><div class='card-header'>🎲 Cinco Cenários Prováveis</div>", unsafe_allow_html=True)
-        cenarios = gerar_cenarios()
-        for i, c in enumerate(cenarios):
-            st.markdown(f"**{i+1}. {c['titulo']}** ({c['prob']:.1%}): {c['descricao']}")
+        st.markdown("<div class='card'><div class='card-header'>🎲 Cinco Cenários Mais Prováveis</div>", unsafe_allow_html=True)
+        cenarios = gerar_cenarios_justificados()
+        for i, (titulo, prob, just) in enumerate(cenarios):
+            st.markdown(f"**{i+1}. {titulo}** — {prob:.1%}  ")
+            st.markdown(f"> {just}")
+            st.markdown("---")
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ----- ABA 5: DADOS PARA OS MERCADOS (explicação + selos) -----
