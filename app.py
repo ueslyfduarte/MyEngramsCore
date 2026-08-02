@@ -311,7 +311,6 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
                       line=dict(color="white", width=2, dash="dash"))
 
         # Campo superior (Time A)
-        # Faixas: Defesa (0-33), Meio (33-66), Ataque (66-100)
         zonas = ['Defesa', 'Meio', 'Ataque']
         for i, (zona, fa) in enumerate(zip(zonas, fA)):
             x0 = i * 33.33
@@ -322,7 +321,6 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
                                showarrow=False, font=dict(color="white", size=10))
 
         # Campo inferior (Time B)
-        # Faixas espelhadas: Ataque (0-33), Meio (33-66), Defesa (66-100)
         zonas_B = ['Ataque', 'Meio', 'Defesa']
         for i, (zona, fb) in enumerate(zip(zonas_B, fB)):
             x0 = i * 33.33
@@ -568,6 +566,11 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("""
         **Explicação:** As probabilidades de gols são calculadas via distribuição de Poisson,
         usando a média de gols marcados/sofridos de cada time.
+        - Lambda do time da casa = (Gols marcados_casa + Gols sofridos_fora) / 2
+        - Lambda do time visitante = (Gols marcados_fora + Gols sofridos_casa) / 2
+
+        Assim, um ataque forte contra uma defesa fraca aumenta a expectativa de gols,
+        e vice‑versa. Os ajustes de estilo e momento refinam ainda mais as probabilidades.
         """)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -597,37 +600,38 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("---")
         st.markdown("<div class='card-header'>📈 Comparação Modelo vs Mercado (Edge)</div>", unsafe_allow_html=True)
 
-        odds_modelo = {
-            f"Vitória {nome_casa}": 1/p_A if p_A>0 else 999,
-            "Empate": 1/p_emp if p_emp>0 else 999,
-            f"Vitória {nome_fora}": 1/p_B if p_B>0 else 999,
-            "Over 2.5 Gols": 1/over25 if over25>0 else 999,
-            "BTTS Sim": 1/btts if btts>0 else 999,
-            "Gol 1º Tempo": 1/prob_gol_ht if prob_gol_ht>0 else 999,
+        probs_modelo = {
+            f"Vitória {nome_casa}": p_A,
+            "Empate": p_emp,
+            f"Vitória {nome_fora}": p_B,
+            "Over 2.5 Gols": over25,
+            "BTTS Sim": btts,
+            "Gol 1º Tempo": prob_gol_ht,
         }
 
         odds_reais = {
             f"Vitória {nome_casa}": odd_casa,
             "Empate": odd_empate,
             f"Vitória {nome_fora}": odd_fora,
-            "Over 2.5 Gols": odd_over25_real if odd_over25_real is not None and odd_over25_real > 0 else None,
-            "BTTS Sim": odd_btts_real if odd_btts_real is not None and odd_btts_real > 0 else None,
-            "Gol 1º Tempo": odd_ht_real if odd_ht_real is not None and odd_ht_real > 0 else None,
+            "Over 2.5 Gols": odd_over25_real if odd_over25_real and odd_over25_real > 1.0 else None,
+            "BTTS Sim": odd_btts_real if odd_btts_real and odd_btts_real > 1.0 else None,
+            "Gol 1º Tempo": odd_ht_real if odd_ht_real and odd_ht_real > 1.0 else None,
         }
 
         linhas = []
-        for mercado, odd_mod in odds_modelo.items():
+        for mercado, prob_mod in probs_modelo.items():
+            odd_mod = 1 / prob_mod if prob_mod > 0 else 999
             odd_real = odds_reais.get(mercado)
-            if odd_real is not None and odd_real > 0:
-                edge = (1/odd_real) - (1/odd_mod)
-                indicacao = "💚 Valor" if edge > 0 else "🔴 Sem Valor"
-                linhas.append((mercado, f"{odd_mod:.2f}", f"{odd_real:.2f}", f"{edge*100:+.1f}%", indicacao))
+            if odd_real and odd_real > 0:
+                ev_percent = (prob_mod * odd_real - 1) * 100
+                indicacao = "💚 Valor" if ev_percent > 0 else "🔴 Sem Valor"
+                linhas.append((mercado, f"{prob_mod:.1%}", f"{odd_mod:.2f}", f"{odd_real:.2f}", f"{ev_percent:+.1f}%", indicacao))
             else:
-                linhas.append((mercado, f"{odd_mod:.2f}", "-", "-", "⚪ Sem odd real"))
+                linhas.append((mercado, f"{prob_mod:.1%}", f"{odd_mod:.2f}", "-", "-", "⚪ Sem odd real"))
 
-        df_edge = pd.DataFrame(linhas, columns=["Mercado", "Odd Modelo", "Odd Real", "Edge", "Indicação"])
+        df_edge = pd.DataFrame(linhas, columns=["Mercado", "Prob. Modelo", "Odd Justa", "Odd Real", "EV%", "Indicação"])
         st.dataframe(df_edge, width='stretch')
-        st.markdown("<small>Edge positivo = a odd real está pagando mais do que a probabilidade justa. Indica possível valor.</small>", unsafe_allow_html=True)
+        st.markdown("<small>EV% positivo = expectativa de lucro a longo prazo. Odd Justa = 1 / Prob. Modelo.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='quote'>\"A análise separa a emoção da decisão.\"</div>", unsafe_allow_html=True)
