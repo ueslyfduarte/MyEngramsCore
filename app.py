@@ -8,7 +8,6 @@ import numpy as np
 import math
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
 from typing import Dict
 
 # Seus módulos
@@ -296,73 +295,82 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     # -------------------------------
     # FUNÇÕES AUXILIARES (VISUALIZAÇÃO)
     # -------------------------------
-    def desenhar_dois_campos(fA, fB, nome_casa, nome_fora):
-        """Retorna figura com dois campos verticais (casa em cima, fora embaixo)."""
-        fig = make_subplots(rows=2, cols=1, subplot_titles=(f"{nome_casa}", f"{nome_fora}"),
-                            vertical_spacing=0.15)
-        for idx, (f, nome) in enumerate([(fA, nome_casa), (fB, nome_fora)]):
-            row = idx + 1
-            # Campo base
-            fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
-                          line=dict(color="white", width=2), fillcolor="#0A0E17",
-                          row=row, col=1)
-            fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
-                          line=dict(color="white", width=2), row=row, col=1)
-            fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
-                          line=dict(color="white", width=2), row=row, col=1)
-            fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
-                          line=dict(color="white", width=1.5), row=row, col=1)
-            fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
-                          line=dict(color="white", width=1.5), row=row, col=1)
-            fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
-                          line=dict(color="white", width=1), row=row, col=1)
-            fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
-                          line=dict(color="white", width=1), row=row, col=1)
+    def desenhar_campo_duplo(fA, fB, nome_casa, nome_fora):
+        """
+        Desenha dois campos empilhados:
+        - Metade superior (y>50): Time A, faixas da esquerda para a direita: Defesa, Meio, Ataque
+        - Metade inferior (y<50): Time B, faixas espelhadas: Ataque (esquerda), Meio, Defesa (direita)
+        """
+        fig = go.Figure()
 
-            # Zonas coloridas (3 faixas horizontais)
-            zonas = ['Defesa', 'Meio', 'Ataque']
-            for i, (zona, fa) in enumerate(zip(zonas, f)):
-                y0 = i * 33.33
-                y1 = (i+1) * 33.33
-                color = "rgba(240,192,64,{})" if nome == nome_casa else "rgba(74,144,217,{})"
-                fig.add_shape(type="rect", x0=0, y0=y0, x1=100, y1=y1,
-                              fillcolor=color.format(fa), line_width=0,
-                              row=row, col=1)
-                fig.add_annotation(x=50, y=(y0+y1)/2, text=f"{zona}: {fa*100:.0f}%",
-                                   showarrow=False, font=dict(color="white", size=10),
-                                   row=row, col=1)
+        # Campo inteiro (retângulo externo)
+        fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
+                      line=dict(color="white", width=2), fillcolor="#0A0E17")
+        # Linha do meio horizontal
+        fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50,
+                      line=dict(color="white", width=2, dash="dash"))
+
+        # Campo superior (Time A)
+        # Faixas: Defesa (0-33), Meio (33-66), Ataque (66-100)
+        zonas = ['Defesa', 'Meio', 'Ataque']
+        for i, (zona, fa) in enumerate(zip(zonas, fA)):
+            x0 = i * 33.33
+            x1 = (i+1) * 33.33
+            fig.add_shape(type="rect", x0=x0, y0=50, x1=x1, y1=100,
+                          fillcolor=f"rgba(240,192,64,{fa})", line_width=0)
+            fig.add_annotation(x=(x0+x1)/2, y=75, text=f"{zona}<br>{fa*100:.0f}%",
+                               showarrow=False, font=dict(color="white", size=10))
+
+        # Campo inferior (Time B)
+        # Faixas espelhadas: Ataque (0-33), Meio (33-66), Defesa (66-100)
+        zonas_B = ['Ataque', 'Meio', 'Defesa']
+        for i, (zona, fb) in enumerate(zip(zonas_B, fB)):
+            x0 = i * 33.33
+            x1 = (i+1) * 33.33
+            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=50,
+                          fillcolor=f"rgba(74,144,217,{fb})", line_width=0)
+            fig.add_annotation(x=(x0+x1)/2, y=25, text=f"{zona}<br>{fb*100:.0f}%",
+                               showarrow=False, font=dict(color="white", size=10))
+
+        # Rótulos dos times
+        fig.add_annotation(x=50, y=105, text=f"🏠 {nome_casa}", showarrow=False,
+                           font=dict(color="#F0C040", size=14))
+        fig.add_annotation(x=50, y=-5, text=f"✈️ {nome_fora}", showarrow=False,
+                           font=dict(color="#4a90d9", size=14))
+
         fig.update_xaxes(visible=False, range=[0,100])
-        fig.update_yaxes(visible=False, range=[0,100])
-        fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17', height=700,
-                          margin=dict(l=20, r=20, t=50, b=20))
+        fig.update_yaxes(visible=False, range=[-10,110])
+        fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17',
+                          height=500, margin=dict(l=20, r=20, t=40, b=40))
         return fig
 
     def gerar_cenarios_justificados():
         """Retorna os 5 cenários mais prováveis com justificativas."""
-        cenarios = []
-        cenarios.append(('Vitória do ' + nome_casa + ' por 2+ gols',
-                         sum(p for gA,gB,p in results if gA >= gB+2),
-                         f"Baseado no ataque do {nome_casa} ({gm_casa:.1f} gols/jogo) e defesa do {nome_fora} ({gs_fora:.1f} sofridos)."))
-        cenarios.append(('Empate',
-                         empate,
-                         f"Equilíbrio entre os times (EC {EC_A:.1f} vs {EC_B:.1f}) e histórico de confrontos disputados."))
-        cenarios.append(('Vitória do ' + nome_fora,
-                         vitoria_fora,
-                         f"Aproveitando os {gm_fora:.1f} gols/jogo do {nome_fora} contra a defesa do {nome_casa} ({gs_casa:.1f} sofridos)."))
-        cenarios.append(('Over 1.5 Gols',
-                         over15,
-                         f"Média total de {lambda_casa+lambda_fora:.2f} gols esperados, indicando alta chance de pelo menos 2 gols."))
-        cenarios.append(('Over 2.5 Gols',
-                         over25,
-                         f"Com {lambda_casa+lambda_fora:.2f} gols esperados, a probabilidade de 3 ou mais gols é significativa."))
-        cenarios.append(('Over 3.5 Gols',
-                         over35,
-                         f"Embora menos provável, os ataques eficientes podem gerar um placar elástico."))
-        cenarios.append(('Ambos Marcam (BTTS)',
-                         btts,
-                         f"{nome_casa} marca {gm_casa:.1f} e sofre {gs_casa:.1f}; {nome_fora} marca {gm_fora:.1f} e sofre {gs_fora:.1f}, favorecendo gols mútuos."))
-        cenarios.sort(key=lambda x: x[1], reverse=True)
-        return cenarios[:5]
+        eventos = [
+            ('Vitória do ' + nome_casa + ' por 2+ gols',
+             sum(p for gA,gB,p in results if gA >= gB+2),
+             f"Ataque eficiente do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j)."),
+            ('Empate',
+             empate,
+             f"Equilíbrio nos ECs ({EC_A:.1f} vs {EC_B:.1f}) e histórico de confrontos parelhos."),
+            ('Vitória do ' + nome_fora,
+             vitoria_fora,
+             f"{nome_fora} explora os espaços deixados pelo {nome_casa} ({gs_casa:.1f} sofridos/j) com seus {gm_fora:.1f} gols/j."),
+            ('Over 1.5 Gols',
+             over15,
+             f"Média de {lambda_casa+lambda_fora:.2f} gols esperados; alta chance de pelo menos 2 gols."),
+            ('Over 2.5 Gols',
+             over25,
+             f"Com {lambda_casa+lambda_fora:.2f} gols esperados, probabilidade de 3+ gols é relevante."),
+            ('Over 3.5 Gols',
+             over35,
+             f"Ataques podem render um placar mais elástico, especialmente se a defesa falhar."),
+            ('Ambos Marcam (BTTS)',
+             btts,
+             f"{nome_casa} marca {gm_casa:.1f} e sofre {gs_casa:.1f}; {nome_fora} marca {gm_fora:.1f} e sofre {gs_fora:.1f} → cenário propício para gols mútuos."),
+        ]
+        eventos.sort(key=lambda x: x[1], reverse=True)
+        return eventos[:5]
 
     def selo(prob):
         if prob >= 0.75:
@@ -420,6 +428,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     st.markdown("### 🔍 Análises Complementares")
     tabs = st.tabs([
         "📊 Pilares & Força",
+        "🎭 Estilo de Jogo",
         "⚔️ Comparação Setorial",
         "🗺️ Heatmap Tático",
         "🎲 Simulação de Cenários",
@@ -443,12 +452,6 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("<small>Barras mais altas = melhor desempenho no pilar. A soma ponderada gera o MyEngramScore.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Perfis táticos
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>🎭 Estilos de Jogo</div>", unsafe_allow_html=True)
-        st.markdown(f"**{nome_casa}:** {perfil_A}  |  **{nome_fora}:** {perfil_B}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
         st.markdown("<div class='card'><div class='card-header'>🎯 Força Setorial (Ataque / Defesa / Meio)</div>", unsafe_allow_html=True)
         def norm_rad(val, media):
             if media==0: return 50
@@ -470,8 +473,33 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("<small>Quanto mais próximo da borda, melhor o setor.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 2: Comparação Setorial -----
+    # ----- ABA 2: Estilo de Jogo (PERFIS) -----
     with tabs[1]:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>🎭 Perfis Táticos dos Times</div>", unsafe_allow_html=True)
+        col_perf1, col_perf2 = st.columns(2)
+        with col_perf1:
+            st.markdown(f"**{nome_casa}**")
+            st.markdown(f"**Perfil:** {perfil_A}")
+            st.markdown(f"**Nota de Dominância (Estilo):** {estilo_A:.1f}/100")
+        with col_perf2:
+            st.markdown(f"**{nome_fora}**")
+            st.markdown(f"**Perfil:** {perfil_B}")
+            st.markdown(f"**Nota de Dominância (Estilo):** {estilo_B:.1f}/100")
+        st.markdown("""
+        **Significado dos Perfis:**
+        - **Dominante** 🏆: Controla a posse de bola, finaliza bastante e pressiona no campo adversário.
+        - **Pressão Alta** 🔥: Além de dominante, é extremamente agressivo sem a bola (muitas faltas, cartões, desarmes).
+        - **Reativo / Contra‑ataque** ⚡: Pouca posse, mas transições rápidas e finalizações certeiras.
+        - **Defensivo** 🛡️: Prioriza não sofrer gols, jogo físico, muitas faltas e pouca posse.
+        - **Equilibrado** ⚖️: Não apresenta extremos; jogo balanceado.
+        - **Posse Estéril** 🔄: Troca muitos passes, mas finaliza pouco (posse sem efetividade).
+        - **Efetivo** 🎯: Pouca posse, mas alto aproveitamento das finalizações.
+        """)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ----- ABA 3: Comparação Setorial -----
+    with tabs[2]:
         st.markdown("<div class='card'><div class='card-header'>⚔️ Confronto por Estatística</div>", unsafe_allow_html=True)
         stats = [
             ('Gols Marcados', gm_casa, gm_fora, 'maior'),
@@ -489,27 +517,28 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
             st.markdown(f"**{nome}**: {nome_casa} {vA:.1f} vs {nome_fora} {vB:.1f} → Vantagem: **{vant}**")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 3: Heatmap (dois campos) -----
-    with tabs[2]:
+    # ----- ABA 4: Heatmap (campo duplo empilhado) -----
+    with tabs[3]:
         st.markdown("<div class='card'><div class='card-header'>🗺️ Heatmap Tático (Força por Zona)</div>", unsafe_allow_html=True)
-        fA = [def_A/100, mei_A/100, atq_A/100]
-        fB = [def_B/100, mei_B/100, atq_B/100]
-        fig_field = desenhar_dois_campos(fA, fB, nome_casa, nome_fora)
+        fA = [def_A/100, mei_A/100, atq_A/100]  # Defesa, Meio, Ataque
+        fB = [atq_B/100, mei_B/100, def_B/100]  # Ataque, Meio, Defesa (espelhado)
+        fig_field = desenhar_campo_duplo(fA, fB, nome_casa, nome_fora)
         st.plotly_chart(fig_field, width='stretch')
+        st.markdown("<small>Dourado = Casa, Azul = Visitante. Ataques se encontram no centro do campo.</small>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 4: Simulação de Cenários (5 cenários justificados) -----
-    with tabs[3]:
+    # ----- ABA 5: Simulação de Cenários (5 cenários justificados) -----
+    with tabs[4]:
         st.markdown("<div class='card'><div class='card-header'>🎲 Cinco Cenários Mais Prováveis</div>", unsafe_allow_html=True)
         cenarios = gerar_cenarios_justificados()
         for i, (titulo, prob, just) in enumerate(cenarios):
-            st.markdown(f"**{i+1}. {titulo}** — {prob:.1%}  ")
+            st.markdown(f"**{i+1}. {titulo}** — {prob:.1%}")
             st.markdown(f"> {just}")
             st.markdown("---")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 5: DADOS PARA OS MERCADOS (explicação + selos) -----
-    with tabs[4]:
+    # ----- ABA 6: DADOS PARA OS MERCADOS (explicação + selos) -----
+    with tabs[5]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>📊 Probabilidades 1X2 (Modelo)</div>", unsafe_allow_html=True)
         col_p1, col_p2, col_p3 = st.columns(3)
@@ -538,8 +567,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         col_g5.metric("BTTS Não", f"{1-btts:.1%}")
         st.markdown("""
         **Explicação:** As probabilidades de gols são calculadas via distribuição de Poisson,
-        usando a média de gols marcados/sofridos de cada time. Over 1.5 reflete a chance de
-        pelo menos 2 gols na partida, Over 2.5 pelo menos 3, etc.
+        usando a média de gols marcados/sofridos de cada time.
         """)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -547,29 +575,13 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("<div class='card-header'>⏱️ Gol no 1º Tempo (Modelo Proprietário)</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='big-number'>{prob_gol_ht:.1%}</div>", unsafe_allow_html=True)
         st.markdown(f"""
-        **Explicação:** A probabilidade de gol no 1º tempo é {prob_gol_ht:.1%}. 
-        Baseia-se na média de gols esperada no 1º tempo (λ={lambda_ht:.2f}), ajustada por 
-        um fator histórico de 44% dos gols ocorrerem antes do intervalo, com bônus para 
-        times de Pressão Alta/Dominantes (+5%) e pelo momento atual (MA).
+        **Explicação:** Probabilidade de gol no 1º tempo baseada em λ={lambda_ht:.2f},
+        ajustada pelo estilo de jogo (pressão alta/dominante) e momento atual.
         """)
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>📈 Parâmetros do Modelo</div>", unsafe_allow_html=True)
-        params_df = pd.DataFrame([
-            ("Lambda Casa", lambda_casa),
-            ("Lambda Fora", lambda_fora),
-            ("Lambda Total", lambda_casa + lambda_fora),
-            ("Lambda 1º Tempo", lambda_ht),
-            ("Fator HT Base", 0.44),
-            ("Ajuste Estilo", ajuste_estilo),
-            ("Ajuste MA", ajuste_ma),
-        ], columns=["Parâmetro", "Valor"])
-        st.dataframe(params_df, width='stretch')
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # ----- ABA 6: MERCADOS & EDGE (COM INPUTS REAIS) -----
-    with tabs[5]:
+    # ----- ABA 7: MERCADOS & EDGE (COM INPUTS REAIS) -----
+    with tabs[6]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>💰 Insira as Odds Reais de Mercado</div>", unsafe_allow_html=True)
         st.markdown("<small>Preencha as odds para ver o edge (valor esperado). Deixe em branco para mercados não disponíveis.</small>", unsafe_allow_html=True)
