@@ -1,13 +1,20 @@
 """
-EngramsCore - Índice Absoluto de Confronto
+EngramsCore - Índice Absoluto de Confronto (v2)
 
 Unifica os cinco pilares do método em uma pontuação final (0-100) para cada
-time, aplicando pesos configuráveis e um fator casa dinâmico baseado no MA.
+time, aplicando pesos configuráveis e um fator casa composto por:
+- um bônus fixo (HOME_ADV) representando a vantagem intrínseca de jogar em casa;
+- um bônus dinâmico baseado na diferença de MA (mantido, mas com thresholds ajustados).
 
-Fornece também probabilidades 1X2, dupla chance e empate de forma imparcial.
+A conversão para probabilidades 1X2 utiliza um modelo de Poisson com média de
+gols calibrada, garantindo que o empate nunca seja zero.
+
+Se odds justas (sem margem) forem fornecidas, calcula também o valor esperado
+de cada desfecho.
 """
 
 from typing import Dict, Optional, Tuple
+import math
 
 # ----------------------------------------------------------
 # Pesos padrão (configuráveis)
@@ -20,9 +27,14 @@ PESOS_PADRAO = {
     'Psicologico': 0.15,
 }
 
-# Thresholds para bônus de casa dinâmico (baseado no MA)
-THR_MANDANTE = 10   # diferença de MA a favor do mandante para ganhar +1
-THR_VISITANTE = 8   # diferença de MA a favor do visitante para ganhar +1
+# Parâmetros do modelo Poisson
+MEDIA_GOLS_BASE = 2.5       # média de gols por jogo da liga
+HOME_ADV_GOLS = 0.3         # acréscimo de gols esperados para o mandante
+MAX_GOLS = 10               # limite para truncar a distribuição
+
+# Thresholds para bônus dinâmico (agora com pequeno ajuste)
+THR_MANDANTE = 6            # diferença de MA a favor do mandante para +1
+THR_VISITANTE = 6           # diferença a favor do visitante para +1
 
 
 # ----------------------------------------------------------
@@ -30,36 +42,83 @@ THR_VISITANTE = 8   # diferença de MA a favor do visitante para ganhar +1
 # ----------------------------------------------------------
 def _redistribuir_pesos(pilares_disponiveis: Dict[str, Optional[float]],
                         pesos: Dict[str, float]) -> Dict[str, float]:
-    """
-    Remove pilares com valor None e redistribui os pesos proporcionalmente.
-    Retorna um dicionário {pilar: peso_normalizado}.
-    """
+    """Remove pilares ausentes e redistribui pesos proporcionalmente."""
     ativos = {k: v for k, v in pilares_disponiveis.items() if v is not None}
     if not ativos:
         return {}
     peso_total = sum(pesos.get(k, 0.0) for k in ativos)
     if peso_total == 0:
         n = len(ativos)
-        return {k: 1.0/n for k in ativos}
-    return {k: pesos.get(k, 0.0)/peso_total for k in ativos}
+        return {k: 1.0 / n for k in ativos}
+    return {k: pesos.get(k, 0.0) / peso_total for k in ativos}
 
 
 def _aplicar_fator_casa(ma_casa: float, ma_fora: float,
                         thr_casa: float = THR_MANDANTE,
                         thr_fora: float = THR_VISITANTE) -> Tuple[float, float]:
     """
-    Calcula bônus de +1 para mandante ou visitante conforme diferença de MA.
+    Bônus dinâmico de +1 no EC se a diferença de MA for grande.
     Retorna (bonus_casa, bonus_fora).
     """
-    diff_casa = ma_casa - ma_fora
-    diff_fora = ma_fora - ma_casa
-
-    if diff_casa >= thr_casa:
+    diff = ma_casa - ma_fora
+    if diff >= thr_casa:
         return 1.0, 0.0
-    elif diff_fora >= thr_fora:
+    elif diff <= -thr_fora:
         return 0.0, 1.0
-    else:
-        return 0.0, 0.0
+    return 0.0, 0.0
+
+
+def _poisson_prob(gols_esperados: float, max_gols: int = MAX_GOLS) -> list:
+    """Retorna lista de probabilidades de 0 a max_gols gols (Poisson)."""
+    probs = []
+    for k in range(max_gols + 1):
+        prob = (gols_esperados ** k) * math.exp(-gols_esperados) / math.factorial(k)
+        probs.append(prob)
+    return probs
+
+
+def _probabilidades_poisson(ec_a: float, ec_b: float,
+                            time_mandante: str,
+                            media_gols: float = MEDIA_GOLS_BASE,
+                            home_adv_gols: float = HOME_ADV_GOLS) -> Tuple[float, float, float]:
+    """
+    Converte ECs (0-100) em probabilidades 1X2 usando Poisson.
+    ec_a e ec_b são as forças brutas; o fator casa é adicionado conforme time_mandante.
+    """
+    # Escala os EC para gols esperados, proporcional à média da liga
+    # Exemplo: EC=50 → força média → gols esperados ~ media_gols/2
+    fator = media_gols / 100.0
+    xg_a = ec_a * fator
+    xg_b = ec_b * fator
+
+    if time_mandante == 'A':
+        xg_a += home_adv_gols
+    elif time_mandante == 'B':
+        xg_b += home_adv_gols
+
+    # Distribuições de Poisson
+    probs_a = _poisson_prob(xg_a)
+    probs_b = _poisson_prob(xg_b)
+
+    p_a = p_b = p_e = 0.0
+    for i in range(MAX_GOLS + 1):
+        for j in range(MAX_GOLS + 1):
+            prob = probs_a[i] * probs_b[j]
+            if i > j:
+                p_a += prob
+            elif j > i:
+                p_b += prob
+            else:
+                p_e += prob
+
+    # Normaliza para garantir soma 1 (trunca em MAX_GOLS causa pequena perda)
+    total = p_a + p_b + p_e
+    if total > 0:
+        p_a /= total
+        p_b /= total
+        p_e /= total
+
+    return p_a, p_b, p_e
 
 
 # ----------------------------------------------------------
@@ -83,9 +142,14 @@ def calcular_engramscore(
     pesos: Dict[str, float] = None,
     thr_mandante: float = THR_MANDANTE,
     thr_visitante: float = THR_VISITANTE,
+    # Novos parâmetros
+    odds: Optional[Dict[str, float]] = None,   # {'1': odd_casa, 'X': odd_empate, '2': odd_fora}
+    media_gols: float = MEDIA_GOLS_BASE,
+    home_adv_gols: float = HOME_ADV_GOLS,
 ) -> Dict[str, float]:
     """
-    Calcula o EngramsCore para ambos os times em um confronto.
+    Calcula o EngramsCore para ambos os times, gera probabilidades 1X2
+    e, se odds forem fornecidas, o valor esperado de cada desfecho.
     """
     if pesos is None:
         pesos = PESOS_PADRAO.copy()
@@ -105,31 +169,29 @@ def calcular_engramscore(
         'Psicologico': psicologico_b,
     }
 
-    ativos_ambos = {}
-    for pilar in ['MA', 'FG', 'CPP', 'Estilo', 'Psicologico']:
-        if pilares_a[pilar] is not None and pilares_b[pilar] is not None:
-            ativos_ambos[pilar] = True
+    # Pilares ativos em ambos os times
+    ativos_ambos = {p for p in pilares_a if pilares_a[p] is not None and pilares_b[p] is not None}
 
     if not ativos_ambos:
+        # Caso não haja pilar comum, retorna empate total
         return {
             'EC_A': 50.0,
             'EC_B': 50.0,
-            'P_A': 0.333,
-            'P_B': 0.333,
-            'P_E': 0.334,
-            'P_A_ou_E': 0.667,
-            'P_B_ou_E': 0.667,
+            'P_A': 0.333, 'P_B': 0.333, 'P_E': 0.334,
+            'P_A_ou_E': 0.667, 'P_B_ou_E': 0.667,
         }
 
+    # Pesos normalizados apenas para os pilares ativos
     peso_ativos = {p: pesos[p] for p in ativos_ambos}
     soma_pesos = sum(peso_ativos.values())
-    pesos_norm = {p: w/soma_pesos for p, w in peso_ativos.items()}
+    pesos_norm = {p: w / soma_pesos for p, w in peso_ativos.items()}
 
+    # EC brutos
     ec_a = sum(pesos_norm[p] * pilares_a[p] for p in pesos_norm)
     ec_b = sum(pesos_norm[p] * pilares_b[p] for p in pesos_norm)
 
-    bonus_a = 0.0
-    bonus_b = 0.0
+    # Bônus dinâmico de casa baseado no MA (se disponível)
+    bonus_a = bonus_b = 0.0
     if ma_a is not None and ma_b is not None:
         if time_mandante == 'A':
             b_a, b_b = _aplicar_fator_casa(ma_a, ma_b, thr_mandante, thr_visitante)
@@ -142,28 +204,20 @@ def calcular_engramscore(
     ec_a += bonus_a
     ec_b += bonus_b
 
+    # Truncamento
     ec_a = max(0.0, min(100.0, ec_a))
     ec_b = max(0.0, min(100.0, ec_b))
 
-    soma = ec_a + ec_b
-    if soma == 0:
-        p_a = p_b = 0.333
-        p_e = 0.334
-    else:
-        p_a = ec_a / soma
-        p_b = ec_b / soma
-        p_e = 1.0 - p_a - p_b
-        if p_e < 0:
-            p_e = 0.0
-            total = p_a + p_b
-            if total > 0:
-                p_a /= total
-                p_b /= total
+    # Probabilidades via Poisson com fator casa intrínseco
+    p_a, p_b, p_e = _probabilidades_poisson(
+        ec_a, ec_b, time_mandante, media_gols, home_adv_gols
+    )
 
+    # Dupla chance
     p_a_ou_e = p_a + p_e
     p_b_ou_e = p_b + p_e
 
-    return {
+    resultado = {
         'EC_A': round(ec_a, 2),
         'EC_B': round(ec_b, 2),
         'P_A': round(p_a, 4),
@@ -172,3 +226,25 @@ def calcular_engramscore(
         'P_A_ou_E': round(p_a_ou_e, 4),
         'P_B_ou_E': round(p_b_ou_e, 4),
     }
+
+    # Cálculo do valor esperado (EV) se odds forem fornecidas
+    if odds is not None:
+        odd_1 = odds.get('1')
+        odd_X = odds.get('X')
+        odd_2 = odds.get('2')
+
+        def ev(prob: float, odd: Optional[float]) -> Optional[float]:
+            if odd is not None and odd > 1.0:
+                return round(prob * odd - 1.0, 4)
+            return None
+
+        resultado['EV_A'] = ev(p_a, odd_1)
+        resultado['EV_B'] = ev(p_b, odd_2)
+        resultado['EV_E'] = ev(p_e, odd_X)
+
+        # Indica onde há valor positivo (EV > 0) para alertar o usuário
+        resultado['VALOR_A'] = (resultado['EV_A'] or -1) > 0
+        resultado['VALOR_B'] = (resultado['EV_B'] or -1) > 0
+        resultado['VALOR_E'] = (resultado['EV_E'] or -1) > 0
+
+    return resultado
