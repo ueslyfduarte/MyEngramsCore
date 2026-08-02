@@ -17,7 +17,8 @@ from src.metricas.estilo import calcular_vetor_estilo, calcular_estilo
 from src.metricas.psicologico import calcular_psicologico
 from src.mercados.gols import calcular_mercado_gols
 
-# ==================== ENGRAMS CORE ====================
+# ==================== ENGRAMS CORE (MA ajustado) ====================
+K_MA = 0.30  # peso do ajuste de odds (aumentado)
 PESOS_PADRAO = {
     'MA': 0.20,
     'FG': 0.25,
@@ -84,13 +85,9 @@ def calcular_engramscore(
         p_a = (1.0 - p_e) * (ec_a / soma)
         p_b = (1.0 - p_e) * (ec_b / soma)
     return {
-        'EC_A': round(ec_a, 2),
-        'EC_B': round(ec_b, 2),
-        'P_A': round(p_a, 4),
-        'P_B': round(p_b, 4),
-        'P_E': round(p_e, 4),
-        'P_A_ou_E': round(p_a + p_e, 4),
-        'P_B_ou_E': round(p_b + p_e, 4),
+        'EC_A': round(ec_a, 2), 'EC_B': round(ec_b, 2),
+        'P_A': round(p_a, 4), 'P_B': round(p_b, 4), 'P_E': round(p_e, 4),
+        'P_A_ou_E': round(p_a + p_e, 4), 'P_B_ou_E': round(p_b + p_e, 4),
     }
 
 def descrever_fg(valor, nome):
@@ -117,9 +114,7 @@ def gerar_descricao_completa(nome, ma, fg, cpp, estilo, psic, vetor_estilo, dado
     linhas = [f"### 📋 Análise de {nome}"]
     linhas.append(descrever_fg(fg, nome))
     if dados_fg:
-        atq = dados_fg.get('GM')
-        defe = dados_fg.get('GS')
-        meio = dados_fg.get('Posse')
+        atq = dados_fg.get('GM'); defe = dados_fg.get('GS'); meio = dados_fg.get('Posse')
         if atq is not None:
             if atq > 1.6: linhas.append(f"- **Ataque** forte: média de {atq:.1f} gols/jogo.")
             elif atq < 1.0: linhas.append(f"- **Ataque** frágil: apenas {atq:.1f} gols/jogo.")
@@ -195,15 +190,13 @@ st.markdown("""
         background: #f0c040; color: #000; padding: 10px 15px; border-radius: 20px;
         font-weight: bold; text-align: center; margin: 10px 0; font-size: 1.1em;
     }
-    table td, table th { color: #d0d0d0 !important; }
-    div[data-testid="stDataFrame"] { background: #11171f; border: 1px solid #2a2f38; border-radius: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("⚽ ENGRAMS CORE")
 st.markdown("<p style='color:#f0c040; font-size:1.2em;'>Sistema de Análise Esportiva Diferencial</p>", unsafe_allow_html=True)
 
-# ==================== ENTRADA DE DADOS ====================
+# ==================== ENTRADA DE DADOS (incluindo odd over 2.5 fixa) ====================
 st.header("📝 Dados do Confronto")
 st.subheader("📊 Liga (Referências)")
 col_l1, col_l2, col_l3 = st.columns(3)
@@ -311,14 +304,19 @@ with col_b:
     sens_b = st.slider("Sensibilidade", -1.0, 1.0, -0.3, 0.1, key="sens_b")
     prat_b = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítico"], key="prat_b")
 
+# Seção fixa para a odd de gols (agora fora do botão)
+st.markdown("---")
+st.subheader("⚽ Configuração de Mercado")
+odd_over25 = st.number_input("Odd Over 2.5 (referência)", min_value=1.01, max_value=10.0, value=1.90, step=0.01, key="odd_over_fixo")
+
 gerar = st.button("⚡ Gerar Engrama", type="primary")
 
 if gerar:
     # --- Cálculos ---
     _, v_a, d_a = calcular_pontos_e_resultados(list(res_a))
-    ma_a = calcular_ma(sum(3 if c=='V' else 1 if c=='E' else 0 for c in res_a), v_a, d_a, odd_a)
+    ma_a = calcular_ma(sum(3 if c=='V' else 1 if c=='E' else 0 for c in res_a), v_a, d_a, odd_a, k=K_MA)
     _, v_b, d_b = calcular_pontos_e_resultados(list(res_b))
-    ma_b = calcular_ma(sum(3 if c=='V' else 1 if c=='E' else 0 for c in res_b), v_b, d_b, odd_b)
+    ma_b = calcular_ma(sum(3 if c=='V' else 1 if c=='E' else 0 for c in res_b), v_b, d_b, odd_b, k=K_MA)
 
     dados_fg_a = {'GM': gm_a, 'FA': fa_a, 'xG': xg_a, 'GS': gs_a, 'xGA': xga_a, 'CB': cb_a, 'Posse': posse_a}
     dados_fg_a = {k:v for k,v in dados_fg_a.items() if v != 0.0}
@@ -354,17 +352,34 @@ if gerar:
         time_mandante='A'
     )
 
+    # Cálculo do mercado de gols usando a odd fixa
+    gols = calcular_mercado_gols(
+        gols_marcados_a=gm_a, gols_sofridos_a=gs_a,
+        gols_marcados_b=gm_b, gols_sofridos_b=gs_b,
+        n_jogos=max(n_jogos_a, n_jogos_b),
+        ma_a=ma_a, ma_b=ma_b,
+        fg_a={'ataque':fg_a,'defesa':fg_a,'meio':fg_a},
+        fg_b={'ataque':fg_b,'defesa':fg_b,'meio':fg_b},
+        cpp_a=cpp_a, cpp_b=cpp_b,
+        estilo_a=vetor_a, estilo_b=vetor_b,
+        psic_a={'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a},
+        psic_b={'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b},
+        ec_a=ec['EC_A'], ec_b=ec['EC_B'],
+        prateleira_a=prat_a_num, prateleira_b=prat_b_num,
+        odd_over25=odd_over25  # usa o valor fixo
+    )
+
     # ==================== RESULTADOS EM ABAS ====================
-    tab_visao, tab_graficos, tab_mercados, tab_descritivo = st.tabs([
-        "📊 Visão Geral", "📈 Gráficos Avançados", "💰 Mercados & Probabilidades", "📝 Análise Descritiva"
+    tabs = st.tabs([
+        "📊 Visão Geral", "📈 Gráficos & Mapas", "💰 Mercados & Probabilidades",
+        "🔗 Ligações de Mercado", "📝 Análise Descritiva"
     ])
 
     pilares = ['MA', 'FG', 'CPP', 'Estilo', 'Psicológico']
     vals_a = [ma_a, fg_a, cpp_a, estilo_a, psic_a]
     vals_b = [ma_b, fg_b, cpp_b, estilo_b, psic_b]
 
-    # ---------- ABA VISÃO GERAL ----------
-    with tab_visao:
+    with tabs[0]:
         st.header("Confronto Direto")
         for i, p in enumerate(pilares):
             c1, c2 = st.columns(2)
@@ -406,37 +421,23 @@ if gerar:
             st.progress(int(ec['EC_B']))
             st.markdown("</div>", unsafe_allow_html=True)
 
-        st.subheader("🔮 Projeções Rápidas")
-        proj = [
-            ("Prob. Vitória Mandante", ec['P_A']),
-            ("Prob. Vitória Visitante", ec['P_B']),
-            ("Prob. Empate", ec['P_E']),
-            ("Dupla Chance Mandante/Empate", ec['P_A_ou_E']),
-            ("Dupla Chance Visitante/Empate", ec['P_B_ou_E']),
-            ("Diferença de Força (EC)", abs(ec['EC_A']-ec['EC_B'])/100),
-            ("Vantagem Tática (Estilo)", (estilo_a - estilo_b)/100),
-            ("Pressão Psicológica", (psic_a - psic_b)/100),
-            ("Consistência Recente", (ma_a - ma_b)/100),
-        ]
-        df_proj = pd.DataFrame(proj, columns=["Indicador", "Valor"])
-        st.dataframe(df_proj.style.format({'Valor': '{:.2%}'}).background_gradient(subset=['Valor'], cmap='RdYlGn'), use_container_width=True)
+    with tabs[1]:
+        st.subheader("📈 Comparativo de Pilares")
+        df_bar = pd.DataFrame({
+            'Pilar': pilares * 2,
+            'Valor': vals_a + vals_b,
+            'Time': [nome_a]*5 + [nome_b]*5
+        })
+        fig_bar = px.bar(df_bar, x='Pilar', y='Valor', color='Time', barmode='group',
+                         color_discrete_map={nome_a: '#00cc66', nome_b: '#0066cc'})
+        fig_bar.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14')
+        st.plotly_chart(fig_bar, use_container_width=True)
 
-    # ---------- ABA GRÁFICOS AVANÇADOS ----------
-    with tab_graficos:
-        st.subheader("📊 Painel Gráfico")
-        # Radar dos Pilares
-        fig_radar = go.Figure()
-        fig_radar.add_trace(go.Scatterpolar(r=vals_a, theta=pilares, fill='toself', name=nome_a, marker=dict(color='#00cc66')))
-        fig_radar.add_trace(go.Scatterpolar(r=vals_b, theta=pilares, fill='toself', name=nome_b, marker=dict(color='#0066cc')))
-        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0,100])), title="Radar de Pilares", template='plotly_dark', paper_bgcolor='#0a0e14')
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-        # Radar FIFA (Ataque, Defesa, Meio)
         def sub_nota(valor, media, limite_sup=100, limite_inf=45):
             if valor is None or media == 0: return 50.0
             return max(limite_inf, min(limite_sup, (valor/media)*50))
         atq_a = sub_nota(gm_a, l_gm)
-        def_a = 100 - sub_nota(gs_a, l_gs) + 45  # inverter
+        def_a = 100 - sub_nota(gs_a, l_gs) + 45
         mei_a = sub_nota(posse_a, l_posse)
         atq_b = sub_nota(gm_b, l_gm)
         def_b = 100 - sub_nota(gs_b, l_gs) + 45
@@ -448,65 +449,45 @@ if gerar:
         fig_fifa.update_layout(polar=dict(radialaxis=dict(visible=True, range=[45,100])), title="Força Geral (estilo FIFA)", template='plotly_dark', paper_bgcolor='#0a0e14')
         st.plotly_chart(fig_fifa, use_container_width=True)
 
-        # Barras de estilo
-        col_e1, col_e2 = st.columns(2)
-        for col, vetor, nome in [(col_e1, vetor_a, nome_a), (col_e2, vetor_b, nome_b)]:
-            with col:
-                st.markdown(f"**Estilos - {nome}**")
-                if vetor:
-                    dims = list(vetor.keys())
-                    vals_dim = [vetor[d] if vetor[d] is not None else 0 for d in dims]
-                    max_dim = dims[vals_dim.index(max(vals_dim))]
-                    st.markdown(f"🔷 Ênfase: **{max_dim.replace('_',' ').title()}**")
-                    fig = px.bar(x=vals_dim, y=dims, orientation='h',
-                                 color=vals_dim, color_continuous_scale=['#cc3333', '#f0c040', '#00cc66'])
-                    fig.update_layout(template='plotly_dark', showlegend=False, height=300, paper_bgcolor='#0a0e14')
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Sem dados de estilo.")
+        st.subheader("🔥 Mapa de Calor dos Estilos")
+        if vetor_a and vetor_b:
+            dims_comuns = [d for d in vetor_a.keys() if vetor_a[d] is not None and vetor_b[d] is not None]
+            if dims_comuns:
+                dados_heat = []
+                for d in dims_comuns:
+                    dados_heat.append({'Time': nome_a, 'Dimensão': d.replace('_',' ').title(), 'Valor': vetor_a[d]})
+                    dados_heat.append({'Time': nome_b, 'Dimensão': d.replace('_',' ').title(), 'Valor': vetor_b[d]})
+                df_heat = pd.DataFrame(dados_heat)
+                fig_heat = px.density_heatmap(df_heat, x='Time', y='Dimensão', z='Valor', color_continuous_scale=['#cc3333', '#f0c040', '#00cc66'])
+                fig_heat.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14')
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.info("Sem dados suficientes para mapa de calor.")
+        else:
+            st.info("Dados de estilo insuficientes.")
 
-        # Sequência de resultados
-        st.subheader("Sequência de Resultados Recentes")
+        st.subheader("Sequência de Resultados")
         def plot_sequencia(res_str, nome):
             cores = {'V': '#00cc66', 'E': '#f0c040', 'D': '#cc3333'}
             pontos = [cores.get(c, '#FFFFFF') for c in res_str]
             fig = go.Figure(data=go.Scatter(x=list(range(len(res_str))), y=[1]*len(res_str),
                             mode='markers', marker=dict(color=pontos, size=20)))
-            fig.update_layout(title=nome, yaxis_visible=False, xaxis_title="Jogos (antigo → recente)", template='plotly_dark', height=150, paper_bgcolor='#0a0e14')
+            fig.update_layout(title=nome, yaxis_visible=False, xaxis_title="Jogos", template='plotly_dark', height=150, paper_bgcolor='#0a0e14')
             st.plotly_chart(fig, use_container_width=True)
         col_s1, col_s2 = st.columns(2)
         with col_s1: plot_sequencia(res_a, nome_a)
         with col_s2: plot_sequencia(res_b, nome_b)
 
-        # Mapa de Vantagem Tática
-        st.subheader("Mapa de Vantagem Tática")
-        if vetor_a and vetor_b:
-            dims_comuns = [d for d in vetor_a.keys() if vetor_a[d] is not None and vetor_b[d] is not None]
-            if dims_comuns:
-                matriz = [vetor_a[d] - vetor_b[d] for d in dims_comuns]
-                df_matriz = pd.DataFrame({'Dimensão': dims_comuns, 'Vantagem A sobre B': matriz})
-                fig_heat = px.bar(df_matriz, x='Vantagem A sobre B', y='Dimensão', orientation='h',
-                                 color='Vantagem A sobre B', color_continuous_scale=['#cc3333', '#f0c040', '#00cc66'])
-                fig_heat.update_layout(template='plotly_dark', title="Vantagem de A sobre B por dimensão de estilo", paper_bgcolor='#0a0e14')
-                st.plotly_chart(fig_heat, use_container_width=True)
-            else:
-                st.info("Sem dimensões comuns para comparar.")
-        else:
-            st.info("Dados de estilo insuficientes.")
-
-        # Distribuição de gols (Poisson)
-        odd_over25 = 1.90
-        gols_temp = calcular_mercado_gols(gm_a, gs_a, gm_b, gs_b, max(n_jogos_a,n_jogos_b), ma_a, ma_b, {'ataque':fg_a,'defesa':fg_a,'meio':fg_a}, {'ataque':fg_b,'defesa':fg_b,'meio':fg_b}, cpp_a, cpp_b, vetor_a, vetor_b, {'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a}, {'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b}, ec['EC_A'], ec['EC_B'], prat_a_num, prat_b_num, odd_over25)
-        lamb = gols_temp['lambda_final']
+        st.subheader("Distribuição de Gols Esperados")
+        lamb = gols['lambda_final']
         x = np.arange(0, 8)
         y = [math.exp(-lamb) * lamb**k / math.factorial(k) for k in x]
-        fig_pois = px.bar(x=x, y=y, labels={'x':'Gols', 'y':'Probabilidade'}, title=f"Distribuição de Gols Esperados (λ={lamb:.2f})")
+        fig_pois = px.bar(x=x, y=y, labels={'x':'Gols', 'y':'Probabilidade'}, title=f"λ={lamb:.2f}")
         fig_pois.update_traces(marker_color='#00cc66')
         fig_pois.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14')
         st.plotly_chart(fig_pois, use_container_width=True)
 
-    # ---------- ABA MERCADOS & PROBABILIDADES ----------
-    with tab_mercados:
+    with tabs[2]:
         st.header("Probabilidades 1X2")
         col_p1, col_p2, col_p3 = st.columns(3)
         col_p1.markdown(f"<div class='highlight-neutral'>{ec['P_A']:.2%}</div>", unsafe_allow_html=True)
@@ -520,22 +501,6 @@ if gerar:
         col_d2.metric(f"Dupla {nome_b} ou Empate", f"{ec['P_B_ou_E']:.2%}")
 
         st.header("⚽ Mercado de Gols")
-        odd_over25 = st.number_input("Odd Over 2.5", 1.01, 10.0, 1.90, 0.01, key="odd_over")
-        gols = calcular_mercado_gols(
-            gols_marcados_a=gm_a, gols_sofridos_a=gs_a,
-            gols_marcados_b=gm_b, gols_sofridos_b=gs_b,
-            n_jogos=max(n_jogos_a, n_jogos_b),
-            ma_a=ma_a, ma_b=ma_b,
-            fg_a={'ataque':fg_a,'defesa':fg_a,'meio':fg_a},
-            fg_b={'ataque':fg_b,'defesa':fg_b,'meio':fg_b},
-            cpp_a=cpp_a, cpp_b=cpp_b,
-            estilo_a=vetor_a, estilo_b=vetor_b,
-            psic_a={'moral':moral_a,'pressao_obj':p_obj_a,'sensibilidade':sens_a},
-            psic_b={'moral':moral_b,'pressao_obj':p_obj_b,'sensibilidade':sens_b},
-            ec_a=ec['EC_A'], ec_b=ec['EC_B'],
-            prateleira_a=prat_a_num, prateleira_b=prat_b_num,
-            odd_over25=odd_over25
-        )
         col_g1, col_g2, col_g3 = st.columns(3)
         col_g1.markdown(f"<div class='highlight-neutral'>{gols['over_1.5']:.2%}</div>", unsafe_allow_html=True)
         col_g1.metric("Over 1.5", f"{gols['over_1.5']:.2%}")
@@ -571,8 +536,53 @@ if gerar:
         if edge_2 > 0.1:
             st.markdown(f"<div class='selo'>🏆 Edge Vitória {nome_b}: +{edge_2:.2%}</div>", unsafe_allow_html=True)
 
-    # ---------- ABA ANÁLISE DESCRITIVA ----------
-    with tab_descritivo:
+    with tabs[3]:
+        st.header("🔗 Influência dos Pilares nos Mercados")
+        st.markdown("""
+        Esta matriz mostra como cada pilar contribui para a probabilidade de cada mercado,
+        baseado nos pesos do modelo e nos valores calculados. Valores positivos indicam 
+        favorecimento para o lado correspondente.
+        """)
+        # Contribuição ponderada
+        pesos_ec = PESOS_PADRAO.copy()
+        contrib_a = {}
+        contrib_b = {}
+        for p in pilares:
+            idx = pilares.index(p)
+            contrib_a[p] = pesos_ec[p] * vals_a[idx]
+            contrib_b[p] = pesos_ec[p] * vals_b[idx]
+        total_contrib = sum(contrib_a.values()) + sum(contrib_b.values())
+        if total_contrib > 0:
+            for p in pilares:
+                contrib_a[p] /= total_contrib
+                contrib_b[p] /= total_contrib
+        mercados = ['Vitória A', 'Empate', 'Vitória B', 'Over 2.5', 'BTTS']
+        influencia = pd.DataFrame(index=pilares, columns=mercados, data=0.0)
+        for p in pilares:
+            influencia.loc[p, 'Vitória A'] = contrib_a[p] * 1.5
+            influencia.loc[p, 'Vitória B'] = contrib_b[p] * 1.5
+            influencia.loc[p, 'Empate'] = 1.0 - abs(contrib_a[p] - contrib_b[p])
+            influencia.loc[p, 'Over 2.5'] = (contrib_a['FG'] + contrib_b['FG']) * 0.8
+            influencia.loc[p, 'BTTS'] = (contrib_a['FG'] + contrib_b['FG']) * 0.7 + contrib_a['Estilo'] * 0.3
+        influencia = influencia.clip(lower=0, upper=1)
+        fig_matriz = px.imshow(influencia, text_auto='.2f', aspect='auto', color_continuous_scale=['#cc3333', '#f0c040', '#00cc66'])
+        fig_matriz.update_layout(template='plotly_dark', paper_bgcolor='#0a0e14', title="Mapa de Influência Pilares x Mercados")
+        st.plotly_chart(fig_matriz, use_container_width=True)
+
+        st.subheader("📈 Correlação Ponderada entre Pilares e Resultados Esperados")
+        correlacoes = {
+            'Mercado': ['Vitória Mandante', 'Vitória Visitante', 'Empate', 'Over 2.5 Gols', 'Ambas Marcam'],
+            'MA Mandante': [ma_a/100, 0, (100-ma_a)/100, ma_a/100, ma_a/200],
+            'MA Visitante': [0, ma_b/100, (100-ma_b)/100, ma_b/100, ma_b/200],
+            'FG Mandante': [fg_a/100, 0, (100-fg_a)/100, fg_a/100, fg_a/100],
+            'FG Visitante': [0, fg_b/100, (100-fg_b)/100, fg_b/100, fg_b/100],
+            'Estilo Mandante': [estilo_a/100, 0, 0, estilo_a/200, estilo_a/100],
+            'Estilo Visitante': [0, estilo_b/100, 0, estilo_b/200, estilo_b/100],
+        }
+        df_corr = pd.DataFrame(correlacoes).set_index('Mercado')
+        st.dataframe(df_corr.style.format("{:.2%}").background_gradient(cmap='RdYlGn', axis=1), use_container_width=True)
+
+    with tabs[4]:
         st.header("Análise Inteligente")
         desc_a = gerar_descricao_completa(nome_a, ma_a, fg_a, cpp_a, estilo_a, psic_a, vetor_a, dados_fg_a, dados_estilo_a, prat_a)
         desc_b = gerar_descricao_completa(nome_b, ma_b, fg_b, cpp_b, estilo_b, psic_b, vetor_b, dados_fg_b, dados_estilo_b, prat_b)
