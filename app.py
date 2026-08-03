@@ -25,10 +25,10 @@ from src.metricas.estilo_perfil import obter_perfil_time
 # ------------------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
 # ------------------------------------------------------------
-st.set_page_config(page_title="MyEngramScore ⚽", page_icon="⚽", layout="wide")
+st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 
 # ------------------------------------------------------------
-# CSS GLOBAL - TEMA EA FC + TRADING
+# CSS PREMIUM — LEGIBILIDADE E ESTILO EA FC
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -48,7 +48,7 @@ st.markdown("""
     [data-testid="stSidebar"] h2 {
         color: #F0C040 !important;
         font-weight: 800;
-        letter-spacing: 1px;
+        letter-spacing: 2px;
         text-transform: uppercase;
         font-size: 14px;
         border-bottom: 2px solid #F0C040;
@@ -66,18 +66,17 @@ st.markdown("""
         box-shadow: 0 0 8px rgba(240,192,64,0.2);
     }
 
-    /* Cards principais */
+    /* Cards premium */
     .card-premium {
         background: linear-gradient(145deg, rgba(20,24,35,0.9) 0%, rgba(16,20,30,0.95) 100%);
         border: 1px solid #252B38;
-        border-radius: 16px;
-        padding: 28px 24px;
-        margin: 12px 0;
+        border-radius: 14px;
+        padding: 20px 16px;
+        margin: 8px 0;
         backdrop-filter: blur(10px);
         box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
         position: relative;
         overflow: hidden;
-        transition: all 0.3s ease;
     }
     .card-premium::before {
         content: '';
@@ -91,27 +90,22 @@ st.markdown("""
     .card-premium:hover {
         border-color: #F0C040;
         box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(240,192,64,0.1);
-        transform: translateY(-2px);
     }
-
     .card-header-premium {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 2px;
-        color: #8890A0;
-        margin-bottom: 16px;
+        color: #B0B8C0;
+        margin-bottom: 14px;
         display: flex;
         align-items: center;
         gap: 8px;
     }
-    .card-header-premium .icon {
-        font-size: 18px;
-    }
 
     /* Métricas gigantes */
     .metric-premium {
-        font-size: 56px;
+        font-size: 52px;
         font-weight: 900;
         text-align: center;
         background: linear-gradient(180deg, #F0C040 0%, #D4A017 100%);
@@ -120,11 +114,10 @@ st.markdown("""
         background-clip: text;
         letter-spacing: -2px;
         line-height: 1;
-        margin: 8px 0;
-        filter: drop-shadow(0 0 12px rgba(240,192,64,0.3));
+        margin: 6px 0;
     }
     .metric-premium-blue {
-        font-size: 56px;
+        font-size: 52px;
         font-weight: 900;
         text-align: center;
         background: linear-gradient(180deg, #4A90D9 0%, #2A5FA0 100%);
@@ -133,15 +126,23 @@ st.markdown("""
         background-clip: text;
         letter-spacing: -2px;
         line-height: 1;
-        margin: 8px 0;
-        filter: drop-shadow(0 0 12px rgba(74,144,217,0.3));
+        margin: 6px 0;
+    }
+
+    /* Valor dourado para alta confiança */
+    .high-confidence {
+        background: linear-gradient(180deg, #F0C040 0%, #D4A017 100%) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+        font-weight: 900;
     }
 
     .metric-label-premium {
-        font-size: 12px;
+        font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 3px;
-        color: #5A6070;
+        color: #B0B8C0;
         text-align: center;
         font-weight: 600;
     }
@@ -151,60 +152,53 @@ st.markdown("""
         height: 6px;
         border-radius: 3px;
         background: rgba(255,255,255,0.05);
-        margin: 12px 0;
+        margin: 10px 0;
         overflow: hidden;
     }
     .bar-fill-gold {
         height: 100%;
         border-radius: 3px;
         background: linear-gradient(90deg, #F0C040, #D4A017);
-        box-shadow: 0 0 12px rgba(240,192,64,0.4);
-        transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     .bar-fill-blue {
         height: 100%;
         border-radius: 3px;
         background: linear-gradient(90deg, #4A90D9, #2A5FA0);
-        box-shadow: 0 0 12px rgba(74,144,217,0.4);
-        transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
     /* Selos */
     .selo-dourado {
         border: 2px solid #F0C040;
         border-radius: 20px;
-        padding: 6px 16px;
+        padding: 5px 14px;
         background: linear-gradient(135deg, rgba(240,192,64,0.15) 0%, rgba(240,192,64,0.05) 100%);
         color: #F0C040;
         font-weight: 700;
         font-size: 12px;
         display: inline-block;
         letter-spacing: 1px;
-        box-shadow: 0 0 16px rgba(240,192,64,0.2);
     }
     .selo-verde {
         border: 2px solid #00E676;
         border-radius: 20px;
-        padding: 6px 16px;
+        padding: 5px 14px;
         background: linear-gradient(135deg, rgba(0,230,118,0.15) 0%, rgba(0,230,118,0.05) 100%);
         color: #00E676;
         font-weight: 700;
         font-size: 12px;
         display: inline-block;
         letter-spacing: 1px;
-        box-shadow: 0 0 16px rgba(0,230,118,0.2);
     }
     .selo-amarelo {
         border: 2px solid #FFB300;
         border-radius: 20px;
-        padding: 6px 16px;
+        padding: 5px 14px;
         background: linear-gradient(135deg, rgba(255,179,0,0.15) 0%, rgba(255,179,0,0.05) 100%);
         color: #FFB300;
         font-weight: 700;
         font-size: 12px;
         display: inline-block;
         letter-spacing: 1px;
-        box-shadow: 0 0 16px rgba(255,179,0,0.2);
     }
 
     /* Botão principal */
@@ -212,19 +206,18 @@ st.markdown("""
         background: linear-gradient(135deg, #F0C040 0%, #D4A017 100%);
         color: #0A0D14;
         font-weight: 800;
-        font-size: 16px;
+        font-size: 15px;
         letter-spacing: 2px;
         text-transform: uppercase;
         border: none;
         border-radius: 12px;
-        padding: 16px 48px;
+        padding: 14px 40px;
         box-shadow: 0 8px 24px rgba(240,192,64,0.3);
         transition: all 0.3s ease;
     }
     .stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: 0 12px 32px rgba(240,192,64,0.5);
-        background: linear-gradient(135deg, #FFD966 0%, #E0B030 100%);
     }
 
     /* Tabs */
@@ -236,10 +229,10 @@ st.markdown("""
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 8px;
-        padding: 10px 20px;
+        padding: 10px 18px;
         font-weight: 600;
-        font-size: 13px;
-        color: #5A6070;
+        font-size: 14px;
+        color: #B0B8C0;
         transition: all 0.2s;
     }
     .stTabs [aria-selected="true"] {
@@ -251,38 +244,10 @@ st.markdown("""
     /* Prob boxes */
     .prob-box {
         background: linear-gradient(145deg, rgba(20,24,35,0.8) 0%, rgba(16,20,30,0.9) 100%);
-        border-radius: 16px;
-        padding: 24px 16px;
+        border-radius: 14px;
+        padding: 20px 12px;
         text-align: center;
         border: 1px solid #252B38;
-        backdrop-filter: blur(10px);
-    }
-
-    /* Subtítulos */
-    h1, h2, h3 {
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-    }
-
-    /* Animações para números */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-in {
-        animation: fadeInUp 0.6s ease forwards;
-    }
-
-    /* Tooltip de odds */
-    .odd-input {
-        background: #111620 !important;
-        border: 1px solid #252B38 !important;
-        border-radius: 8px !important;
-        color: #E0E0E0 !important;
-    }
-    .odd-input:focus {
-        border-color: #F0C040 !important;
-        box-shadow: 0 0 12px rgba(240,192,64,0.15) !important;
     }
 
     /* Info cards */
@@ -290,59 +255,58 @@ st.markdown("""
         background: rgba(240,192,64,0.03);
         border: 1px solid rgba(240,192,64,0.1);
         border-radius: 12px;
-        padding: 16px;
-        margin: 8px 0;
-        font-size: 13px;
-        color: #8890A0;
+        padding: 14px;
+        margin: 6px 0;
+        font-size: 14px;
+        color: #E0E0E0;
         line-height: 1.6;
     }
 
-    /* Separators */
+    /* Divisor */
     .divider {
         height: 1px;
         background: linear-gradient(90deg, transparent, #252B38, transparent);
-        margin: 24px 0;
+        margin: 20px 0;
     }
 
-    /* Estatísticas em linha */
-    .stat-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.03);
-        font-size: 14px;
+    /* Campos de input */
+    .stNumberInput input, .stTextInput input {
+        background: #111620 !important;
+        border: 1px solid #252B38 !important;
+        border-radius: 8px !important;
+        color: #E0E0E0 !important;
     }
-    .stat-value {
-        font-weight: 700;
-        color: #F0C040;
-    }
-
-    /* Select box */
     .stSelectbox > div > div {
         background: #111620 !important;
         border: 1px solid #252B38 !important;
         border-radius: 8px !important;
     }
+
+    /* Subtítulos */
+    h2, h3 {
+        font-weight: 800 !important;
+        letter-spacing: -0.5px;
+        color: #F0C040 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# HEADER PREMIUM
+# HEADER ENGRAMSCORE
 # ------------------------------------------------------------
 st.markdown("""
 <div style="text-align:center; padding: 20px 0 30px 0;">
-    <div style="font-size:12px; text-transform:uppercase; letter-spacing:4px; color:#5A6070; margin-bottom:8px;">
+    <div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0; margin-bottom:8px;">
         Sistema de Análise Esportiva
     </div>
-    <h1 style="font-size:42px; font-weight:900; margin:0; letter-spacing:-1px;">
+    <h1 style="font-size:44px; font-weight:900; margin:0; letter-spacing:-1px;">
         <span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-            MYENGRAM
+            ENGRAM
         </span>
         <span style="color:#E0E0E0; font-weight:300;">SCORE</span>
     </h1>
-    <div style="font-size:11px; color:#5A6070; letter-spacing:3px; margin-top:4px;">
-        ÍNDICE DE FORÇA ABSOLUTA
+    <div style="font-size:13px; color:#B0B8C0; letter-spacing:3px; margin-top:4px;">
+        ÍNDICE DE FORÇA ABSOLUTA — ONDE A MEMÓRIA CONSOLIDA O PADRÃO
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -374,92 +338,144 @@ medias_liga = {
 }
 
 # ------------------------------------------------------------
-# ENTRADA DE DADOS DOS TIMES
+# ENTRADA DE DADOS — CARDS POR SETOR
 # ------------------------------------------------------------
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align:center; margin-bottom:20px;">
-    <span style="font-size:11px; text-transform:uppercase; letter-spacing:3px; color:#5A6070;">Dados do Confronto</span>
+    <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Dados do Confronto</span>
 </div>
 """, unsafe_allow_html=True)
 
 colA, colB = st.columns(2)
 
+# ============= TIME A =============
 with colA:
+    # Card 1: Identificação
     with st.container():
-        st.markdown("""
-        <div class="card-premium">
-            <div class="card-header-premium">
-                <span class="icon">🏠</span> TIME DA CASA
-            </div>
-        """, unsafe_allow_html=True)
-        nome_casa = st.text_input("Nome do Time", "Time A", key="casa")
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🏠 TIME DA CASA</div>', unsafe_allow_html=True)
+        nome_casa = st.text_input("Nome", "Time A", key="casa", label_visibility="collapsed", placeholder="Nome do time")
+        n_casa = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_casa")
+        pos_casa = st.number_input("Posição na tabela", 1, 20, 2, key="pos_casa")
+        prat_casa = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_casa")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Card 2: Ataque
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🎯 ATAQUE</div>', unsafe_allow_html=True)
         col_a1, col_a2 = st.columns(2)
         with col_a1:
-            n_casa = st.number_input("Jogos", 1, 38, 10, key="nj_casa")
             gm_casa = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_casa")
             fa_casa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_casa")
-            eca_casa = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.5, 0.1, key="eca_casa")
-            posse_casa = st.slider("Posse (%)", 0, 100, 55, key="posse_casa")
         with col_a2:
+            eca_casa = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.5, 0.1, key="eca_casa")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Card 3: Defesa
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🛡️ DEFESA</div>', unsafe_allow_html=True)
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
             gs_casa = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_casa")
             fas_casa = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.0, 0.1, key="fas_casa")
+        with col_d2:
             ecc_casa = st.number_input("Escanteios contra/j", 0.0, 20.0, 4.0, 0.1, key="ecc_casa")
             des_casa = st.number_input("Desarmes/j", 0.0, 50.0, 16.0, 0.1, key="des_casa")
-            fc_casa = st.number_input("Faltas/j", 0.0, 30.0, 13.0, 0.1, key="fc_casa")
-            ca_casa = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.2, 0.1, key="ca_casa")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
+    # Card 4: Posse & Disciplina
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🎮 POSSE & DISCIPLINA</div>', unsafe_allow_html=True)
+        posse_casa = st.slider("Posse (%)", 0, 100, 55, key="posse_casa")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            fc_casa = st.number_input("Faltas/j", 0.0, 30.0, 13.0, 0.1, key="fc_casa")
+        with col_p2:
+            ca_casa = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.2, 0.1, key="ca_casa")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Card 5: Momento & Confronto
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">📈 MOMENTO & CONFRONTO</div>', unsafe_allow_html=True)
         res_casa = st.text_input("Últ. resultados (V/E/D)", "VVEDV", key="res_casa").upper()
-        pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
-        jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
-        prat_casa = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_casa")
         cons_casa = st.text_input("Últ. 10 jogos (V/E/D)", "VVEDVVEDVV", key="cons_casa").upper()
         moral_casa = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_casa")
-        pos_casa = st.number_input("Posição na tabela", 1, 20, 2, key="pos_casa")
-        st.markdown("</div>", unsafe_allow_html=True)
+        pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
+        jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
+        st.markdown('</div>', unsafe_allow_html=True)
 
+# ============= TIME B =============
 with colB:
+    # Card 1: Identificação
     with st.container():
-        st.markdown("""
-        <div class="card-premium">
-            <div class="card-header-premium">
-                <span class="icon">✈️</span> TIME VISITANTE
-            </div>
-        """, unsafe_allow_html=True)
-        nome_fora = st.text_input("Nome do Time", "Time B", key="fora")
-        col_b1, col_b2 = st.columns(2)
-        with col_b1:
-            n_fora = st.number_input("Jogos", 1, 38, 10, key="nj_fora")
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">✈️ TIME VISITANTE</div>', unsafe_allow_html=True)
+        nome_fora = st.text_input("Nome", "Time B", key="fora", label_visibility="collapsed", placeholder="Nome do time")
+        n_fora = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_fora")
+        pos_fora = st.number_input("Posição na tabela", 1, 20, 16, key="pos_fora")
+        prat_fora = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_fora")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Card 2: Ataque
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🎯 ATAQUE</div>', unsafe_allow_html=True)
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
             gm_fora = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_fora")
             fa_fora = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_fora")
+        with col_a2:
             eca_fora = st.number_input("Escanteios a favor/j", 0.0, 20.0, 4.5, 0.1, key="eca_fora")
-            posse_fora = st.slider("Posse (%)", 0, 100, 48, key="posse_fora")
-        with col_b2:
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Card 3: Defesa
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🛡️ DEFESA</div>', unsafe_allow_html=True)
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
             gs_fora = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_fora")
             fas_fora = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.8, 0.1, key="fas_fora")
+        with col_d2:
             ecc_fora = st.number_input("Escanteios contra/j", 0.0, 20.0, 5.0, 0.1, key="ecc_fora")
             des_fora = st.number_input("Desarmes/j", 0.0, 50.0, 14.0, 0.1, key="des_fora")
-            fc_fora = st.number_input("Faltas/j", 0.0, 30.0, 11.0, 0.1, key="fc_fora")
-            ca_fora = st.number_input("Cartões amarelos/j", 0.0, 10.0, 1.8, 0.1, key="ca_fora")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
+    # Card 4: Posse & Disciplina
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🎮 POSSE & DISCIPLINA</div>', unsafe_allow_html=True)
+        posse_fora = st.slider("Posse (%)", 0, 100, 48, key="posse_fora")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            fc_fora = st.number_input("Faltas/j", 0.0, 30.0, 11.0, 0.1, key="fc_fora")
+        with col_p2:
+            ca_fora = st.number_input("Cartões amarelos/j", 0.0, 10.0, 1.8, 0.1, key="ca_fora")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Card 5: Momento & Confronto
+    with st.container():
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">📈 MOMENTO & CONFRONTO</div>', unsafe_allow_html=True)
         res_fora = st.text_input("Últ. resultados (V/E/D)", "DDVVE", key="res_fora").upper()
-        pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
-        jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
-        prat_fora = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_fora")
         cons_fora = st.text_input("Últ. 10 jogos (V/E/D)", "DDVVEDDVV", key="cons_fora").upper()
         moral_fora = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_fora")
-        pos_fora = st.number_input("Posição na tabela", 1, 20, 16, key="pos_fora")
-        st.markdown("</div>", unsafe_allow_html=True)
+        pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
+        jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# ODDS 1X2 (ANTES DO BOTÃO)
+# ODDS 1X2
 # ------------------------------------------------------------
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align:center; margin-bottom:20px;">
-    <span style="font-size:11px; text-transform:uppercase; letter-spacing:3px; color:#5A6070;">Odds de Mercado</span>
+    <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Odds de Mercado</span>
 </div>
 """, unsafe_allow_html=True)
 col_odd1, col_odd2, col_odd3 = st.columns(3)
@@ -476,7 +492,7 @@ with col_odd3:
 st.markdown("<br>", unsafe_allow_html=True)
 col_btn = st.columns([1,2,1])
 with col_btn[1]:
-    gerar = st.button("⚡ GERAR ANÁLISE", type="primary", use_container_width=True)
+    gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
 
 if gerar:
     # ==================== PROCESSAMENTO ====================
@@ -618,25 +634,25 @@ if gerar:
         eventos = [
             ('Vitória do ' + nome_casa + ' por 2+ gols',
              sum(p for gA,gB,p in results_adj if gA >= gB+2),
-             f"Ataque eficiente do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j)."),
+             f"Ataque do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j)."),
             ('Empate',
              empate_adj,
-             f"Equilíbrio nos ECs ({EC_A:.1f} vs {EC_B:.1f})."),
+             f"Equilíbrio nos EngramScores ({EC_A:.1f} vs {EC_B:.1f})."),
             ('Vitória do ' + nome_fora,
              vitoria_fora_adj,
-             f"{nome_fora} explora espaços com seus {gm_fora:.1f} gols/j."),
+             f"{nome_fora} com {gm_fora:.1f} gols/j contra defesa de {gs_casa:.1f}."),
             ('Over 1.5 Gols',
              over15_adj,
-             f"Média de {lambda_casa_adj+lambda_fora_adj:.2f} gols esperados (ajustada)."),
+             f"λ total ajustado: {lambda_casa_adj+lambda_fora_adj:.2f}."),
             ('Over 2.5 Gols',
              over25_adj,
-             f"λ ajustado total de {lambda_casa_adj+lambda_fora_adj:.2f}."),
+             f"λ total ajustado: {lambda_casa_adj+lambda_fora_adj:.2f}."),
             ('Over 3.5 Gols',
              over35_adj,
-             f"Ataques podem render placar elástico."),
+             f"Possibilidade de placar elástico."),
             ('Ambos Marcam (BTTS)',
              btts_adj,
-             f"{nome_casa} marca {gm_casa:.1f} e sofre {gs_casa:.1f}; {nome_fora} marca {gm_fora:.1f} e sofre {gs_fora:.1f}."),
+             f"{nome_casa} ({gm_casa:.1f}/{gs_casa:.1f}) x {nome_fora} ({gm_fora:.1f}/{gs_fora:.1f})."),
         ]
         eventos.sort(key=lambda x: x[1], reverse=True)
         return eventos[:5]
@@ -651,14 +667,21 @@ if gerar:
         else:
             return ''
 
+    def valor_com_destaque(valor, prob):
+        """Retorna o HTML do valor com destaque dourado se >= 75%."""
+        if prob >= 0.75:
+            return f'<span class="high-confidence" style="font-size:42px;">{valor:.1%}</span>'
+        else:
+            return f'<span style="font-size:42px; font-weight:900;">{valor:.1%}</span>'
+
     # ==================== EXIBIÇÃO PRINCIPAL ====================
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""
     <div style="text-align:center; margin-bottom:30px;">
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:4px; color:#5A6070;">Resultado da Análise</div>
+        <div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0;">Resultado da Análise</div>
         <h2 style="font-weight:900; margin:8px 0; letter-spacing:-1px;">
             <span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-                MYENGRAMSCORE
+                ENGRAMSCORE
             </span>
         </h2>
     </div>
@@ -667,27 +690,27 @@ if gerar:
     col_ec1, col_ec2 = st.columns(2)
     with col_ec1:
         st.markdown(f"""
-        <div class="card-premium animate-in" style="text-align:center;">
-            <div style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#8890A0; margin-bottom:12px;">🏠 {nome_casa}</div>
+        <div class="card-premium" style="text-align:center;">
+            <div style="font-size:14px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; margin-bottom:10px;">🏠 {nome_casa}</div>
             <div class="metric-premium">{EC_A:.1f}</div>
-            <div class="metric-label-premium">Índice de Força</div>
+            <div class="metric-label-premium">EngramScore</div>
             <div class="bar-premium">
                 <div class="bar-fill-gold" style="width:{EC_A}%;"></div>
             </div>
-            <div style="font-size:10px; color:#5A6070; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
+            <div style="font-size:12px; color:#B0B8C0; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col_ec2:
         st.markdown(f"""
-        <div class="card-premium animate-in" style="text-align:center;">
-            <div style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#8890A0; margin-bottom:12px;">✈️ {nome_fora}</div>
+        <div class="card-premium" style="text-align:center;">
+            <div style="font-size:14px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; margin-bottom:10px;">✈️ {nome_fora}</div>
             <div class="metric-premium-blue">{EC_B:.1f}</div>
-            <div class="metric-label-premium">Índice de Força</div>
+            <div class="metric-label-premium">EngramScore</div>
             <div class="bar-premium">
                 <div class="bar-fill-blue" style="width:{EC_B}%;"></div>
             </div>
-            <div style="font-size:10px; color:#5A6070; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
+            <div style="font-size:12px; color:#B0B8C0; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -714,7 +737,7 @@ if gerar:
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""
     <div style="text-align:center; margin-bottom:20px;">
-        <span style="font-size:11px; text-transform:uppercase; letter-spacing:3px; color:#5A6070;">Análises Detalhadas</span>
+        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análises Detalhadas</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -775,7 +798,7 @@ if gerar:
             <div style="background:rgba(240,192,64,0.05); border:1px solid rgba(240,192,64,0.2); border-radius:12px; padding:20px; text-align:center;">
                 <div style="font-size:18px; font-weight:700; color:#F0C040; margin-bottom:8px;">🏠 {nome_casa}</div>
                 <div style="font-size:24px; font-weight:900; color:#F0C040;">{perfil_A}</div>
-                <div style="font-size:12px; color:#8890A0; margin-top:8px;">Dominância: {estilo_A:.1f}/100</div>
+                <div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_A:.1f}/100</div>
             </div>
             """, unsafe_allow_html=True)
         with col_perf2:
@@ -783,7 +806,7 @@ if gerar:
             <div style="background:rgba(74,144,217,0.05); border:1px solid rgba(74,144,217,0.2); border-radius:12px; padding:20px; text-align:center;">
                 <div style="font-size:18px; font-weight:700; color:#4A90D9; margin-bottom:8px;">✈️ {nome_fora}</div>
                 <div style="font-size:24px; font-weight:900; color:#4A90D9;">{perfil_B}</div>
-                <div style="font-size:12px; color:#8890A0; margin-top:8px;">Dominância: {estilo_B:.1f}/100</div>
+                <div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_B:.1f}/100</div>
             </div>
             """, unsafe_allow_html=True)
         st.markdown("""
@@ -817,10 +840,10 @@ if gerar:
             else:
                 vant = nome_casa if vA<vB else nome_fora if vB<vA else "Empate"
             st.markdown(f"""
-            <div class="stat-row">
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:14px; color:#E0E0E0;">
                 <span>{nome}</span>
                 <span>{nome_casa} {vA:.1f} × {vB:.1f} {nome_fora}</span>
-                <span class="stat-value">{vant}</span>
+                <span style="font-weight:700; color:#F0C040;">{vant}</span>
             </div>
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -835,59 +858,59 @@ if gerar:
         st.plotly_chart(fig_field, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 5: Simulação de Cenários -----
+    # ----- ABA 5: Cenários -----
     with tabs[4]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">🎲 CINCO CENÁRIOS MAIS PROVÁVEIS</div>', unsafe_allow_html=True)
         cenarios = gerar_cenarios_justificados()
         for i, (titulo, prob, just) in enumerate(cenarios):
             st.markdown(f"""
-            <div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:12px 16px; margin:8px 0;">
+            <div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:12px 16px; margin:6px 0;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:700;">{i+1}. {titulo}</span>
+                    <span style="font-weight:700; color:#E0E0E0;">{i+1}. {titulo}</span>
                     <span style="font-size:20px; font-weight:900; color:#F0C040;">{prob:.1%}</span>
                 </div>
-                <div style="font-size:12px; color:#8890A0; margin-top:4px;">{just}</div>
+                <div style="font-size:13px; color:#B0B8C0; margin-top:4px;">{just}</div>
             </div>
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 6: Ajuste MyEngramScore -----
+    # ----- ABA 6: Ajuste EC -----
     with tabs[5]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🔧 AJUSTE MYENGRAMSCORE NOS GOLS ESPERADOS</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🔧 AJUSTE ENGRAMSCORE NOS GOLS ESPERADOS</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <div style="text-align:center; margin:16px 0;">
-            <span style="font-size:13px; color:#8890A0;">Fator de Ajuste:</span>
+            <span style="font-size:14px; color:#B0B8C0;">Fator de Ajuste:</span>
             <span style="font-size:24px; font-weight:900; color:#F0C040; margin-left:8px;">{fator_ajuste:+.2f}</span>
         </div>
         """, unsafe_allow_html=True)
         col_orig, col_adj = st.columns(2)
         with col_orig:
-            st.markdown("""
+            st.markdown(f"""
             <div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:16px; text-align:center;">
-                <div style="font-size:11px; color:#5A6070; text-transform:uppercase;">Lambdas Originais</div>
+                <div style="font-size:13px; color:#B0B8C0;">Lambdas Originais</div>
+                <div style="font-size:28px; font-weight:900; color:#B0B8C0;">λ Casa: {lambda_casa_orig:.2f}</div>
+                <div style="font-size:28px; font-weight:900; color:#B0B8C0;">λ Fora: {lambda_fora_orig:.2f}</div>
+            </div>
             """, unsafe_allow_html=True)
-            st.markdown(f"<div style='font-size:28px; font-weight:900; color:#8890A0;'>λ Casa: {lambda_casa_orig:.2f}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='font-size:28px; font-weight:900; color:#8890A0;'>λ Fora: {lambda_fora_orig:.2f}</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
         with col_adj:
-            st.markdown("""
+            st.markdown(f"""
             <div style="background:rgba(240,192,64,0.03); border:1px solid rgba(240,192,64,0.2); border-radius:8px; padding:16px; text-align:center;">
-                <div style="font-size:11px; color:#F0C040; text-transform:uppercase;">Lambdas Ajustados</div>
+                <div style="font-size:13px; color:#F0C040;">Lambdas Ajustados</div>
+                <div style="font-size:28px; font-weight:900; color:#F0C040;">λ Casa: {lambda_casa_adj:.2f}</div>
+                <div style="font-size:28px; font-weight:900; color:#F0C040;">λ Fora: {lambda_fora_adj:.2f}</div>
+            </div>
             """, unsafe_allow_html=True)
-            st.markdown(f"<div style='font-size:28px; font-weight:900; color:#F0C040;'>λ Casa: {lambda_casa_adj:.2f}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='font-size:28px; font-weight:900; color:#F0C040;'>λ Fora: {lambda_fora_adj:.2f}</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("""
         <div class="info-card" style="margin-top:16px;">
             Se o time da casa é muito superior (EC_A > EC_B), seu λ ofensivo <strong>aumenta</strong> e o λ do visitante <strong>diminui</strong>.
-            Isso reduz artificialmente a chance de o time mais fraco marcar, refletindo a superioridade medida pelo MyEngramScore.
+            Isso reduz a chance de o time mais fraco marcar, refletindo a superioridade medida pelo EngramScore.
         </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 7: Dados para os Mercados -----
+    # ----- ABA 7: Mercados -----
     with tabs[6]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📊 PROBABILIDADES 1X2</div>', unsafe_allow_html=True)
@@ -895,24 +918,24 @@ if gerar:
         with col_p1:
             st.markdown(f"""
             <div class="prob-box">
-                <div style="color:#00E676; font-size:13px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_casa}</div>
-                <div style="font-size:42px; font-weight:900; color:#00E676;">{p_A:.1%}</div>
+                <div style="color:#00E676; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_casa}</div>
+                {valor_com_destaque(p_A, p_A)}
                 <div style="margin-top:8px;">{selo(p_A)}</div>
             </div>
             """, unsafe_allow_html=True)
         with col_p2:
             st.markdown(f"""
             <div class="prob-box">
-                <div style="color:#F0C040; font-size:13px; text-transform:uppercase; letter-spacing:1px;">Empate</div>
-                <div style="font-size:42px; font-weight:900; color:#F0C040;">{p_emp:.1%}</div>
+                <div style="color:#F0C040; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Empate</div>
+                {valor_com_destaque(p_emp, p_emp)}
                 <div style="margin-top:8px;">{selo(p_emp)}</div>
             </div>
             """, unsafe_allow_html=True)
         with col_p3:
             st.markdown(f"""
             <div class="prob-box">
-                <div style="color:#4A90D9; font-size:13px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_fora}</div>
-                <div style="font-size:42px; font-weight:900; color:#4A90D9;">{p_B:.1%}</div>
+                <div style="color:#4A90D9; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_fora}</div>
+                {valor_com_destaque(p_B, p_B)}
                 <div style="margin-top:8px;">{selo(p_B)}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -939,15 +962,15 @@ if gerar:
         st.markdown('<div class="card-header-premium">⏱️ GOL NO 1º TEMPO</div>', unsafe_allow_html=True)
         st.markdown(f"""
         <div style="text-align:center;">
-            <div style="font-size:56px; font-weight:900; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+            <div style="font-size:52px; font-weight:900; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
                 {prob_gol_ht_adj:.1%}
             </div>
-            <div style="font-size:12px; color:#8890A0;">λ ajustado: {lambda_ht_adj:.2f}</div>
+            <div style="font-size:13px; color:#B0B8C0;">λ ajustado: {lambda_ht_adj:.2f}</div>
         </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 8: Análise Descritiva Completa -----
+    # ----- ABA 8: Análise Descritiva -----
     with tabs[7]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
@@ -958,7 +981,7 @@ if gerar:
             <strong>Momento Atual (MA):</strong> {nome_casa} {ma_A:.1f} × {nome_fora} {ma_B:.1f}. 
             {'O time da casa vive melhor fase.' if ma_A > ma_B else 'O visitante chega em melhor momento.' if ma_B > ma_A else 'Ambos estão em momentos semelhantes.'}<br>
             <strong>Força Geral (FG):</strong> {nome_casa} {fg_A:.1f} × {nome_fora} {fg_B:.1f}. 
-            {'A casa tem um elenco mais forte estatisticamente.' if fg_A > fg_B else 'O visitante possui maior força geral.' if fg_B > fg_A else 'Força equilibrada.'}<br>
+            {'A casa tem um elenco mais forte.' if fg_A > fg_B else 'O visitante possui maior força geral.' if fg_B > fg_A else 'Força equilibrada.'}<br>
             <strong>Confronto por Prateleira (CPP):</strong> {nome_casa} {cpp_A:.1f} × {nome_fora} {cpp_B:.1f}. 
             {'Bom histórico contra times do mesmo nível.' if cpp_A > 60 else 'Histórico regular.' if cpp_A > 40 else 'Desempenho ruim contra pares.'}<br>
             <strong>Psicológico:</strong> {nome_casa} {psic_A:.1f} × {nome_fora} {psic_B:.1f}. 
@@ -966,28 +989,27 @@ if gerar:
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("### ⚡ MyEngramScore")
+        st.markdown("### ⚡ EngramScore")
         st.markdown(f"""
         <div class="info-card">
-            O índice final reflete a superioridade de um time sobre o outro: 
-            {nome_casa} <strong>{EC_A:.1f}</strong> vs {nome_fora} <strong>{EC_B:.1f}</strong>. 
-            {'A vantagem é clara para o mandante.' if EC_A > EC_B + 5 else 'O visitante é o favorito, mesmo fora de casa.' if EC_B > EC_A + 5 else 'O confronto é extremamente equilibrado.'}
+            O índice final: {nome_casa} <strong>{EC_A:.1f}</strong> vs {nome_fora} <strong>{EC_B:.1f}</strong>. 
+            {'Vantagem clara para o mandante.' if EC_A > EC_B + 5 else 'O visitante é o favorito.' if EC_B > EC_A + 5 else 'Confronto extremamente equilibrado.'}
         </div>
         """, unsafe_allow_html=True)
 
         st.markdown("### 🎯 Desempenho Setorial")
         st.markdown(f"""
         <div class="info-card">
-            <strong>Ataque:</strong> {nome_casa} {atq_A:.1f} × {nome_fora} {atq_B:.1f} → {'O ataque da casa é mais eficiente.' if atq_A > atq_B else 'O visitante leva perigo.' if atq_B > atq_A else 'Ataques similares.'}<br>
-            <strong>Defesa:</strong> {nome_casa} {def_A:.1f} × {nome_fora} {def_B:.1f} → {'A defesa mandante é mais segura.' if def_A > def_B else 'O visitante defende melhor.' if def_B > def_A else 'Defesas de mesmo nível.'}<br>
-            <strong>Meio-campo:</strong> {nome_casa} {mei_A:.1f} × {nome_fora} {mei_B:.1f} → {'O controle do meio tende a ser do time da casa.' if mei_A > mei_B else 'O visitante pode dominar a posse.' if mei_B > mei_A else 'Disputa equilibrada no meio.'}
+            <strong>Ataque:</strong> {nome_casa} {atq_A:.1f} × {nome_fora} {atq_B:.1f} → {'Ataque da casa mais eficiente.' if atq_A > atq_B else 'Visitante leva perigo.' if atq_B > atq_A else 'Ataques similares.'}<br>
+            <strong>Defesa:</strong> {nome_casa} {def_A:.1f} × {nome_fora} {def_B:.1f} → {'Defesa mandante mais segura.' if def_A > def_B else 'Visitante defende melhor.' if def_B > def_A else 'Defesas equivalentes.'}<br>
+            <strong>Meio-campo:</strong> {nome_casa} {mei_A:.1f} × {nome_fora} {mei_B:.1f} → {'Casa controla o meio.' if mei_A > mei_B else 'Visitante pode dominar a posse.' if mei_B > mei_A else 'Disputa equilibrada.'}
         </div>
         """, unsafe_allow_html=True)
 
         st.markdown("### 🎭 Estilos de Jogo")
         st.markdown(f"""
         <div class="info-card">
-            {nome_casa} é <strong>{perfil_A}</strong> (dominância {estilo_A:.1f}), enquanto {nome_fora} é <strong>{perfil_B}</strong> (dominância {estilo_B:.1f}). 
+            {nome_casa} é <strong>{perfil_A}</strong> (dominância {estilo_A:.1f}), {nome_fora} é <strong>{perfil_B}</strong> (dominância {estilo_B:.1f}). 
             {'O estilo dominante da casa pode sufocar o visitante.' if 'Dominante' in perfil_A and 'Reativo' in perfil_B else 'O visitante reativo pode explorar contra-ataques.' if 'Reativo' in perfil_B else 'Ambos os estilos podem se neutralizar.'}
         </div>
         """, unsafe_allow_html=True)
@@ -1004,19 +1026,19 @@ if gerar:
         if EC_A > EC_B + 5:
             st.markdown(f"""
             <div class="info-card" style="border-color:#00E676;">
-                Diante de todos os pilares analisados, <strong>{nome_casa}</strong> é amplamente favorito para vencer a partida. Seu MyEngramScore superior reflete melhor momento, força geral e psicológico. A expectativa de gols é alta, com domínio territorial.
+                <strong>{nome_casa}</strong> é amplamente favorito. Seu EngramScore superior reflete melhor momento, força geral e psicológico. Expectativa de gols alta, com domínio territorial.
             </div>
             """, unsafe_allow_html=True)
         elif EC_B > EC_A + 5:
             st.markdown(f"""
             <div class="info-card" style="border-color:#4A90D9;">
-                Apesar de jogar fora de casa, <strong>{nome_fora}</strong> apresenta um MyEngramScore significativamente maior, indicando que deve impor seu jogo e vencer. O time da casa precisará de uma atuação defensiva impecável para surpreender.
+                Apesar de visitante, <strong>{nome_fora}</strong> apresenta EngramScore muito maior. Deve impor seu jogo. A casa precisa de atuação defensiva impecável.
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
             <div class="info-card" style="border-color:#F0C040;">
-                O confronto é <strong>extremamente equilibrado</strong>, com forças muito próximas. O empate é um resultado plausível, e os detalhes decidirão. Ambos os times devem marcar, e a partida promete ser disputada até o fim.
+                Confronto <strong>extremamente equilibrado</strong>. Empate é resultado plausível. Detalhes decidirão. Ambos devem marcar, partida disputada até o fim.
             </div>
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1024,7 +1046,7 @@ if gerar:
     # Rodapé
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""
-    <div style="text-align:center; padding:20px; color:#5A6070; font-size:11px; letter-spacing:2px;">
-        MYENGRAMSCORE © 2026 · ANÁLISE DIFERENCIAL DE FORÇA
+    <div style="text-align:center; padding:20px; color:#B0B8C0; font-size:13px; letter-spacing:2px;">
+        ENGRAMSCORE © 2026 · ANÁLISE DIFERENCIAL DE FORÇA
     </div>
     """, unsafe_allow_html=True)
