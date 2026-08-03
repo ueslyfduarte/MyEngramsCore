@@ -531,7 +531,7 @@ else:
         def ma_recente(seq, pv, pe, n_total):
             if not seq: return 50.0
             recente = seq[-6:]
-            return calcular_ma(sum(recente), len(recente), n_total, pv, pe)
+            return calcular_ma_simples(sum(recente), len(recente), n_total, pv, pe)
         ma_A = ma_recente(seq_casa, prob_v_casa, prob_emp, n_casa)
         ma_B = ma_recente(seq_fora, prob_v_fora, prob_emp, n_fora)
 
