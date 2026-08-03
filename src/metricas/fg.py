@@ -17,17 +17,22 @@ A FG é a média simples das sub‑métricas ativas, escala 0–100.
 """
 
 from typing import Dict, Optional
+from src.utils import (
+    normalizar_indicador,
+    atualizacao_bayesiana,
+    media_ativos,
+    PRIOR_PADRAO,
+    ALPHA_PADRAO,
+)
 
 # ----------------------------------------------------------
-# Constantes e utilitários
-# ----------------------------------------------------------
-PRIOR_PADRAO = 50.0       # valor inicial bayesiano
-ALPHA_PADRAO = 5.0        # peso do prior (confiança no histórico)
-
 # Indicadores a inverter (menor é melhor)
+# ----------------------------------------------------------
 INDICADORES_INVERTIDOS = {'GS', 'FAS', 'TC', 'ECc', 'FC', 'CA'}
 
+# ----------------------------------------------------------
 # Mapas de indicadores por sub‑métrica
+# ----------------------------------------------------------
 INDICADORES_ATAQUE = {
     'Gols/jogo':             'GM',
     'Finalizações alvo/jogo': 'FA',
@@ -40,7 +45,7 @@ INDICADORES_DEFESA = {
     'Finalizações alvo sofridas/jogo':  'FAS',
     'Total chutes sofridos/jogo':       'TC',
     'Escanteios contra/jogo':           'ECc',
-    'Desarmes/jogo':                    'Des',   # ou 'DA' para duelos aéreos
+    'Desarmes/jogo':                    'Des',
 }
 
 INDICADORES_MEIO = {
@@ -50,43 +55,6 @@ INDICADORES_MEIO = {
     'Faltas cometidas/jogo':  'FC',
     'Cartões amarelos/jogo':  'CA',
 }
-
-
-def normalizar_indicador(valor_time: float, media_liga: float,
-                         menor_melhor: bool = False) -> float:
-    """
-    Normaliza um indicador em relação à média da liga.
-    Se menor_melhor=True, a diferença é invertida.
-    Retorna valor entre 0 e 100.
-    """
-    if media_liga == 0:
-        return 50.0
-
-    pct = (valor_time - media_liga) / media_liga
-    if menor_melhor:
-        pct = -pct
-
-    # Limita a variação a ±100% para evitar notas extremas
-    pct = max(-1.0, min(1.0, pct))
-    nota = 50.0 + pct * 50.0
-    return max(0.0, min(100.0, nota))
-
-
-def atualizacao_bayesiana(prior: float, observacao: float,
-                          n_jogos: int, alpha: float) -> float:
-    """
-    Combina o prior com a observação, ponderando pelo número de jogos.
-    Quanto maior alpha, mais confiança no prior.
-    """
-    if n_jogos + alpha == 0:
-        return prior
-    return (alpha * prior + n_jogos * observacao) / (alpha + n_jogos)
-
-
-def media_ativos(valores: list) -> Optional[float]:
-    """Média dos valores não None. Retorna None se todos forem None."""
-    validos = [v for v in valores if v is not None]
-    return sum(validos) / len(validos) if validos else None
 
 
 # ----------------------------------------------------------
@@ -104,7 +72,7 @@ def _calcular_indicador(valor_time: Optional[float],
     menor_melhor = codigo_indicador in INDICADORES_INVERTIDOS
     bruto = normalizar_indicador(valor_time, media_liga, menor_melhor)
     posterior = atualizacao_bayesiana(PRIOR_PADRAO, bruto, n_jogos, alpha)
-    return posterior  # já está entre 0 e 100
+    return posterior
 
 
 def _calcular_submetrica(dados_time: Dict[str, float],
