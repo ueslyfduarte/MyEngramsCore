@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
-INTERFACE_DIR = SRC_DIR / "interface"  # ✅ i minúsculo
+INTERFACE_DIR = SRC_DIR / "Interface"  # ✅ I maiúsculo
 
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(SRC_DIR))
