@@ -1,15 +1,17 @@
 import sys
 import importlib.util
 from pathlib import Path
+import streamlit as st
+
+# ✅ PRIMEIRA CHAMADA STREAMLIT
+st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
-INTERFACE_DIR = SRC_DIR / "Interface"  # ✅ I maiúsculo
+INTERFACE_DIR = SRC_DIR / "Interface"
 
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(SRC_DIR))
-
-import streamlit as st
 
 def carregar_modulo(nome_arquivo, nome_modulo):
     caminho = INTERFACE_DIR / nome_arquivo
@@ -25,7 +27,6 @@ entrada_manual = carregar_modulo("entrada_manual.py", "entrada_manual")
 odds = carregar_modulo("odds.py", "odds")
 resultados = carregar_modulo("resultados.py", "resultados")
 
-st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 css.carregar_css()
 css.renderizar_header()
 sidebar.renderizar_sidebar()
