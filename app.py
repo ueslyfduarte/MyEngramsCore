@@ -356,8 +356,13 @@ with colA:
         st.markdown('<div class="card-header-premium">🏠 TIME DA CASA</div>', unsafe_allow_html=True)
         nome_casa = st.text_input("Nome", "Time A", key="casa", label_visibility="collapsed", placeholder="Nome do time")
         n_casa = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_casa")
-        pos_casa = st.number_input("Posição na tabela", 1, 20, 2, key="pos_casa")
-        prat_casa = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_casa")
+        pos_casa = st.number_input("Posição na tabela", 1, 24, 2, key="pos_casa")
+        prat_casa = st.selectbox(
+            "Prateleira do Adversário",
+            ["Elite","Alta","Média","Baixa","Crítica"],
+            key="prat_casa",
+            help="Classificação do próximo adversário. Ex.: se o oponente está entre os 3 primeiros, escolha 'Elite'."
+        )
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Card 2: Ataque
@@ -401,8 +406,8 @@ with colA:
     with st.container():
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📈 MOMENTO & CONFRONTO</div>', unsafe_allow_html=True)
-        res_casa = st.text_input("Últ. resultados (V/E/D)", "VVEDV", key="res_casa").upper()
-        cons_casa = st.text_input("Últ. 10 jogos (V/E/D)", "VVEDVVEDVV", key="cons_casa").upper()
+        res_casa = st.text_input("Últ. 5 resultados (V/E/D)", "VVEDV", key="res_casa", help="Digite exatamente 5 caracteres: V, E ou D").upper()
+        cons_casa = st.text_input("Últ. 10 resultados (V/E/D)", "VVEDVVEDVV", key="cons_casa", help="Digite exatamente 10 caracteres: V, E ou D").upper()
         moral_casa = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_casa")
         pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
         jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
@@ -416,8 +421,13 @@ with colB:
         st.markdown('<div class="card-header-premium">✈️ TIME VISITANTE</div>', unsafe_allow_html=True)
         nome_fora = st.text_input("Nome", "Time B", key="fora", label_visibility="collapsed", placeholder="Nome do time")
         n_fora = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_fora")
-        pos_fora = st.number_input("Posição na tabela", 1, 20, 16, key="pos_fora")
-        prat_fora = st.selectbox("Prateleira", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_fora")
+        pos_fora = st.number_input("Posição na tabela", 1, 24, 16, key="pos_fora")
+        prat_fora = st.selectbox(
+            "Prateleira do Adversário",
+            ["Elite","Alta","Média","Baixa","Crítica"],
+            key="prat_fora",
+            help="Classificação do próximo adversário. Ex.: se o oponente está entre os 3 primeiros, escolha 'Elite'."
+        )
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Card 2: Ataque
@@ -461,8 +471,8 @@ with colB:
     with st.container():
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📈 MOMENTO & CONFRONTO</div>', unsafe_allow_html=True)
-        res_fora = st.text_input("Últ. resultados (V/E/D)", "DDVVE", key="res_fora").upper()
-        cons_fora = st.text_input("Últ. 10 jogos (V/E/D)", "DDVVEDDVV", key="cons_fora").upper()
+        res_fora = st.text_input("Últ. 5 resultados (V/E/D)", "DDVVE", key="res_fora", help="Digite exatamente 5 caracteres: V, E ou D").upper()
+        cons_fora = st.text_input("Últ. 10 resultados (V/E/D)", "DDVVEDDVV", key="cons_fora", help="Digite exatamente 10 caracteres: V, E ou D").upper()
         moral_fora = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_fora")
         pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
         jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
@@ -533,8 +543,8 @@ if gerar:
     perfil_B = obter_perfil_time(dados_B, medias_liga)
 
     dif_pts = (pos_casa - pos_fora) * 3
-    p_obj_A = calcular_pressao_tabela(pos_casa, 20, pos_fora, dif_pts)
-    p_obj_B = calcular_pressao_tabela(pos_fora, 20, pos_casa, -dif_pts)
+    p_obj_A = calcular_pressao_tabela(pos_casa, 24, pos_fora, dif_pts)
+    p_obj_B = calcular_pressao_tabela(pos_fora, 24, pos_casa, -dif_pts)
 
     psic_A = calcular_psicologico(
         consistencia_pontos=seq_cons_casa if len(seq_cons_casa)>=5 else None,
