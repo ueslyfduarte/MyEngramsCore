@@ -1,9 +1,8 @@
 """
-Estilo Perfil (v1)
+Estilo Perfil v3 (Classificação Tática Expandida)
 
 Classifica o perfil tático de um time com base em indicadores normalizados
-(0-100). Os indicadores são os mesmos usados na FG, permitindo
-aproveitar os dados já coletados.
+(0-100). Usa métricas do FBref para maior precisão.
 
 Perfis disponíveis:
 - Dominante
@@ -13,9 +12,12 @@ Perfis disponíveis:
 - Equilibrado
 - Posse Estéril
 - Efetivo
+- Transição Rápida (novo)
+- Bloco Baixo (novo)
 """
 
 from typing import Dict, Optional
+from src.utils import normalizar_indicador
 
 # ----------------------------------------------------------
 # Limiares (configuráveis)
@@ -23,95 +25,120 @@ from typing import Dict, Optional
 ALTO = 60
 BAIXO = 40
 
-# Mapeamento dos indicadores usados na classificação
-INDICADORES_PERFIL = ['Posse', 'FA', 'ECa', 'FC', 'CA', 'Des']
-
-# ----------------------------------------------------------
-# Funções de normalização (mesmas da FG)
-# ----------------------------------------------------------
-def normalizar_indicador(valor_time: float, media_liga: float,
-                         menor_melhor: bool = False) -> float:
-    """Normaliza um indicador em relação à média da liga (0-100)."""
-    if media_liga == 0:
-        return 50.0
-    pct = (valor_time - media_liga) / media_liga
-    if menor_melhor:
-        pct = -pct
-    pct = max(-1.0, min(1.0, pct))
-    return max(0.0, min(100.0, 50.0 + pct * 50.0))
+# Indicadores expandidos (códigos FBref)
+INDICADORES_PERFIL = [
+    'Poss',      # Posse de bola (%)
+    'SoT',       # Chutes no alvo por 90min
+    'CK',        # Escanteios a favor
+    'Fls',       # Faltas cometidas
+    'CrdY',      # Cartões amarelos
+    'Tkl',       # Desarmes
+    'Press',     # Pressões tentadas (🆕)
+    'Int',       # Interceptações (🆕)
+    'PrgP',      # Passes progressivos (🆕)
+    'Crs',       # Cruzamentos (🆕)
+    'Off',       # Impedimentos (🆕)
+]
 
 
 def normalizar_indicadores(dados_time: Dict[str, float],
                            medias_liga: Dict[str, float],
                            indicadores: list,
                            invertidos: set = None) -> Dict[str, float]:
-    """
-    Normaliza uma lista de indicadores.
-    Retorna dicionário {código: nota 0-100}.
-    """
+    """Normaliza uma lista de indicadores em relação à média da liga."""
     if invertidos is None:
         invertidos = set()
     resultado = {}
     for cod in indicadores:
         if cod in dados_time and cod in medias_liga:
             menor = cod in invertidos
-            resultado[cod] = normalizar_indicador(dados_time[cod], medias_liga[cod], menor)
+            resultado[cod] = normalizar_indicador(
+                dados_time[cod], medias_liga[cod], menor_melhor=menor
+            )
         else:
-            resultado[cod] = 50.0  # fallback neutro
+            resultado[cod] = 50.0
     return resultado
 
 
-# ----------------------------------------------------------
-# Função de classificação
-# ----------------------------------------------------------
 def classificar_perfil(indicadores_norm: Dict[str, float]) -> str:
     """
     Classifica o time com base nos indicadores normalizados (0-100).
 
     Parâmetros:
-        indicadores_norm: dicionário com pelo menos:
-            'Posse', 'FA', 'ECa', 'FC', 'CA', 'Des'
-            (valores entre 0 e 100; se ausente, assume 50)
+        indicadores_norm: dicionário com:
+            'Poss', 'SoT', 'CK', 'Fls', 'CrdY', 'Tkl', 'Press', 'Int', 'PrgP', 'Crs', 'Off'
 
     Retorna:
         string com o nome do perfil.
     """
-    posse = indicadores_norm.get('Posse', 50.0)
-    fa = indicadores_norm.get('FA', 50.0)
-    eca = indicadores_norm.get('ECa', 50.0)
-    fc = indicadores_norm.get('FC', 50.0)
-    ca = indicadores_norm.get('CA', 50.0)
-    des = indicadores_norm.get('Des', 50.0)
+    posse = indicadores_norm.get('Poss', 50.0)
+    fa = indicadores_norm.get('SoT', 50.0)
+    eca = indicadores_norm.get('CK', 50.0)
+    fc = indicadores_norm.get('Fls', 50.0)
+    ca = indicadores_norm.get('CrdY', 50.0)
+    des = indicadores_norm.get('Tkl', 50.0)
+    press = indicadores_norm.get('Press', 50.0)
+    inter = indicadores_norm.get('Int', 50.0)
+    prgp = indicadores_norm.get('PrgP', 50.0)
+    crs = indicadores_norm.get('Crs', 50.0)
+    off = indicadores_norm.get('Off', 50.0)
 
+    # Flags básicas
     alta_posse = posse > ALTO
     baixa_posse = posse < BAIXO
     alto_vol_ofensivo = (fa > ALTO) and (eca > ALTO)
     baixo_vol_ofensivo = (fa < BAIXO) and (eca < BAIXO)
     alta_agressividade = (fc > ALTO) and (ca > ALTO)
     alto_desarme = des > ALTO
+    alta_pressao = press > ALTO
+    alto_inter = inter > ALTO
+    alto_prgp = prgp > ALTO
+    alto_crs = crs > ALTO
+    alto_off = off > ALTO
 
-    # Decisão hierárquica
-    if alta_posse and alto_vol_ofensivo:
-        if alta_agressividade:
-            return "Pressão Alta"
+    # Decisão hierárquica refinada
+
+    # 1. Pressão Alta: posse alta + volume ofensivo + agressividade + pressão
+    if alta_posse and alto_vol_ofensivo and alta_agressividade and alta_pressao:
+        return "Pressão Alta"
+
+    # 2. Dominante: posse alta + volume ofensivo + passes progressivos
+    if alta_posse and alto_vol_ofensivo and alto_prgp:
         return "Dominante"
 
+    # 3. Posse Estéril: posse alta + pouco volume ofensivo
     if alta_posse and baixo_vol_ofensivo:
         return "Posse Estéril"
 
-    if baixa_posse:
-        if fa > ALTO:  # pouco volume mas finaliza bem no alvo
-            return "Efetivo"
-        if alto_desarme:
-            if alta_agressividade:
-                return "Defensivo"
-            return "Reativo / Contra-ataque"
+    # 4. Transição Rápida: posse baixa + passes progressivos altos + finalizações altas
+    if baixa_posse and alto_prgp and fa > ALTO:
+        return "Transição Rápida"
 
-    # Médio
+    # 5. Efetivo: posse baixa + finaliza altas + impedimentos (joga no limite)
+    if baixa_posse and fa > ALTO and alto_off:
+        return "Efetivo"
+
+    # 6. Bloco Baixo: posse baixa + interceptações altas + desarmes altos + pouca pressão
+    if baixa_posse and alto_inter and alto_desarme and press < BAIXO:
+        return "Bloco Baixo"
+
+    # 7. Defensivo: posse baixa + agressividade + desarmes + interceptações
+    if baixa_posse and alta_agressividade and alto_desarme and alto_inter:
+        return "Defensivo"
+
+    # 8. Reativo / Contra-ataque: posse baixa + desarmes altos
+    if baixa_posse and alto_desarme:
+        return "Reativo / Contra-ataque"
+
+    # 9. Pelas pontas (novo): cruzamentos altos
+    if alto_crs and not alto_prgp:
+        return "Pelas Pontas"
+
+    # 10. Equilibrado
     if (BAIXO <= posse <= ALTO) and (BAIXO <= fa <= ALTO):
         return "Equilibrado"
 
-    # Fallback: análise dos destaques
+    # Fallback
     if alta_agressividade and alto_desarme:
         return "Defensivo"
     if alto_vol_ofensivo:
@@ -120,19 +147,21 @@ def classificar_perfil(indicadores_norm: Dict[str, float]) -> str:
     return "Equilibrado"
 
 
-# ----------------------------------------------------------
-# Função de conveniência (dados brutos → perfil)
-# ----------------------------------------------------------
 def obter_perfil_time(dados_time: Dict[str, float],
                       medias_liga: Dict[str, float]) -> str:
     """
     Recebe médias por jogo do time e da liga e retorna o perfil tático.
 
     Exemplo:
-        dados_time = {'Posse': 55.0, 'FA': 5.2, 'ECa': 6.1, 'FC': 14.0, 'CA': 2.5, 'Des': 18.0}
-        medias_liga = {'Posse': 50.0, 'FA': 4.1, 'ECa': 5.0, 'FC': 12.0, 'CA': 2.0, 'Des': 15.0}
+        dados_time = {'Poss': 55.0, 'SoT': 5.2, 'CK': 6.1, 'Fls': 14.0, 
+                      'CrdY': 2.5, 'Tkl': 18.0, 'Press': 45.0, 'Int': 12.0,
+                      'PrgP': 38.0, 'Crs': 15.0, 'Off': 2.5}
+        medias_liga = {'Poss': 50.0, 'SoT': 4.1, 'CK': 5.0, 'Fls': 12.0, 
+                       'CrdY': 2.0, 'Tkl': 15.0, 'Press': 40.0, 'Int': 10.0,
+                       'PrgP': 35.0, 'Crs': 18.0, 'Off': 2.0}
         perfil = obter_perfil_time(dados_time, medias_liga)
     """
-    # Nenhum desses indicadores é invertido (todos "maior melhor" para o perfil)
-    indicadores_norm = normalizar_indicadores(dados_time, medias_liga, INDICADORES_PERFIL)
+    indicadores_norm = normalizar_indicadores(
+        dados_time, medias_liga, INDICADORES_PERFIL
+    )
     return classificar_perfil(indicadores_norm)
