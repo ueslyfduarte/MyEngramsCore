@@ -585,6 +585,7 @@ if gerar:
     over25_adj = sum(p for gA,gB,p in results_adj if gA+gB > 2.5)
     over35_adj = sum(p for gA,gB,p in results_adj if gA+gB > 3.5)
     btts_adj = sum(p for gA,gB,p in results_adj if gA>0 and gB>0)
+    over05_adj = sum(p for gA,gB,p in results_adj if gA+gB > 0.5)
 
     FATOR_HT = 0.44
     ajuste_estilo = 0
@@ -598,7 +599,7 @@ if gerar:
 
     # ==================== FUNÇÕES AUXILIARES ====================
     def desenhar_campo_duplo(fA, fB, nome_casa, nome_fora):
-        """Campo de futebol realista com fundo verde e faixas de força."""
+        """Campo de futebol realista com faixas de força sem sobreposição."""
         fig = go.Figure()
         
         # Gramado
@@ -620,38 +621,35 @@ if gerar:
                       line=dict(color="white", width=1))
         fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
                       line=dict(color="white", width=1))
-        # Linha tracejada no meio vertical para separar os times? Não, vamos usar as faixas.
         
-        # Faixas do Time A (esquerda)
+        # Faixas do Time A (esquerda, y=50 a 100)
         zonas = ['Defesa', 'Meio', 'Ataque']
         for i, (zona, fa) in enumerate(zip(zonas, fA)):
             x0 = i * 33.33
             x1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=100,
+            fig.add_shape(type="rect", x0=x0, y0=50, x1=x1, y1=100,
                           fillcolor=f"rgba(240,192,64,{fa*0.5})", line_width=0)
-            fig.add_annotation(x=(x0+x1)/2, y=50, text=f"{zona}<br>{fa*100:.0f}%",
+            fig.add_annotation(x=(x0+x1)/2, y=75, text=f"{zona}<br>{fa*100:.0f}%",
                                showarrow=False, font=dict(color="white", size=11))
-        # Nome do time A
-        fig.add_annotation(x=15, y=105, text=f"🏠 {nome_casa}", showarrow=False,
+        fig.add_annotation(x=15, y=110, text=f"🏠 {nome_casa}", showarrow=False,
                            font=dict(color="#F0C040", size=14))
         
-        # Faixas do Time B (direita) – espelhadas
+        # Faixas do Time B (direita, espelhadas, y=0 a 50)
         zonas_B = ['Ataque', 'Meio', 'Defesa']
         for i, (zona, fb) in enumerate(zip(zonas_B, fB)):
             x0 = i * 33.33
             x1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=100,
+            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=50,
                           fillcolor=f"rgba(74,144,217,{fb*0.5})", line_width=0)
-            fig.add_annotation(x=(x0+x1)/2, y=50, text=f"{zona}<br>{fb*100:.0f}%",
+            fig.add_annotation(x=(x0+x1)/2, y=25, text=f"{zona}<br>{fb*100:.0f}%",
                                showarrow=False, font=dict(color="white", size=11))
-        # Nome do time B
-        fig.add_annotation(x=85, y=105, text=f"✈️ {nome_fora}", showarrow=False,
+        fig.add_annotation(x=85, y=110, text=f"✈️ {nome_fora}", showarrow=False,
                            font=dict(color="#4a90d9", size=14))
         
         fig.update_xaxes(visible=False, range=[0,100])
-        fig.update_yaxes(visible=False, range=[0,110])
+        fig.update_yaxes(visible=False, range=[-10,120])
         fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17',
-                          height=450, margin=dict(l=20, r=20, t=40, b=20))
+                          height=500, margin=dict(l=20, r=20, t=40, b=20))
         return fig
 
     def gerar_cenarios_justificados():
@@ -773,6 +771,7 @@ if gerar:
         "🎲 CENÁRIOS",
         "🔧 AJUSTE EC",
         "📋 MERCADOS",
+        "🌟 DESTAQUES",
         "📝 ANÁLISE"
     ])
 
@@ -876,8 +875,8 @@ if gerar:
     with tabs[3]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">🗺️ HEATMAP TÁTICO</div>', unsafe_allow_html=True)
-        fA = [def_A/100, mei_A/100, atq_A/100]  # Defesa, Meio, Ataque
-        fB = [atq_B/100, mei_B/100, def_B/100]  # Ataque, Meio, Defesa (espelhado)
+        fA = [def_A/100, mei_A/100, atq_A/100]
+        fB = [atq_B/100, mei_B/100, def_B/100]
         fig_field = desenhar_campo_duplo(fA, fB, nome_casa, nome_fora)
         st.plotly_chart(fig_field, use_container_width=True)
         st.markdown('<div style="font-size:13px; color:#B0B8C0; text-align:center;">As cores indicam a força nos setores: dourado para o mandante, azul para o visitante.</div>', unsafe_allow_html=True)
@@ -969,12 +968,13 @@ if gerar:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">⚽ PROBABILIDADES DE GOLS (AJUSTADAS)</div>', unsafe_allow_html=True)
         col_g1, col_g2, col_g3 = st.columns(3)
-        col_g1.metric("Over 1.5", f"{over15_adj:.1%}")
-        col_g2.metric("Over 2.5", f"{over25_adj:.1%}")
-        col_g3.metric("Over 3.5", f"{over35_adj:.1%}")
-        col_g4, col_g5 = st.columns(2)
-        col_g4.metric("Ambos Marcam (BTTS)", f"{btts_adj:.1%}")
-        col_g5.metric("BTTS Não", f"{1-btts_adj:.1%}")
+        col_g1.metric("Over 0.5", f"{over05_adj:.1%}")
+        col_g2.metric("Over 1.5", f"{over15_adj:.1%}")
+        col_g3.metric("Over 2.5", f"{over25_adj:.1%}")
+        col_g4, col_g5, col_g6 = st.columns(3)
+        col_g4.metric("Over 3.5", f"{over35_adj:.1%}")
+        col_g5.metric("Ambos Marcam (BTTS)", f"{btts_adj:.1%}")
+        col_g6.metric("BTTS Não", f"{1-btts_adj:.1%}")
         st.markdown(f"""
         <div class="info-card">
             <strong>λ original:</strong> Casa {lambda_casa_orig:.2f}, Fora {lambda_fora_orig:.2f}<br>
@@ -995,8 +995,45 @@ if gerar:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 8: Análise Descritiva (MAIS PRECISA) -----
+    # ----- ABA 8: DESTAQUES (>65%) -----
     with tabs[7]:
+        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+        st.markdown('<div class="card-header-premium">🌟 DESTAQUES (PROBABILIDADE &gt; 65%)</div>', unsafe_allow_html=True)
+        
+        destaques = []
+        if p_A > 0.65:
+            destaques.append((f"Vitória {nome_casa}", p_A))
+        if p_emp > 0.65:
+            destaques.append(("Empate", p_emp))
+        if p_B > 0.65:
+            destaques.append((f"Vitória {nome_fora}", p_B))
+        if over05_adj > 0.65:
+            destaques.append(("Over 0.5 Gols", over05_adj))
+        if over15_adj > 0.65:
+            destaques.append(("Over 1.5 Gols", over15_adj))
+        if over25_adj > 0.65:
+            destaques.append(("Over 2.5 Gols", over25_adj))
+        if over35_adj > 0.65:
+            destaques.append(("Over 3.5 Gols", over35_adj))
+        if btts_adj > 0.65:
+            destaques.append(("Ambos Marcam (BTTS)", btts_adj))
+        if prob_gol_ht_adj > 0.65:
+            destaques.append(("Gol 1º Tempo", prob_gol_ht_adj))
+        
+        if destaques:
+            for nome, prob in destaques:
+                st.markdown(f"""
+                <div style="background:rgba(240,192,64,0.08); border:1px solid rgba(240,192,64,0.3); border-radius:10px; padding:14px; margin:6px 0; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#F0C040; font-weight:700;">{nome}</span>
+                    <span style="font-size:24px; font-weight:900; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{prob:.1%}</span>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="color:#B0B8C0; text-align:center;">Nenhuma probabilidade acima de 65%.</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ----- ABA 9: Análise Descritiva (MAIS PRECISA) -----
+    with tabs[8]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
 
@@ -1043,7 +1080,7 @@ if gerar:
         st.markdown(f"""
         <div class="info-card">
             Com base nos lambdas ajustados, a expectativa de gols é de <strong>{lambda_casa_adj+lambda_fora_adj:.2f}</strong> no total.
-            Isso resulta em Over 1.5 com <strong>{over15_adj:.1%}</strong> de chance e Over 2.5 com <strong>{over25_adj:.1%}</strong>.
+            Isso resulta em Over 0.5 com <strong>{over05_adj:.1%}</strong>, Over 1.5 com <strong>{over15_adj:.1%}</strong> e Over 2.5 com <strong>{over25_adj:.1%}</strong>.
             Ambos marcarem (BTTS) tem probabilidade de <strong>{btts_adj:.1%}</strong>.
         </div>
         """, unsafe_allow_html=True)
@@ -1057,24 +1094,48 @@ if gerar:
         """, unsafe_allow_html=True)
 
         st.markdown("### 📌 Conclusão")
-        if EC_A > EC_B + 5:
+        # Combina EC com probabilidades para uma conclusão mais precisa
+        if p_A >= 0.65:
             st.markdown(f"""
             <div class="info-card" style="border-color:#00E676;">
-                <strong>{nome_casa}</strong> é amplamente favorito. Seu EngramScore superior reflete melhor momento, força geral e psicológico. Expectativa de gols alta, com domínio territorial.
+                Com <strong>{p_A:.1%}</strong> de chance, <strong>{nome_casa}</strong> é o grande favorito. Seu EngramScore de {EC_A:.1f} contra {EC_B:.1f} do adversário indica superioridade em todos os pilares. 
+                A expectativa de gols é de {lambda_casa_adj+lambda_fora_adj:.2f}, com Over 1.5 em {over15_adj:.1%}. 
+                Um cenário de vitória confortável se desenha.
             </div>
             """, unsafe_allow_html=True)
-        elif EC_B > EC_A + 5:
+        elif p_B >= 0.65:
             st.markdown(f"""
-            <div class="info-card" style="border-color:#4A90D9;">
-                Apesar de visitante, <strong>{nome_fora}</strong> apresenta EngramScore muito maior. Deve impor seu jogo. A casa precisa de atuação defensiva impecável.
+            <div class="info-card" style="border-color:#00E676;">
+                Apesar de visitante, <strong>{nome_fora}</strong> tem <strong>{p_B:.1%}</strong> de vencer, com EngramScore de {EC_B:.1f} contra {EC_A:.1f}. 
+                O time da casa precisará superar a desvantagem nos pilares. 
+                Espera-se um jogo com {lambda_casa_adj+lambda_fora_adj:.2f} gols em média, e o visitante deve impor seu ritmo.
+            </div>
+            """, unsafe_allow_html=True)
+        elif abs(EC_A - EC_B) <= 5 and p_emp > 0.3:
+            st.markdown(f"""
+            <div class="info-card" style="border-color:#F0C040;">
+                Confronto equilibrado: EngramScores próximos ({EC_A:.1f} vs {EC_B:.1f}) e empate com {p_emp:.1%} de probabilidade. 
+                A partida deve ser disputada, com {lambda_casa_adj+lambda_fora_adj:.2f} gols esperados. 
+                Ambos os times têm chances reais, e o empate é um resultado plausível.
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown(f"""
-            <div class="info-card" style="border-color:#F0C040;">
-                Confronto <strong>extremamente equilibrado</strong>. Empate é resultado plausível. Detalhes decidirão. Ambos devem marcar, partida disputada até o fim.
-            </div>
-            """, unsafe_allow_html=True)
+            if EC_A > EC_B:
+                st.markdown(f"""
+                <div class="info-card" style="border-color:#F0C040;">
+                    <strong>{nome_casa}</strong> parte com ligeira vantagem (EngramScore {EC_A:.1f} vs {EC_B:.1f}), 
+                    mas o visitante não pode ser subestimado. A probabilidade de vitória da casa é de {p_A:.1%}, 
+                    com empate em {p_emp:.1%}. A expectativa de gols é de {lambda_casa_adj+lambda_fora_adj:.2f}.
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="info-card" style="border-color:#F0C040;">
+                    <strong>{nome_fora}</strong> tem um EngramScore superior ({EC_B:.1f} vs {EC_A:.1f}), 
+                    sugerindo que pode surpreender fora de casa. Probabilidade de vitória visitante: {p_B:.1%}. 
+                    Espera-se um jogo com {lambda_casa_adj+lambda_fora_adj:.2f} gols em média.
+                </div>
+                """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Rodapé
