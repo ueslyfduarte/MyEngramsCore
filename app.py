@@ -8,7 +8,8 @@ import numpy as np
 import math
 import plotly.graph_objects as go
 import plotly.express as px
-from typing import Dict
+from typing import Dict, Optional
+import os
 
 # Seus módulos
 from src.metricas.ma import calcular_ma
@@ -311,7 +312,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# BARRA LATERAL - LIGA
+# BARRA LATERAL - LIGA + JOGOS PENDENTES + ANÁLISES PRONTAS
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 🏆 Liga de Referência")
@@ -330,776 +331,726 @@ with st.sidebar:
             media_fc = st.number_input("Faltas/j", 0.0, 30.0, 12.0, 0.1, key="media_fc")
             media_ca = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.0, 0.1, key="media_ca")
 
-medias_liga = {
-    'GM': media_gm, 'FA': media_fa, 'ECa': media_eca,
-    'GS': media_gs, 'FAS': media_fas, 'ECc': media_ecc,
-    'FC': media_fc, 'CA': media_ca, 'Des': media_des, 'Posse': media_posse,
-}
-
-# ------------------------------------------------------------
-# ENTRADA DE DADOS — CARDS POR SETOR
-# ------------------------------------------------------------
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-st.markdown("""
-<div style="text-align:center; margin-bottom:20px;">
-    <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Dados do Confronto</span>
-</div>
-""", unsafe_allow_html=True)
-
-colA, colB = st.columns(2)
-
-# ============= TIME A =============
-with colA:
-    # Card 1: Identificação
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🏠 TIME DA CASA</div>', unsafe_allow_html=True)
-        nome_casa = st.text_input("Nome", "Time A", key="casa", label_visibility="collapsed", placeholder="Nome do time")
-        n_casa = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_casa")
-        pos_casa = st.number_input("Posição na tabela", 1, 24, 2, key="pos_casa")
-        prat_casa = st.selectbox(
-            "Prateleira do Adversário",
-            ["Elite","Alta","Média","Baixa","Crítica"],
-            key="prat_casa",
-            help="Classificação do próximo adversário. Ex.: se o oponente está entre os 3 primeiros, escolha 'Elite'."
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 2: Ataque
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🎯 ATAQUE</div>', unsafe_allow_html=True)
-        col_a1, col_a2 = st.columns(2)
-        with col_a1:
-            gm_casa = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_casa")
-            fa_casa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_casa")
-        with col_a2:
-            eca_casa = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.5, 0.1, key="eca_casa")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 3: Defesa
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🛡️ DEFESA</div>', unsafe_allow_html=True)
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            gs_casa = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_casa")
-            fas_casa = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.0, 0.1, key="fas_casa")
-        with col_d2:
-            ecc_casa = st.number_input("Escanteios contra/j", 0.0, 20.0, 4.0, 0.1, key="ecc_casa")
-            des_casa = st.number_input("Desarmes/j", 0.0, 50.0, 16.0, 0.1, key="des_casa")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 4: Posse & Disciplina
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🎮 POSSE & DISCIPLINA</div>', unsafe_allow_html=True)
-        posse_casa = st.slider("Posse (%)", 0, 100, 55, key="posse_casa")
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            fc_casa = st.number_input("Faltas/j", 0.0, 30.0, 13.0, 0.1, key="fc_casa")
-        with col_p2:
-            ca_casa = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.2, 0.1, key="ca_casa")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 5: Momento & Confronto
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">📈 MOMENTO & CONFRONTO</div>', unsafe_allow_html=True)
-        res_casa = st.text_input("Últ. 5 resultados (V/E/D)", "VVEDV", key="res_casa", help="Digite exatamente 5 caracteres: V, E ou D").upper()
-        cons_casa = st.text_input("Últ. 10 resultados (V/E/D)", "VVEDVVEDVV", key="cons_casa", help="Digite exatamente 10 caracteres: V, E ou D").upper()
-        moral_casa = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_casa")
-        pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
-        jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ============= TIME B =============
-with colB:
-    # Card 1: Identificação
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">✈️ TIME VISITANTE</div>', unsafe_allow_html=True)
-        nome_fora = st.text_input("Nome", "Time B", key="fora", label_visibility="collapsed", placeholder="Nome do time")
-        n_fora = st.number_input("Jogos na temporada", 1, 38, 10, key="nj_fora")
-        pos_fora = st.number_input("Posição na tabela", 1, 24, 16, key="pos_fora")
-        prat_fora = st.selectbox(
-            "Prateleira do Adversário",
-            ["Elite","Alta","Média","Baixa","Crítica"],
-            key="prat_fora",
-            help="Classificação do próximo adversário. Ex.: se o oponente está entre os 3 primeiros, escolha 'Elite'."
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 2: Ataque
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🎯 ATAQUE</div>', unsafe_allow_html=True)
-        col_a1, col_a2 = st.columns(2)
-        with col_a1:
-            gm_fora = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_fora")
-            fa_fora = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_fora")
-        with col_a2:
-            eca_fora = st.number_input("Escanteios a favor/j", 0.0, 20.0, 4.5, 0.1, key="eca_fora")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 3: Defesa
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🛡️ DEFESA</div>', unsafe_allow_html=True)
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            gs_fora = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_fora")
-            fas_fora = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.8, 0.1, key="fas_fora")
-        with col_d2:
-            ecc_fora = st.number_input("Escanteios contra/j", 0.0, 20.0, 5.0, 0.1, key="ecc_fora")
-            des_fora = st.number_input("Desarmes/j", 0.0, 50.0, 14.0, 0.1, key="des_fora")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 4: Posse & Disciplina
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">🎮 POSSE & DISCIPLINA</div>', unsafe_allow_html=True)
-        posse_fora = st.slider("Posse (%)", 0, 100, 48, key="posse_fora")
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            fc_fora = st.number_input("Faltas/j", 0.0, 30.0, 11.0, 0.1, key="fc_fora")
-        with col_p2:
-            ca_fora = st.number_input("Cartões amarelos/j", 0.0, 10.0, 1.8, 0.1, key="ca_fora")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Card 5: Momento & Confronto
-    with st.container():
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">📈 MOMENTO & CONFRONTO</div>', unsafe_allow_html=True)
-        res_fora = st.text_input("Últ. 5 resultados (V/E/D)", "DDVVE", key="res_fora", help="Digite exatamente 5 caracteres: V, E ou D").upper()
-        cons_fora = st.text_input("Últ. 10 resultados (V/E/D)", "DDVVEDDVV", key="cons_fora", help="Digite exatamente 10 caracteres: V, E ou D").upper()
-        moral_fora = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_fora")
-        pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
-        jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# ODDS DE MERCADO (1X2 + GOLS)
-# ------------------------------------------------------------
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-st.markdown("""
-<div style="text-align:center; margin-bottom:20px;">
-    <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Odds de Mercado</span>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("**1X2**")
-col_odd1, col_odd2, col_odd3 = st.columns(3)
-with col_odd1:
-    odd_casa = st.number_input("🏠 Vitória Casa", 1.01, 10.0, 1.80, 0.01, key="odd_casa")
-with col_odd2:
-    odd_empate = st.number_input("🤝 Empate", 1.01, 10.0, 3.50, 0.01, key="odd_empate")
-with col_odd3:
-    odd_fora = st.number_input("✈️ Vitória Fora", 1.01, 10.0, 4.00, 0.01, key="odd_fora")
-
-st.markdown("**Gols Totais**")
-col_g1, col_g2, col_g3 = st.columns(3)
-with col_g1:
-    odd_over15 = st.number_input("Over 1.5", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_over15")
-with col_g2:
-    odd_over25 = st.number_input("Over 2.5", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_over25")
-with col_g3:
-    odd_over35 = st.number_input("Over 3.5", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_over35")
-
-st.markdown("**Ambos Marcam (BTTS)**")
-col_b1, col_b2 = st.columns(2)
-with col_b1:
-    odd_btts_sim = st.number_input("BTTS Sim", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_btts_sim")
-with col_b2:
-    odd_btts_nao = st.number_input("BTTS Não", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_btts_nao")
-
-st.markdown("**Gol 1º Tempo**")
-odd_ht = st.number_input("Gol 1º Tempo (Sim)", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_ht")
-
-# ------------------------------------------------------------
-# BOTÃO DE ANÁLISE
-# ------------------------------------------------------------
-st.markdown("<br>", unsafe_allow_html=True)
-col_btn = st.columns([1,2,1])
-with col_btn[1]:
-    gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
-
-if gerar:
-    # ==================== PROCESSAMENTO ====================
-    def parse_seq(s):
-        return [3 if c == 'V' else 1 if c == 'E' else 0 for c in s if c in 'VED']
-    seq_casa = parse_seq(res_casa)
-    seq_fora = parse_seq(res_fora)
-    seq_cons_casa = parse_seq(cons_casa)
-    seq_cons_fora = parse_seq(cons_fora)
-
-    inv_sum = 1/odd_casa + 1/odd_empate + 1/odd_fora
-    prob_v_casa = (1/odd_casa) / inv_sum
-    prob_emp = (1/odd_empate) / inv_sum
-    prob_v_fora = (1/odd_fora) / inv_sum
-
-    def ma_recente(seq, pv, pe, n_total):
-        if not seq: return 50.0
-        recente = seq[-6:]
-        return calcular_ma(sum(recente), len(recente), n_total, pv, pe)
-    ma_A = ma_recente(seq_casa, prob_v_casa, prob_emp, n_casa)
-    ma_B = ma_recente(seq_fora, prob_v_fora, prob_emp, n_fora)
-
-    dados_A = {
-        'GM': gm_casa, 'FA': fa_casa, 'ECa': eca_casa, 'Posse': posse_casa,
-        'GS': gs_casa, 'FAS': fas_casa, 'ECc': ecc_casa, 'Des': des_casa,
-        'FC': fc_casa, 'CA': ca_casa
+    medias_liga = {
+        'GM': media_gm, 'FA': media_fa, 'ECa': media_eca,
+        'GS': media_gs, 'FAS': media_fas, 'ECc': media_ecc,
+        'FC': media_fc, 'CA': media_ca, 'Des': media_des, 'Posse': media_posse,
     }
-    dados_B = {
-        'GM': gm_fora, 'FA': fa_fora, 'ECa': eca_fora, 'Posse': posse_fora,
-        'GS': gs_fora, 'FAS': fas_fora, 'ECc': ecc_fora, 'Des': des_fora,
-        'FC': fc_fora, 'CA': ca_fora
-    }
-    fg_A = calcular_fg(dados_A, medias_liga, n_casa)
-    fg_B = calcular_fg(dados_B, medias_liga, n_fora)
 
-    cpp_A = calcular_cpp(pts_cpp_casa, jogos_cpp_casa, prob_v_casa, prob_emp)
-    cpp_B = calcular_cpp(pts_cpp_fora, jogos_cpp_fora, prob_v_fora, prob_emp)
+    st.markdown("---")
+    st.markdown("## 📋 Jogos Pendentes")
+    st.markdown("*Adicione os jogos que serão analisados de madrugada.*")
 
-    estilo_A = calcular_estilo(dados_A, medias_liga, n_casa)
-    estilo_B = calcular_estilo(dados_B, medias_liga, n_fora)
-
-    perfil_A = obter_perfil_time(dados_A, medias_liga)
-    perfil_B = obter_perfil_time(dados_B, medias_liga)
-
-    dif_pts = (pos_casa - pos_fora) * 3
-    p_obj_A = calcular_pressao_tabela(pos_casa, 24, pos_fora, dif_pts)
-    p_obj_B = calcular_pressao_tabela(pos_fora, 24, pos_casa, -dif_pts)
-
-    psic_A = calcular_psicologico(
-        consistencia_pontos=seq_cons_casa if len(seq_cons_casa)>=5 else None,
-        moral_pontos=moral_casa, pressao_p_obj=p_obj_A, pressao_sensibilidade=0.3
-    )
-    psic_B = calcular_psicologico(
-        consistencia_pontos=seq_cons_fora if len(seq_cons_fora)>=5 else None,
-        moral_pontos=moral_fora, pressao_p_obj=p_obj_B, pressao_sensibilidade=0.3
-    )
-
-    PESOS = {'MA': 0.25, 'FG': 0.25, 'CPP': 0.25, 'Psicologico': 0.25}
-    EC_A = (ma_A*0.25 + fg_A*0.25 + cpp_A*0.25 + psic_A*0.25) + 2.0
-    EC_B = (ma_B*0.25 + fg_B*0.25 + cpp_B*0.25 + psic_B*0.25)
-    EC_A = max(0, min(100, EC_A))
-    EC_B = max(0, min(100, EC_B))
-
-    # ========== NOVO CÁLCULO DE EMPATE ==========
-    diff_ec = abs(EC_A - EC_B)
-    LIMIAR_EMPATE = 5.0
-    BONUS_MAX = 0.06
-    P_EMP_BASE = 0.29
-    P_EMP_MIN = 0.18
-
-    if diff_ec < LIMIAR_EMPATE:
-        p_emp = P_EMP_BASE + (1 - diff_ec / LIMIAR_EMPATE) * BONUS_MAX
+    # Carregar lista de jogos pendentes (se existir)
+    arquivo_pendentes = "dados/jogos_pendentes.csv"
+    if os.path.exists(arquivo_pendentes):
+        df_pendentes = pd.read_csv(arquivo_pendentes)
     else:
-        p_emp = max(P_EMP_MIN, P_EMP_BASE - (diff_ec / 100) * 0.15)
-    # ============================================
+        df_pendentes = pd.DataFrame(columns=["casa", "fora"])
 
-    total = EC_A + EC_B
-    p_A = (1 - p_emp) * (EC_A / total) if total > 0 else 0.33
-    p_B = 1 - p_A - p_emp
+    # Adicionar novo jogo
+    col_add1, col_add2 = st.columns(2)
+    with col_add1:
+        novo_casa = st.text_input("Time Casa", key="pendente_casa", placeholder="Ex.: Palmeiras")
+    with col_add2:
+        novo_fora = st.text_input("Time Fora", key="pendente_fora", placeholder="Ex.: Vasco")
 
-    lambda_casa_orig = (gm_casa + gs_fora) / 2
-    lambda_fora_orig = (gm_fora + gs_casa) / 2
+    if st.button("➕ Adicionar Jogo"):
+        if novo_casa and novo_fora:
+            novo_jogo = pd.DataFrame({"casa": [novo_casa], "fora": [novo_fora]})
+            df_pendentes = pd.concat([df_pendentes, novo_jogo], ignore_index=True)
+            df_pendentes.to_csv(arquivo_pendentes, index=False)
+            st.success(f"{novo_casa} x {novo_fora} adicionado!")
+            st.rerun()
 
-    def ajustar_lambdas(ec_a, ec_b, lam_casa, lam_fora, fator_impacto=0.5):
-        diff_ec = (ec_a - ec_b) / 100.0
-        lam_casa_adj = lam_casa * (1.0 + diff_ec * fator_impacto)
-        lam_fora_adj = lam_fora * (1.0 - diff_ec * fator_impacto)
-        lam_casa_adj = max(0.0, lam_casa_adj)
-        lam_fora_adj = max(0.0, lam_fora_adj)
-        return lam_casa_adj, lam_fora_adj, diff_ec
+    # Exibir jogos pendentes
+    if not df_pendentes.empty:
+        st.markdown("**Jogos para análise:**")
+        for idx, row in df_pendentes.iterrows():
+            col_jogo, col_remover = st.columns([4, 1])
+            with col_jogo:
+                st.markdown(f"• {row['casa']} x {row['fora']}")
+            with col_remover:
+                if st.button("🗑️", key=f"remover_{idx}"):
+                    df_pendentes = df_pendentes.drop(idx).reset_index(drop=True)
+                    df_pendentes.to_csv(arquivo_pendentes, index=False)
+                    st.rerun()
 
-    lambda_casa_adj, lambda_fora_adj, fator_ajuste = ajustar_lambdas(
-        EC_A, EC_B, lambda_casa_orig, lambda_fora_orig
-    )
+        if st.button("💾 Salvar Lista Final"):
+            st.success("Lista salva! O PC Linux processará esses jogos de madrugada.")
+    else:
+        st.info("Nenhum jogo pendente. Adicione acima.")
 
-    results_adj = []
-    for i in range(6):
-        for j in range(6):
-            prob = math.exp(-lambda_casa_adj)*(lambda_casa_adj**i)/math.factorial(i) * \
-                   math.exp(-lambda_fora_adj)*(lambda_fora_adj**j)/math.factorial(j)
-            results_adj.append((i, j, prob))
+    st.markdown("---")
+    st.markdown("## 📊 Análises do Dia")
+    st.markdown("*Resultados processados pelo PC Linux.*")
 
-    vitoria_casa_adj = sum(p for gA,gB,p in results_adj if gA>gB)
-    empate_adj = sum(p for gA,gB,p in results_adj if gA==gB)
-    vitoria_fora_adj = sum(p for gA,gB,p in results_adj if gA<gB)
-    over15_adj = sum(p for gA,gB,p in results_adj if gA+gB > 1.5)
-    over25_adj = sum(p for gA,gB,p in results_adj if gA+gB > 2.5)
-    over35_adj = sum(p for gA,gB,p in results_adj if gA+gB > 3.5)
-    btts_adj = sum(p for gA,gB,p in results_adj if gA>0 and gB>0)
+    # Carregar análises prontas (se existirem)
+    arquivo_analises = "dados/analises_prontas.csv"
+    if os.path.exists(arquivo_analises):
+        df_analises = pd.read_csv(arquivo_analises)
+        st.success(f"✅ {len(df_analises)} análises disponíveis")
+        for idx, row in df_analises.iterrows():
+            if st.button(f"📊 {row['casa']} x {row['fora']}", key=f"analise_{idx}"):
+                st.session_state["jogo_selecionado"] = {
+                    "casa": row["casa"],
+                    "fora": row["fora"],
+                }
+                st.rerun()
+    else:
+        st.info("Nenhuma análise pronta. As análises aparecerão aqui após o processamento noturno.")
 
-    under15_adj = 1 - over15_adj
-    under25_adj = 1 - over25_adj
-    under35_adj = 1 - over35_adj
+# ------------------------------------------------------------
+# ÁREA PRINCIPAL
+# ------------------------------------------------------------
 
-    FATOR_HT = 0.44
-    ajuste_estilo = 0
-    if perfil_A in ["Pressão Alta", "Dominante"]:
-        ajuste_estilo += 0.05
-    if perfil_B in ["Pressão Alta", "Dominante"]:
-        ajuste_estilo -= 0.05
-    ajuste_ma = (ma_A - 50) * 0.001 + (ma_B - 50) * 0.001
-    lambda_ht_adj = (lambda_casa_adj + lambda_fora_adj) * (FATOR_HT + ajuste_estilo + ajuste_ma)
-    prob_gol_ht_adj = 1 - math.exp(-lambda_ht_adj)
-
-    # Probabilidades individuais de gols
-    def prob_team_over(lam, k):
-        return 1 - sum(math.exp(-lam)*(lam**i)/math.factorial(i) for i in range(k+1))
-    casa_over05 = prob_team_over(lambda_casa_adj, 0)
-    casa_over15 = prob_team_over(lambda_casa_adj, 1)
-    casa_over25 = prob_team_over(lambda_casa_adj, 2)
-    fora_over05 = prob_team_over(lambda_fora_adj, 0)
-    fora_over15 = prob_team_over(lambda_fora_adj, 1)
-    fora_over25 = prob_team_over(lambda_fora_adj, 2)
-
-    # ==================== FUNÇÕES AUXILIARES ====================
-    def desenhar_campo_duplo(fA, fB, nome_casa, nome_fora):
-        fig = go.Figure()
-        fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
-                      fillcolor="#1B4D1B", line=dict(color="white", width=2))
-        fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
-                      line=dict(color="white", width=2))
-        fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
-                      line=dict(color="white", width=2))
-        fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
-                      line=dict(color="white", width=1.5))
-        fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
-                      line=dict(color="white", width=1.5))
-        fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
-                      line=dict(color="white", width=1))
-        fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
-                      line=dict(color="white", width=1))
-        zonas = ['Defesa', 'Meio', 'Ataque']
-        for i, (zona, fa) in enumerate(zip(zonas, fA)):
-            x0 = i * 33.33
-            x1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=x0, y0=50, x1=x1, y1=100,
-                          fillcolor=f"rgba(240,192,64,{fa*0.5})", line_width=0)
-            fig.add_annotation(x=(x0+x1)/2, y=75, text=f"{zona}<br>{fa*100:.0f}%",
-                               showarrow=False, font=dict(color="white", size=11))
-        fig.add_annotation(x=15, y=110, text=f"🏠 {nome_casa}", showarrow=False,
-                           font=dict(color="#F0C040", size=14))
-        zonas_B = ['Ataque', 'Meio', 'Defesa']
-        for i, (zona, fb) in enumerate(zip(zonas_B, fB)):
-            x0 = i * 33.33
-            x1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=50,
-                          fillcolor=f"rgba(74,144,217,{fb*0.5})", line_width=0)
-            fig.add_annotation(x=(x0+x1)/2, y=25, text=f"{zona}<br>{fb*100:.0f}%",
-                               showarrow=False, font=dict(color="white", size=11))
-        fig.add_annotation(x=85, y=110, text=f"✈️ {nome_fora}", showarrow=False,
-                           font=dict(color="#4a90d9", size=14))
-        fig.update_xaxes(visible=False, range=[0,100])
-        fig.update_yaxes(visible=False, range=[-10,120])
-        fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17',
-                          height=500, margin=dict(l=20, r=20, t=40, b=20))
-        return fig
-
-    def gerar_cenarios_justificados():
-        eventos = [
-            ('Vitória do ' + nome_casa + ' por 2+ gols',
-             sum(p for gA,gB,p in results_adj if gA >= gB+2),
-             f"Ataque do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j)."),
-            ('Empate',
-             empate_adj,
-             f"Equilíbrio nos EngramScores ({EC_A:.1f} vs {EC_B:.1f})."),
-            ('Vitória do ' + nome_fora,
-             vitoria_fora_adj,
-             f"{nome_fora} com {gm_fora:.1f} gols/j contra defesa de {gs_casa:.1f}."),
-            ('Over 1.5 Gols',
-             over15_adj,
-             f"λ total ajustado: {lambda_casa_adj+lambda_fora_adj:.2f}."),
-            ('Over 2.5 Gols',
-             over25_adj,
-             f"λ total ajustado: {lambda_casa_adj+lambda_fora_adj:.2f}."),
-            ('Over 3.5 Gols',
-             over35_adj,
-             f"Possibilidade de placar elástico."),
-            ('Ambos Marcam (BTTS)',
-             btts_adj,
-             f"{nome_casa} ({gm_casa:.1f}/{gs_casa:.1f}) x {nome_fora} ({gm_fora:.1f}/{gs_fora:.1f})."),
-        ]
-        eventos.sort(key=lambda x: x[1], reverse=True)
-        return eventos[:5]
-
-    def selo(prob):
-        if prob >= 0.75:
-            return '<span class="selo-dourado">🏅 OURO</span>'
-        elif prob >= 0.60:
-            return '<span class="selo-verde">✅ CONFIÁVEL</span>'
-        elif prob >= 0.50:
-            return '<span class="selo-amarelo">⚠️ MODERADO</span>'
-        else:
-            return ''
-
-    def valor_com_destaque(valor, prob):
-        if prob >= 0.75:
-            return f'<span class="high-confidence" style="font-size:42px;">{valor:.1%}</span>'
-        else:
-            return f'<span style="font-size:42px; font-weight:900; color:#E0E0E0;">{valor:.1%}</span>'
-
-    # ==================== EXIBIÇÃO PRINCIPAL ====================
-    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align:center; margin-bottom:30px;">
-        <div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0;">Resultado da Análise</div>
-        <h2 style="font-weight:900; margin:8px 0; letter-spacing:-1px;">
-            <span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-                ENGRAMSCORE
-            </span>
+# Verificar se um jogo foi selecionado (da lista de análises prontas)
+if "jogo_selecionado" in st.session_state:
+    st.markdown(f"""
+    <div style="text-align:center; margin-bottom:20px;">
+        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análise do Dia</span>
+        <h2 style="font-weight:900; margin:8px 0;">
+            {st.session_state["jogo_selecionado"]["casa"]} vs {st.session_state["jogo_selecionado"]["fora"]}
         </h2>
     </div>
     """, unsafe_allow_html=True)
 
-    col_ec1, col_ec2 = st.columns(2)
-    with col_ec1:
-        st.markdown(f"""
-        <div class="card-premium" style="text-align:center;">
-            <div style="font-size:14px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; margin-bottom:10px;">🏠 {nome_casa}</div>
-            <div class="metric-premium">{EC_A:.1f}</div>
-            <div class="metric-label-premium">EngramScore</div>
-            <div class="bar-premium">
-                <div class="bar-fill-gold" style="width:{EC_A}%;"></div>
-            </div>
-            <div style="font-size:12px; color:#B0B8C0; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # Aqui você pode carregar os dados completos desse jogo do CSV de análises
+    # e exibir o EngramScore completo (pilares, heatmap, cenários, etc.)
+    st.info("A análise completa será carregada aqui com todos os gráficos e métricas.")
 
-    with col_ec2:
-        st.markdown(f"""
-        <div class="card-premium" style="text-align:center;">
-            <div style="font-size:14px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; margin-bottom:10px;">✈️ {nome_fora}</div>
-            <div class="metric-premium-blue">{EC_B:.1f}</div>
-            <div class="metric-label-premium">EngramScore</div>
-            <div class="bar-premium">
-                <div class="bar-fill-blue" style="width:{EC_B}%;"></div>
-            </div>
-            <div style="font-size:12px; color:#B0B8C0; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    if EC_A > EC_B:
-        st.markdown(f"""<div style="text-align:center; margin:16px 0; font-size:16px; font-weight:700; color:#F0C040;">🔺 {nome_casa} leva vantagem de +{EC_A - EC_B:.1f} pontos</div>""", unsafe_allow_html=True)
-    elif EC_B > EC_A:
-        st.markdown(f"""<div style="text-align:center; margin:16px 0; font-size:16px; font-weight:700; color:#4A90D9;">🔻 {nome_fora} leva vantagem de +{EC_B - EC_A:.1f} pontos</div>""", unsafe_allow_html=True)
-    else:
-        st.markdown(f"""<div style="text-align:center; margin:16px 0; font-size:16px; font-weight:700; color:#F0C040;">⚖️ Equilíbrio absoluto</div>""", unsafe_allow_html=True)
-
-    # ==================== ABAS ====================
+else:
+    # Modo manual (entrada de dados)
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análises Detalhadas</span></div>""", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align:center; margin-bottom:20px;">
+        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Ou faça uma análise manual</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    tabs = st.tabs([
-        "📊 PILARES",
-        "🎭 ESTILO",
-        "⚔️ CONFRONTO",
-        "🗺️ HEATMAP",
-        "🎲 CENÁRIOS",
-        "🔧 AJUSTE EC",
-        "📋 MERCADOS",
-        "🌟 DESTAQUES",
-        "📝 ANÁLISE"
-    ])
+    colA, colB = st.columns(2)
 
-    # ----- ABA 1: Pilares -----
-    with tabs[0]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🔍 PILARES INDIVIDUAIS</div>', unsafe_allow_html=True)
-        pilares_nomes = ['Momento Atual', 'Força Geral', 'Confronto', 'Psicológico']
-        valores_A = [ma_A, fg_A, cpp_A, psic_A]
-        valores_B = [ma_B, fg_B, cpp_B, psic_B]
-        df = pd.DataFrame({'Pilar': pilares_nomes*2, 'Time': [nome_casa]*4+[nome_fora]*4, 'Força': valores_A+valores_B})
-        fig = px.bar(df, x='Pilar', y='Força', color='Time', barmode='group', text_auto='.1f',
-                     color_discrete_map={nome_casa:'#F0C040', nome_fora:'#4a90d9'})
-        fig.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    with colA:
+        with st.container():
+            st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+            st.markdown('<div class="card-header-premium">🏠 TIME DA CASA</div>', unsafe_allow_html=True)
+            nome_casa = st.text_input("Nome", "Time A", key="casa", label_visibility="collapsed")
+            n_casa = st.number_input("Jogos", 1, 38, 10, key="nj_casa")
+            gm_casa = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_casa")
+            fa_casa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_casa")
+            eca_casa = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.5, 0.1, key="eca_casa")
+            posse_casa = st.slider("Posse (%)", 0, 100, 55, key="posse_casa")
+            gs_casa = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_casa")
+            fas_casa = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.0, 0.1, key="fas_casa")
+            des_casa = st.number_input("Desarmes/j", 0.0, 50.0, 16.0, 0.1, key="des_casa")
+            fc_casa = st.number_input("Faltas/j", 0.0, 30.0, 13.0, 0.1, key="fc_casa")
+            ca_casa = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.2, 0.1, key="ca_casa")
+            res_casa = st.text_input("Últ. 5 resultados (V/E/D)", "VVEDV", key="res_casa").upper()
+            cons_casa = st.text_input("Últ. 10 resultados (V/E/D)", "VVEDVVEDVV", key="cons_casa").upper()
+            moral_casa = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_casa")
+            pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
+            jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
+            prat_casa = st.selectbox("Prateleira do Adversário", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_casa")
+            pos_casa = st.number_input("Posição na tabela", 1, 24, 2, key="pos_casa")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🎯 FORÇA SETORIAL</div>', unsafe_allow_html=True)
-        def norm_rad(val, media):
-            if media==0: return 50
-            return max(0, min(100, 50 + (val-media)/media*50))
-        atq_A = (norm_rad(gm_casa, media_gm) + norm_rad(fa_casa, media_fa))/2
-        def_A = (100 - norm_rad(gs_casa, media_gs) + 100 - norm_rad(fas_casa, media_fas))/2
-        mei_A = norm_rad(posse_casa, media_posse)
-        atq_B = (norm_rad(gm_fora, media_gm) + norm_rad(fa_fora, media_fa))/2
-        def_B = (100 - norm_rad(gs_fora, media_gs) + 100 - norm_rad(fas_fora, media_fas))/2
-        mei_B = norm_rad(posse_fora, media_posse)
-        fig_radar = go.Figure()
-        fig_radar.add_trace(go.Scatterpolar(r=[atq_A, def_A, mei_A], theta=['Ataque','Defesa','Meio'],
-                                            fill='toself', name=nome_casa, marker_color='#F0C040'))
-        fig_radar.add_trace(go.Scatterpolar(r=[atq_B, def_B, mei_B], theta=['Ataque','Defesa','Meio'],
-                                            fill='toself', name=nome_fora, marker_color='#4a90d9'))
-        fig_radar.update_layout(polar=dict(radialaxis=dict(range=[0,100])), template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_radar, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    with colB:
+        with st.container():
+            st.markdown('<div class="card-premium">', unsafe_allow_html=True)
+            st.markdown('<div class="card-header-premium">✈️ TIME VISITANTE</div>', unsafe_allow_html=True)
+            nome_fora = st.text_input("Nome", "Time B", key="fora", label_visibility="collapsed")
+            n_fora = st.number_input("Jogos", 1, 38, 10, key="nj_fora")
+            gm_fora = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_fora")
+            fa_fora = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_fora")
+            eca_fora = st.number_input("Escanteios a favor/j", 0.0, 20.0, 4.5, 0.1, key="eca_fora")
+            posse_fora = st.slider("Posse (%)", 0, 100, 48, key="posse_fora")
+            gs_fora = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_fora")
+            fas_fora = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.8, 0.1, key="fas_fora")
+            des_fora = st.number_input("Desarmes/j", 0.0, 50.0, 14.0, 0.1, key="des_fora")
+            fc_fora = st.number_input("Faltas/j", 0.0, 30.0, 11.0, 0.1, key="fc_fora")
+            ca_fora = st.number_input("Cartões amarelos/j", 0.0, 10.0, 1.8, 0.1, key="ca_fora")
+            res_fora = st.text_input("Últ. 5 resultados (V/E/D)", "DDVVE", key="res_fora").upper()
+            cons_fora = st.text_input("Últ. 10 resultados (V/E/D)", "DDVVEDDVV", key="cons_fora").upper()
+            moral_fora = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_fora")
+            pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
+            jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
+            prat_fora = st.selectbox("Prateleira do Adversário", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_fora")
+            pos_fora = st.number_input("Posição na tabela", 1, 24, 16, key="pos_fora")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 2: Estilo de Jogo -----
-    with tabs[1]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🎭 PERFIS TÁTICOS</div>', unsafe_allow_html=True)
-        col_perf1, col_perf2 = st.columns(2)
-        with col_perf1:
-            st.markdown(f"""<div style="background:rgba(240,192,64,0.05); border:1px solid rgba(240,192,64,0.2); border-radius:12px; padding:20px; text-align:center;"><div style="font-size:18px; font-weight:700; color:#F0C040; margin-bottom:8px;">🏠 {nome_casa}</div><div style="font-size:24px; font-weight:900; color:#F0C040;">{perfil_A}</div><div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_A:.1f}/100</div></div>""", unsafe_allow_html=True)
-        with col_perf2:
-            st.markdown(f"""<div style="background:rgba(74,144,217,0.05); border:1px solid rgba(74,144,217,0.2); border-radius:12px; padding:20px; text-align:center;"><div style="font-size:18px; font-weight:700; color:#4A90D9; margin-bottom:8px;">✈️ {nome_fora}</div><div style="font-size:24px; font-weight:900; color:#4A90D9;">{perfil_B}</div><div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_B:.1f}/100</div></div>""", unsafe_allow_html=True)
-        st.markdown("""<div class="info-card" style="margin-top:16px;"><strong>🏆 Dominante:</strong> Controla posse, finaliza muito, pressiona.<br><strong>🔥 Pressão Alta:</strong> Extremamente agressivo, muitas faltas e desarmes.<br><strong>⚡ Reativo/Contra‑ataque:</strong> Pouca posse, transições rápidas e certeiras.<br><strong>🛡️ Defensivo:</strong> Prioriza não sofrer gols, jogo físico, baixa posse.<br><strong>⚖️ Equilibrado:</strong> Sem extremos, jogo balanceado.<br><strong>🔄 Posse Estéril:</strong> Muita posse, pouca efetividade.<br><strong>🎯 Efetivo:</strong> Pouca posse, alto aproveitamento.</div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Odds
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    st.markdown("### 💰 Odds de Mercado")
+    col_odd1, col_odd2, col_odd3 = st.columns(3)
+    with col_odd1:
+        odd_casa = st.number_input("🏠 Vitória Casa", 1.01, 10.0, 1.80, 0.01, key="odd_casa")
+    with col_odd2:
+        odd_empate = st.number_input("🤝 Empate", 1.01, 10.0, 3.50, 0.01, key="odd_empate")
+    with col_odd3:
+        odd_fora = st.number_input("✈️ Vitória Fora", 1.01, 10.0, 4.00, 0.01, key="odd_fora")
 
-    # ----- ABA 3: Comparação Setorial -----
-    with tabs[2]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">⚔️ CONFRONTO POR ESTATÍSTICA</div>', unsafe_allow_html=True)
-        stats = [
-            ('Gols Marcados', gm_casa, gm_fora, 'maior'),
-            ('Finalizações Alvo', fa_casa, fa_fora, 'maior'),
-            ('Posse (%)', posse_casa, posse_fora, 'maior'),
-            ('Gols Sofridos', gs_casa, gs_fora, 'menor'),
-            ('Finalizações Sofridas', fas_casa, fas_fora, 'menor'),
-            ('Faltas Cometidas', fc_casa, fc_fora, 'menor'),
-        ]
-        for nome, vA, vB, tipo in stats:
-            if tipo == 'maior':
-                vant = nome_casa if vA>vB else nome_fora if vB>vA else "Empate"
-            else:
-                vant = nome_casa if vA<vB else nome_fora if vB<vA else "Empate"
-            st.markdown(f"""<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:14px; color:#E0E0E0;"><span>{nome}</span><span>{nome_casa} {vA:.1f} × {vB:.1f} {nome_fora}</span><span style="font-weight:700; color:#F0C040;">{vant}</span></div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("**Gols Totais**")
+    col_g1, col_g2, col_g3 = st.columns(3)
+    with col_g1:
+        odd_over15 = st.number_input("Over 1.5", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_over15")
+    with col_g2:
+        odd_over25 = st.number_input("Over 2.5", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_over25")
+    with col_g3:
+        odd_over35 = st.number_input("Over 3.5", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_over35")
 
-    # ----- ABA 4: Heatmap -----
-    with tabs[3]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🗺️ HEATMAP TÁTICO</div>', unsafe_allow_html=True)
-        fA = [def_A/100, mei_A/100, atq_A/100]
-        fB = [atq_B/100, mei_B/100, def_B/100]
-        fig_field = desenhar_campo_duplo(fA, fB, nome_casa, nome_fora)
-        st.plotly_chart(fig_field, use_container_width=True)
-        st.markdown('<div style="font-size:13px; color:#B0B8C0; text-align:center;">Dourado = Casa, Azul = Visitante.</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("**Ambos Marcam (BTTS)**")
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        odd_btts_sim = st.number_input("BTTS Sim", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_btts_sim")
+    with col_b2:
+        odd_btts_nao = st.number_input("BTTS Não", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_btts_nao")
 
-    # ----- ABA 5: Cenários -----
-    with tabs[4]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🎲 CINCO CENÁRIOS MAIS PROVÁVEIS</div>', unsafe_allow_html=True)
-        for i, (tit, prob, just) in enumerate(gerar_cenarios_justificados()):
-            st.markdown(f"""<div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:12px 16px; margin:6px 0;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:700; color:#E0E0E0;">{i+1}. {tit}</span><span style="font-size:20px; font-weight:900; color:#F0C040;">{prob:.1%}</span></div><div style="font-size:13px; color:#B0B8C0; margin-top:4px;">{just}</div></div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("**Gol 1º Tempo**")
+    odd_ht = st.number_input("Gol 1º Tempo (Sim)", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_ht")
 
-    # ----- ABA 6: Ajuste EC -----
-    with tabs[5]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🔧 AJUSTE ENGRAMSCORE NOS GOLS ESPERADOS</div>', unsafe_allow_html=True)
-        st.markdown(f"""<div style="text-align:center; margin:16px 0;"><span style="font-size:14px; color:#B0B8C0;">Fator de Ajuste:</span><span style="font-size:24px; font-weight:900; color:#F0C040; margin-left:8px;">{fator_ajuste:+.2f}</span></div>""", unsafe_allow_html=True)
-        col_orig, col_adj = st.columns(2)
-        with col_orig:
-            st.markdown(f"""<div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:16px; text-align:center;"><div style="font-size:13px; color:#B0B8C0;">Lambdas Originais</div><div style="font-size:28px; font-weight:900; color:#B0B8C0;">λ Casa: {lambda_casa_orig:.2f}</div><div style="font-size:28px; font-weight:900; color:#B0B8C0;">λ Fora: {lambda_fora_orig:.2f}</div></div>""", unsafe_allow_html=True)
-        with col_adj:
-            st.markdown(f"""<div style="background:rgba(240,192,64,0.03); border:1px solid rgba(240,192,64,0.2); border-radius:8px; padding:16px; text-align:center;"><div style="font-size:13px; color:#F0C040;">Lambdas Ajustados</div><div style="font-size:28px; font-weight:900; color:#F0C040;">λ Casa: {lambda_casa_adj:.2f}</div><div style="font-size:28px; font-weight:900; color:#F0C040;">λ Fora: {lambda_fora_adj:.2f}</div></div>""", unsafe_allow_html=True)
-        st.markdown("""<div class="info-card" style="margin-top:16px;">Se o time da casa é muito superior (EC_A > EC_B), seu λ ofensivo <strong>aumenta</strong> e o λ do visitante <strong>diminui</strong>. Isso reduz a chance de o time mais fraco marcar, refletindo a superioridade medida pelo EngramScore.</div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Botão de análise
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_btn = st.columns([1,2,1])
+    with col_btn[1]:
+        gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
 
-    # ----- ABA 7: MERCADOS -----
-    with tabs[6]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">📊 PROBABILIDADES 1X2</div>', unsafe_allow_html=True)
-        col_p1, col_p2, col_p3 = st.columns(3)
-        with col_p1:
-            st.markdown(f"""<div class="prob-box"><div style="color:#00E676; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_casa}</div>{valor_com_destaque(p_A, p_A)}<div style="margin-top:8px;">{selo(p_A)}</div></div>""", unsafe_allow_html=True)
-        with col_p2:
-            st.markdown(f"""<div class="prob-box"><div style="color:#F0C040; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Empate</div>{valor_com_destaque(p_emp, p_emp)}<div style="margin-top:8px;">{selo(p_emp)}</div></div>""", unsafe_allow_html=True)
-        with col_p3:
-            st.markdown(f"""<div class="prob-box"><div style="color:#4A90D9; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_fora}</div>{valor_com_destaque(p_B, p_B)}<div style="margin-top:8px;">{selo(p_B)}</div></div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    if gerar:
+        # ==================== PROCESSAMENTO ====================
+        def parse_seq(s):
+            return [3 if c == 'V' else 1 if c == 'E' else 0 for c in s if c in 'VED']
+        seq_casa = parse_seq(res_casa)
+        seq_fora = parse_seq(res_fora)
+        seq_cons_casa = parse_seq(cons_casa)
+        seq_cons_fora = parse_seq(cons_fora)
 
-        # Gols totais
-        st.markdown('<div class="card-premium"><div class="card-header-premium">⚽ PROBABILIDADES DE GOLS (TOTAIS)</div>', unsafe_allow_html=True)
-        col_g1, col_g2, col_g3 = st.columns(3)
-        col_g1.metric("Over 1.5", f"{over15_adj:.1%}")
-        col_g2.metric("Over 2.5", f"{over25_adj:.1%}")
-        col_g3.metric("Over 3.5", f"{over35_adj:.1%}")
-        col_g4, col_g5, col_g6 = st.columns(3)
-        col_g4.metric("Under 1.5", f"{under15_adj:.1%}")
-        col_g5.metric("Under 2.5", f"{under25_adj:.1%}")
-        col_g6.metric("Under 3.5", f"{under35_adj:.1%}")
-        col_b1, col_b2, col_b3 = st.columns(3)
-        col_b1.metric("BTTS Sim", f"{btts_adj:.1%}")
-        col_b2.metric("BTTS Não", f"{1-btts_adj:.1%}")
-        col_b3.metric("Gol 1º Tempo", f"{prob_gol_ht_adj:.1%}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        inv_sum = 1/odd_casa + 1/odd_empate + 1/odd_fora
+        prob_v_casa = (1/odd_casa) / inv_sum
+        prob_emp = (1/odd_empate) / inv_sum
+        prob_v_fora = (1/odd_fora) / inv_sum
 
-        # Gols individuais
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🎯 PROBABILIDADES INDIVIDUAIS DE GOLS</div>', unsafe_allow_html=True)
-        col_i1, col_i2 = st.columns(2)
-        with col_i1:
-            st.markdown(f"**{nome_casa}**")
-            st.metric("Over 0.5", f"{casa_over05:.1%}")
-            st.metric("Over 1.5", f"{casa_over15:.1%}")
-            st.metric("Over 2.5", f"{casa_over25:.1%}")
-        with col_i2:
-            st.markdown(f"**{nome_fora}**")
-            st.metric("Over 0.5", f"{fora_over05:.1%}")
-            st.metric("Over 1.5", f"{fora_over15:.1%}")
-            st.metric("Over 2.5", f"{fora_over25:.1%}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        def ma_recente(seq, pv, pe, n_total):
+            if not seq: return 50.0
+            recente = seq[-6:]
+            return calcular_ma(sum(recente), len(recente), n_total, pv, pe)
+        ma_A = ma_recente(seq_casa, prob_v_casa, prob_emp, n_casa)
+        ma_B = ma_recente(seq_fora, prob_v_fora, prob_emp, n_fora)
 
-        # Edge
-        st.markdown('<div class="card-premium"><div class="card-header-premium">📈 COMPARAÇÃO MODELO vs MERCADO (EDGE)</div>', unsafe_allow_html=True)
-        probs_modelo = {
-            f"Vitória {nome_casa}": p_A,
-            "Empate": p_emp,
-            f"Vitória {nome_fora}": p_B,
-            "Over 1.5": over15_adj,
-            "Over 2.5": over25_adj,
-            "Over 3.5": over35_adj,
-            "BTTS Sim": btts_adj,
-            "BTTS Não": 1-btts_adj,
-            "Gol 1º Tempo": prob_gol_ht_adj,
+        dados_A = {
+            'GM': gm_casa, 'FA': fa_casa, 'ECa': eca_casa, 'Posse': posse_casa,
+            'GS': gs_casa, 'FAS': fas_casa, 'ECc': 0, 'Des': des_casa,
+            'FC': fc_casa, 'CA': ca_casa
         }
-        odds_reais = {
-            f"Vitória {nome_casa}": odd_casa,
-            "Empate": odd_empate,
-            f"Vitória {nome_fora}": odd_fora,
-            "Over 1.5": odd_over15,
-            "Over 2.5": odd_over25,
-            "Over 3.5": odd_over35,
-            "BTTS Sim": odd_btts_sim,
-            "BTTS Não": odd_btts_nao,
-            "Gol 1º Tempo": odd_ht,
+        dados_B = {
+            'GM': gm_fora, 'FA': fa_fora, 'ECa': eca_fora, 'Posse': posse_fora,
+            'GS': gs_fora, 'FAS': fas_fora, 'ECc': 0, 'Des': des_fora,
+            'FC': fc_fora, 'CA': ca_fora
         }
-        linhas = []
-        for mercado, prob in probs_modelo.items():
-            odd_mod = 1/prob if prob>0 else 999
-            odd_real = odds_reais.get(mercado)
-            if odd_real and odd_real > 1.0:
-                ev = (prob * odd_real - 1) * 100
-                linhas.append((mercado, f"{prob:.1%}", f"{odd_mod:.2f}", f"{odd_real:.2f}", f"{ev:+.1f}%", "💚 Valor" if ev>0 else "🔴 Sem Valor"))
-            else:
-                linhas.append((mercado, f"{prob:.1%}", f"{odd_mod:.2f}", "-", "-", "⚪ Sem odd"))
-        df_edge = pd.DataFrame(linhas, columns=["Mercado", "Prob. Modelo", "Odd Justa", "Odd Real", "EV%", "Indicação"])
-        st.dataframe(df_edge, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        fg_A = calcular_fg(dados_A, medias_liga, n_casa)
+        fg_B = calcular_fg(dados_B, medias_liga, n_fora)
 
-    # ----- ABA 8: Destaques -----
-    with tabs[7]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">🌟 DESTAQUES (PROBABILIDADE > 65%)</div>', unsafe_allow_html=True)
-        destaques = []
-        if p_A > 0.65: destaques.append((f"Vitória {nome_casa}", p_A))
-        if p_emp > 0.65: destaques.append(("Empate", p_emp))
-        if p_B > 0.65: destaques.append((f"Vitória {nome_fora}", p_B))
-        for nome, prob in [
-            ("Over 1.5", over15_adj), ("Over 2.5", over25_adj), ("Over 3.5", over35_adj),
-            ("BTTS Sim", btts_adj), ("Gol 1º Tempo", prob_gol_ht_adj)
-        ]:
-            if prob > 0.65: destaques.append((nome, prob))
-        if destaques:
-            for nome, prob in destaques:
-                st.markdown(f"""<div style="background:rgba(240,192,64,0.08); border:1px solid rgba(240,192,64,0.3); border-radius:10px; padding:14px; margin:6px 0; display:flex; justify-content:space-between; align-items:center;"><span style="color:#F0C040; font-weight:700;">{nome}</span><span style="font-size:24px; font-weight:900; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{prob:.1%}</span></div>""", unsafe_allow_html=True)
+        cpp_A = calcular_cpp(pts_cpp_casa, jogos_cpp_casa, prob_v_casa, prob_emp)
+        cpp_B = calcular_cpp(pts_cpp_fora, jogos_cpp_fora, prob_v_fora, prob_emp)
+
+        estilo_A = calcular_estilo(dados_A, medias_liga, n_casa)
+        estilo_B = calcular_estilo(dados_B, medias_liga, n_fora)
+
+        perfil_A = obter_perfil_time(dados_A, medias_liga)
+        perfil_B = obter_perfil_time(dados_B, medias_liga)
+
+        dif_pts = (pos_casa - pos_fora) * 3
+        p_obj_A = calcular_pressao_tabela(pos_casa, 24, pos_fora, dif_pts)
+        p_obj_B = calcular_pressao_tabela(pos_fora, 24, pos_casa, -dif_pts)
+
+        psic_A = calcular_psicologico(
+            consistencia_pontos=seq_cons_casa if len(seq_cons_casa)>=5 else None,
+            moral_pontos=moral_casa, pressao_p_obj=p_obj_A, pressao_sensibilidade=0.3
+        )
+        psic_B = calcular_psicologico(
+            consistencia_pontos=seq_cons_fora if len(seq_cons_fora)>=5 else None,
+            moral_pontos=moral_fora, pressao_p_obj=p_obj_B, pressao_sensibilidade=0.3
+        )
+
+        PESOS = {'MA': 0.25, 'FG': 0.25, 'CPP': 0.25, 'Psicologico': 0.25}
+        EC_A = (ma_A*0.25 + fg_A*0.25 + cpp_A*0.25 + psic_A*0.25) + 2.0
+        EC_B = (ma_B*0.25 + fg_B*0.25 + cpp_B*0.25 + psic_B*0.25)
+        EC_A = max(0, min(100, EC_A))
+        EC_B = max(0, min(100, EC_B))
+
+        diff_ec = abs(EC_A - EC_B)
+        LIMIAR_EMPATE = 5.0
+        BONUS_MAX = 0.06
+        P_EMP_BASE = 0.29
+        P_EMP_MIN = 0.18
+
+        if diff_ec < LIMIAR_EMPATE:
+            p_emp = P_EMP_BASE + (1 - diff_ec / LIMIAR_EMPATE) * BONUS_MAX
         else:
-            st.markdown('<div style="color:#B0B8C0; text-align:center;">Nenhuma probabilidade acima de 65%.</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            p_emp = max(P_EMP_MIN, P_EMP_BASE - (diff_ec / 100) * 0.15)
 
-    # ----- ABA 9: ANÁLISE DESCRITIVA (REFORÇADA COM PILARES) -----
-    with tabs[8]:
-        st.markdown('<div class="card-premium"><div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
+        total = EC_A + EC_B
+        p_A = (1 - p_emp) * (EC_A / total) if total > 0 else 0.33
+        p_B = 1 - p_A - p_emp
 
-        # 1. Pilares individuais
-        st.markdown("### 🔍 Pilares Individuais")
-        st.markdown(f"""
-        <div class="info-card">
-            <strong>Momento Atual (MA):</strong> {nome_casa} {ma_A:.1f} × {nome_fora} {ma_B:.1f}. 
-            {'O time da casa vive melhor fase.' if ma_A > ma_B else 'O visitante chega em melhor momento.' if ma_B > ma_A else 'Ambos estão em momentos semelhantes.'}<br>
-            <strong>Força Geral (FG):</strong> {nome_casa} {fg_A:.1f} × {nome_fora} {fg_B:.1f}. 
-            {'A casa tem um elenco mais forte.' if fg_A > fg_B else 'O visitante possui maior força geral.' if fg_B > fg_A else 'Força equilibrada.'}<br>
-            <strong>Confronto por Prateleira (CPP):</strong> {nome_casa} {cpp_A:.1f} × {nome_fora} {cpp_B:.1f}. 
-            {'Bom histórico contra times do mesmo nível.' if cpp_A > 60 else 'Histórico regular.' if cpp_A > 40 else 'Desempenho ruim contra pares.'}<br>
-            <strong>Psicológico:</strong> {nome_casa} {psic_A:.1f} × {nome_fora} {psic_B:.1f}. 
-            {'Time da casa mais confiante.' if psic_A > psic_B else 'Visitante com melhor preparo mental.' if psic_B > psic_A else 'Fatores psicológicos empatados.'}
+        lambda_casa_orig = (gm_casa + gs_fora) / 2
+        lambda_fora_orig = (gm_fora + gs_casa) / 2
+
+        def ajustar_lambdas(ec_a, ec_b, lam_casa, lam_fora, fator_impacto=0.5):
+            diff_ec = (ec_a - ec_b) / 100.0
+            lam_casa_adj = lam_casa * (1.0 + diff_ec * fator_impacto)
+            lam_fora_adj = lam_fora * (1.0 - diff_ec * fator_impacto)
+            lam_casa_adj = max(0.0, lam_casa_adj)
+            lam_fora_adj = max(0.0, lam_fora_adj)
+            return lam_casa_adj, lam_fora_adj, diff_ec
+
+        lambda_casa_adj, lambda_fora_adj, fator_ajuste = ajustar_lambdas(
+            EC_A, EC_B, lambda_casa_orig, lambda_fora_orig
+        )
+
+        results_adj = []
+        for i in range(6):
+            for j in range(6):
+                prob = math.exp(-lambda_casa_adj)*(lambda_casa_adj**i)/math.factorial(i) * \
+                       math.exp(-lambda_fora_adj)*(lambda_fora_adj**j)/math.factorial(j)
+                results_adj.append((i, j, prob))
+
+        vitoria_casa_adj = sum(p for gA,gB,p in results_adj if gA>gB)
+        empate_adj = sum(p for gA,gB,p in results_adj if gA==gB)
+        vitoria_fora_adj = sum(p for gA,gB,p in results_adj if gA<gB)
+        over15_adj = sum(p for gA,gB,p in results_adj if gA+gB > 1.5)
+        over25_adj = sum(p for gA,gB,p in results_adj if gA+gB > 2.5)
+        over35_adj = sum(p for gA,gB,p in results_adj if gA+gB > 3.5)
+        btts_adj = sum(p for gA,gB,p in results_adj if gA>0 and gB>0)
+
+        under15_adj = 1 - over15_adj
+        under25_adj = 1 - over25_adj
+        under35_adj = 1 - over35_adj
+
+        FATOR_HT = 0.44
+        ajuste_estilo = 0
+        if perfil_A in ["Pressão Alta", "Dominante"]:
+            ajuste_estilo += 0.05
+        if perfil_B in ["Pressão Alta", "Dominante"]:
+            ajuste_estilo -= 0.05
+        ajuste_ma = (ma_A - 50) * 0.001 + (ma_B - 50) * 0.001
+        lambda_ht_adj = (lambda_casa_adj + lambda_fora_adj) * (FATOR_HT + ajuste_estilo + ajuste_ma)
+        prob_gol_ht_adj = 1 - math.exp(-lambda_ht_adj)
+
+        def prob_team_over(lam, k):
+            return 1 - sum(math.exp(-lam)*(lam**i)/math.factorial(i) for i in range(k+1))
+        casa_over05 = prob_team_over(lambda_casa_adj, 0)
+        casa_over15 = prob_team_over(lambda_casa_adj, 1)
+        casa_over25 = prob_team_over(lambda_casa_adj, 2)
+        fora_over05 = prob_team_over(lambda_fora_adj, 0)
+        fora_over15 = prob_team_over(lambda_fora_adj, 1)
+        fora_over25 = prob_team_over(lambda_fora_adj, 2)
+
+        # ==================== FUNÇÕES AUXILIARES ====================
+        def desenhar_campo_duplo(fA, fB, nome_casa, nome_fora):
+            fig = go.Figure()
+            fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
+                          fillcolor="#1B4D1B", line=dict(color="white", width=2))
+            fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
+                          line=dict(color="white", width=2))
+            fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
+                          line=dict(color="white", width=2))
+            fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
+                          line=dict(color="white", width=1.5))
+            fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
+                          line=dict(color="white", width=1.5))
+            fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
+                          line=dict(color="white", width=1))
+            fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
+                          line=dict(color="white", width=1))
+            zonas = ['Defesa', 'Meio', 'Ataque']
+            for i, (zona, fa) in enumerate(zip(zonas, fA)):
+                x0 = i * 33.33
+                x1 = (i+1) * 33.33
+                fig.add_shape(type="rect", x0=x0, y0=50, x1=x1, y1=100,
+                              fillcolor=f"rgba(240,192,64,{fa*0.5})", line_width=0)
+                fig.add_annotation(x=(x0+x1)/2, y=75, text=f"{zona}<br>{fa*100:.0f}%",
+                                   showarrow=False, font=dict(color="white", size=11))
+            fig.add_annotation(x=15, y=110, text=f"🏠 {nome_casa}", showarrow=False,
+                               font=dict(color="#F0C040", size=14))
+            zonas_B = ['Ataque', 'Meio', 'Defesa']
+            for i, (zona, fb) in enumerate(zip(zonas_B, fB)):
+                x0 = i * 33.33
+                x1 = (i+1) * 33.33
+                fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=50,
+                              fillcolor=f"rgba(74,144,217,{fb*0.5})", line_width=0)
+                fig.add_annotation(x=(x0+x1)/2, y=25, text=f"{zona}<br>{fb*100:.0f}%",
+                                   showarrow=False, font=dict(color="white", size=11))
+            fig.add_annotation(x=85, y=110, text=f"✈️ {nome_fora}", showarrow=False,
+                               font=dict(color="#4a90d9", size=14))
+            fig.update_xaxes(visible=False, range=[0,100])
+            fig.update_yaxes(visible=False, range=[-10,120])
+            fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17',
+                              height=500, margin=dict(l=20, r=20, t=40, b=20))
+            return fig
+
+        def gerar_cenarios_justificados():
+            eventos = [
+                ('Vitória do ' + nome_casa + ' por 2+ gols',
+                 sum(p for gA,gB,p in results_adj if gA >= gB+2),
+                 f"Ataque do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j)."),
+                ('Empate',
+                 empate_adj,
+                 f"Equilíbrio nos EngramScores ({EC_A:.1f} vs {EC_B:.1f})."),
+                ('Vitória do ' + nome_fora,
+                 vitoria_fora_adj,
+                 f"{nome_fora} com {gm_fora:.1f} gols/j contra defesa de {gs_casa:.1f}."),
+                ('Over 1.5 Gols',
+                 over15_adj,
+                 f"λ total ajustado: {lambda_casa_adj+lambda_fora_adj:.2f}."),
+                ('Over 2.5 Gols',
+                 over25_adj,
+                 f"λ total ajustado: {lambda_casa_adj+lambda_fora_adj:.2f}."),
+                ('Over 3.5 Gols',
+                 over35_adj,
+                 f"Possibilidade de placar elástico."),
+                ('Ambos Marcam (BTTS)',
+                 btts_adj,
+                 f"{nome_casa} ({gm_casa:.1f}/{gs_casa:.1f}) x {nome_fora} ({gm_fora:.1f}/{gs_fora:.1f})."),
+            ]
+            eventos.sort(key=lambda x: x[1], reverse=True)
+            return eventos[:5]
+
+        def selo(prob):
+            if prob >= 0.75:
+                return '<span class="selo-dourado">🏅 OURO</span>'
+            elif prob >= 0.60:
+                return '<span class="selo-verde">✅ CONFIÁVEL</span>'
+            elif prob >= 0.50:
+                return '<span class="selo-amarelo">⚠️ MODERADO</span>'
+            else:
+                return ''
+
+        def valor_com_destaque(valor, prob):
+            if prob >= 0.75:
+                return f'<span class="high-confidence" style="font-size:42px;">{valor:.1%}</span>'
+            else:
+                return f'<span style="font-size:42px; font-weight:900; color:#E0E0E0;">{valor:.1%}</span>'
+
+        # ==================== EXIBIÇÃO PRINCIPAL ====================
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="text-align:center; margin-bottom:30px;">
+            <div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0;">Resultado da Análise</div>
+            <h2 style="font-weight:900; margin:8px 0; letter-spacing:-1px;">
+                <span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+                    ENGRAMSCORE
+                </span>
+            </h2>
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. Diferenciais (quem vence cada pilar)
-        st.markdown("### ⚔️ Diferenciais por Pilar")
-        dif_ma = ma_A - ma_B
-        dif_fg = fg_A - fg_B
-        dif_cpp = cpp_A - cpp_B
-        dif_psic = psic_A - psic_B
-        vantagens_A = []
-        vantagens_B = []
-        if dif_ma > 0: vantagens_A.append("Momento Atual (MA)")
-        elif dif_ma < 0: vantagens_B.append("Momento Atual (MA)")
-        if dif_fg > 0: vantagens_A.append("Força Geral (FG)")
-        elif dif_fg < 0: vantagens_B.append("Força Geral (FG)")
-        if dif_cpp > 0: vantagens_A.append("Confronto (CPP)")
-        elif dif_cpp < 0: vantagens_B.append("Confronto (CPP)")
-        if dif_psic > 0: vantagens_A.append("Psicológico")
-        elif dif_psic < 0: vantagens_B.append("Psicológico")
-
-        if vantagens_A:
-            st.markdown(f"<div class='info-card'><strong>{nome_casa}</strong> leva vantagem em: {', '.join(vantagens_A)}.</div>", unsafe_allow_html=True)
-        if vantagens_B:
-            st.markdown(f"<div class='info-card'><strong>{nome_fora}</strong> leva vantagem em: {', '.join(vantagens_B)}.</div>", unsafe_allow_html=True)
-        if not vantagens_A and not vantagens_B:
-            st.markdown("<div class='info-card'>Nenhum time tem vantagem clara nos pilares — equilíbrio total.</div>", unsafe_allow_html=True)
-
-        # 3. EngramScore
-        st.markdown("### ⚡ EngramScore")
-        st.markdown(f"""<div class="info-card">O índice final: {nome_casa} <strong>{EC_A:.1f}</strong> vs {nome_fora} <strong>{EC_B:.1f}</strong>. {'Vantagem clara para o mandante.' if EC_A>EC_B+5 else 'O visitante é o favorito.' if EC_B>EC_A+5 else 'Confronto extremamente equilibrado.'}</div>""", unsafe_allow_html=True)
-
-        # 4. Setores
-        st.markdown("### 🎯 Desempenho Setorial")
-        st.markdown(f"""<div class="info-card"><strong>Ataque:</strong> {nome_casa} {atq_A:.1f} × {nome_fora} {atq_B:.1f}.<br><strong>Defesa:</strong> {nome_casa} {def_A:.1f} × {nome_fora} {def_B:.1f}.<br><strong>Meio:</strong> {nome_casa} {mei_A:.1f} × {nome_fora} {mei_B:.1f}.</div>""", unsafe_allow_html=True)
-
-        # 5. Estilos
-        st.markdown(f"""<div class="info-card">{nome_casa} é <strong>{perfil_A}</strong>, {nome_fora} é <strong>{perfil_B}</strong>.</div>""", unsafe_allow_html=True)
-
-        # 6. Expectativa de gols
-        st.markdown(f"""<div class="info-card">Expectativa total de gols: {lambda_casa_adj+lambda_fora_adj:.2f}. Over 1.5: {over15_adj:.1%}, Over 2.5: {over25_adj:.1%}, BTTS: {btts_adj:.1%}, Gol 1ºT: {prob_gol_ht_adj:.1%}.</div>""", unsafe_allow_html=True)
-
-        # 7. Cenário mais provável
-        cen = gerar_cenarios_justificados()
-        st.markdown(f"""<div class="info-card"><strong>Cenário mais provável:</strong> {cen[0][0]} ({cen[0][1]:.1%})</div>""", unsafe_allow_html=True)
-
-        ## 8. Conclusão / Recomendação Final (coerente com os dados)
-        st.markdown("### 📌 Recomendação Final")
-
-        # Identifica o resultado mais provável
-        resultados = [
-            (f"Vitória do {nome_casa}", p_A, vantagens_A, "mandante"),
-            ("Empate", p_emp, [], "empate"),
-            (f"Vitória do {nome_fora}", p_B, vantagens_B, "visitante")
-        ]
-        resultado_final = max(resultados, key=lambda x: x[1])
-        nome_res, prob_res, vantagens_res, tipo_res = resultado_final
-
-        # Monta justificativa baseada nos diferenciais de pilares
-        if tipo_res == "empate":
-            justificativa = "O equilíbrio nos pilares indica uma partida disputada, com pouca margem para desequilíbrio."
-            if diff_ec < 5:
-                justificativa += " A diferença de EngramScore é mínima, reforçando a tendência de igualdade."
-            cor_borda = "#F0C040"
-        else:
-            if vantagens_res:
-                justificativa = f"As vantagens nos pilares {', '.join(vantagens_res)} dão a {nome_res.split()[-1]} a superioridade necessária."
-            else:
-                # Se não há vantagem clara em nenhum pilar, mas o time é favorito, pode ser pelo fator casa (mandante) ou pequenas margens
-                if tipo_res == "mandante":
-                    justificativa = "Apesar do equilíbrio nos pilares individuais, o fator casa e a ligeira superioridade no EngramScore inclinam a balança para o mandante."
-                else:
-                    justificativa = "Mesmo sem dominar amplamente os pilares, o visitante apresenta um EngramScore superior, o que justifica o favoritismo."
-            cor_borda = "#00E676" if tipo_res == "mandante" else "#4A90D9"
-
-        st.markdown(f"""
-        <div class="info-card" style="border-color:{cor_borda};">
-            <strong>{nome_res}</strong> é o resultado mais provável, com <strong>{prob_res:.1%}</strong> de chance.<br>
-            {justificativa}
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Adiciona uma nota sobre o empate se ele não for o principal, mas tiver probabilidade relevante
-        if tipo_res != "empate" and p_emp > 0.25:
+        col_ec1, col_ec2 = st.columns(2)
+        with col_ec1:
             st.markdown(f"""
-            <div class="info-card" style="border-color:#F0C040; margin-top:8px;">
-                ⚠️ O empate também merece atenção, com <strong>{p_emp:.1%}</strong> de probabilidade.
+            <div class="card-premium" style="text-align:center;">
+                <div style="font-size:14px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; margin-bottom:10px;">🏠 {nome_casa}</div>
+                <div class="metric-premium">{EC_A:.1f}</div>
+                <div class="metric-label-premium">EngramScore</div>
+                <div class="bar-premium">
+                    <div class="bar-fill-gold" style="width:{EC_A}%;"></div>
+                </div>
+                <div style="font-size:12px; color:#B0B8C0; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
             </div>
             """, unsafe_allow_html=True)
+
+        with col_ec2:
+            st.markdown(f"""
+            <div class="card-premium" style="text-align:center;">
+                <div style="font-size:14px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; margin-bottom:10px;">✈️ {nome_fora}</div>
+                <div class="metric-premium-blue">{EC_B:.1f}</div>
+                <div class="metric-label-premium">EngramScore</div>
+                <div class="bar-premium">
+                    <div class="bar-fill-blue" style="width:{EC_B}%;"></div>
+                </div>
+                <div style="font-size:12px; color:#B0B8C0; margin-top:4px;">MA · FG · CPP · PSICOLÓGICO</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        if EC_A > EC_B:
+            st.markdown(f"""<div style="text-align:center; margin:16px 0; font-size:16px; font-weight:700; color:#F0C040;">🔺 {nome_casa} leva vantagem de +{EC_A - EC_B:.1f} pontos</div>""", unsafe_allow_html=True)
+        elif EC_B > EC_A:
+            st.markdown(f"""<div style="text-align:center; margin:16px 0; font-size:16px; font-weight:700; color:#4A90D9;">🔻 {nome_fora} leva vantagem de +{EC_B - EC_A:.1f} pontos</div>""", unsafe_allow_html=True)
+        else:
+            st.markdown(f"""<div style="text-align:center; margin:16px 0; font-size:16px; font-weight:700; color:#F0C040;">⚖️ Equilíbrio absoluto</div>""", unsafe_allow_html=True)
+
+        # ==================== ABAS ====================
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análises Detalhadas</span></div>""", unsafe_allow_html=True)
+
+        tabs = st.tabs([
+            "📊 PILARES",
+            "🎭 ESTILO",
+            "⚔️ CONFRONTO",
+            "🗺️ HEATMAP",
+            "🎲 CENÁRIOS",
+            "🔧 AJUSTE EC",
+            "📋 MERCADOS",
+            "🌟 DESTAQUES",
+            "📝 ANÁLISE"
+        ])
+
+        # ----- ABA 1: Pilares -----
+        with tabs[0]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🔍 PILARES INDIVIDUAIS</div>', unsafe_allow_html=True)
+            pilares_nomes = ['Momento Atual', 'Força Geral', 'Confronto', 'Psicológico']
+            valores_A = [ma_A, fg_A, cpp_A, psic_A]
+            valores_B = [ma_B, fg_B, cpp_B, psic_B]
+            df = pd.DataFrame({'Pilar': pilares_nomes*2, 'Time': [nome_casa]*4+[nome_fora]*4, 'Força': valores_A+valores_B})
+            fig = px.bar(df, x='Pilar', y='Força', color='Time', barmode='group', text_auto='.1f',
+                         color_discrete_map={nome_casa:'#F0C040', nome_fora:'#4a90d9'})
+            fig.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🎯 FORÇA SETORIAL</div>', unsafe_allow_html=True)
+            def norm_rad(val, media):
+                if media==0: return 50
+                return max(0, min(100, 50 + (val-media)/media*50))
+            atq_A = (norm_rad(gm_casa, media_gm) + norm_rad(fa_casa, media_fa))/2
+            def_A = (100 - norm_rad(gs_casa, media_gs) + 100 - norm_rad(fas_casa, media_fas))/2
+            mei_A = norm_rad(posse_casa, media_posse)
+            atq_B = (norm_rad(gm_fora, media_gm) + norm_rad(fa_fora, media_fa))/2
+            def_B = (100 - norm_rad(gs_fora, media_gs) + 100 - norm_rad(fas_fora, media_fas))/2
+            mei_B = norm_rad(posse_fora, media_posse)
+            fig_radar = go.Figure()
+            fig_radar.add_trace(go.Scatterpolar(r=[atq_A, def_A, mei_A], theta=['Ataque','Defesa','Meio'],
+                                                fill='toself', name=nome_casa, marker_color='#F0C040'))
+            fig_radar.add_trace(go.Scatterpolar(r=[atq_B, def_B, mei_B], theta=['Ataque','Defesa','Meio'],
+                                                fill='toself', name=nome_fora, marker_color='#4a90d9'))
+            fig_radar.update_layout(polar=dict(radialaxis=dict(range=[0,100])), template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_radar, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 2: Estilo de Jogo -----
+        with tabs[1]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🎭 PERFIS TÁTICOS</div>', unsafe_allow_html=True)
+            col_perf1, col_perf2 = st.columns(2)
+            with col_perf1:
+                st.markdown(f"""<div style="background:rgba(240,192,64,0.05); border:1px solid rgba(240,192,64,0.2); border-radius:12px; padding:20px; text-align:center;"><div style="font-size:18px; font-weight:700; color:#F0C040; margin-bottom:8px;">🏠 {nome_casa}</div><div style="font-size:24px; font-weight:900; color:#F0C040;">{perfil_A}</div><div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_A:.1f}/100</div></div>""", unsafe_allow_html=True)
+            with col_perf2:
+                st.markdown(f"""<div style="background:rgba(74,144,217,0.05); border:1px solid rgba(74,144,217,0.2); border-radius:12px; padding:20px; text-align:center;"><div style="font-size:18px; font-weight:700; color:#4A90D9; margin-bottom:8px;">✈️ {nome_fora}</div><div style="font-size:24px; font-weight:900; color:#4A90D9;">{perfil_B}</div><div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_B:.1f}/100</div></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="info-card" style="margin-top:16px;"><strong>🏆 Dominante:</strong> Controla posse, finaliza muito, pressiona.<br><strong>🔥 Pressão Alta:</strong> Extremamente agressivo, muitas faltas e desarmes.<br><strong>⚡ Reativo/Contra‑ataque:</strong> Pouca posse, transições rápidas e certeiras.<br><strong>🛡️ Defensivo:</strong> Prioriza não sofrer gols, jogo físico, baixa posse.<br><strong>⚖️ Equilibrado:</strong> Sem extremos, jogo balanceado.<br><strong>🔄 Posse Estéril:</strong> Muita posse, pouca efetividade.<br><strong>🎯 Efetivo:</strong> Pouca posse, alto aproveitamento.</div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 3: Comparação Setorial -----
+        with tabs[2]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">⚔️ CONFRONTO POR ESTATÍSTICA</div>', unsafe_allow_html=True)
+            stats = [
+                ('Gols Marcados', gm_casa, gm_fora, 'maior'),
+                ('Finalizações Alvo', fa_casa, fa_fora, 'maior'),
+                ('Posse (%)', posse_casa, posse_fora, 'maior'),
+                ('Gols Sofridos', gs_casa, gs_fora, 'menor'),
+                ('Finalizações Sofridas', fas_casa, fas_fora, 'menor'),
+                ('Faltas Cometidas', fc_casa, fc_fora, 'menor'),
+            ]
+            for nome, vA, vB, tipo in stats:
+                if tipo == 'maior':
+                    vant = nome_casa if vA>vB else nome_fora if vB>vA else "Empate"
+                else:
+                    vant = nome_casa if vA<vB else nome_fora if vB<vA else "Empate"
+                st.markdown(f"""<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:14px; color:#E0E0E0;"><span>{nome}</span><span>{nome_casa} {vA:.1f} × {vB:.1f} {nome_fora}</span><span style="font-weight:700; color:#F0C040;">{vant}</span></div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 4: Heatmap -----
+        with tabs[3]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🗺️ HEATMAP TÁTICO</div>', unsafe_allow_html=True)
+            fA = [def_A/100, mei_A/100, atq_A/100]
+            fB = [atq_B/100, mei_B/100, def_B/100]
+            fig_field = desenhar_campo_duplo(fA, fB, nome_casa, nome_fora)
+            st.plotly_chart(fig_field, use_container_width=True)
+            st.markdown('<div style="font-size:13px; color:#B0B8C0; text-align:center;">Dourado = Casa, Azul = Visitante.</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 5: Cenários -----
+        with tabs[4]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🎲 CINCO CENÁRIOS MAIS PROVÁVEIS</div>', unsafe_allow_html=True)
+            for i, (tit, prob, just) in enumerate(gerar_cenarios_justificados()):
+                st.markdown(f"""<div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:12px 16px; margin:6px 0;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:700; color:#E0E0E0;">{i+1}. {tit}</span><span style="font-size:20px; font-weight:900; color:#F0C040;">{prob:.1%}</span></div><div style="font-size:13px; color:#B0B8C0; margin-top:4px;">{just}</div></div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 6: Ajuste EC -----
+        with tabs[5]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🔧 AJUSTE ENGRAMSCORE NOS GOLS ESPERADOS</div>', unsafe_allow_html=True)
+            st.markdown(f"""<div style="text-align:center; margin:16px 0;"><span style="font-size:14px; color:#B0B8C0;">Fator de Ajuste:</span><span style="font-size:24px; font-weight:900; color:#F0C040; margin-left:8px;">{fator_ajuste:+.2f}</span></div>""", unsafe_allow_html=True)
+            col_orig, col_adj = st.columns(2)
+            with col_orig:
+                st.markdown(f"""<div style="background:rgba(255,255,255,0.02); border-radius:8px; padding:16px; text-align:center;"><div style="font-size:13px; color:#B0B8C0;">Lambdas Originais</div><div style="font-size:28px; font-weight:900; color:#B0B8C0;">λ Casa: {lambda_casa_orig:.2f}</div><div style="font-size:28px; font-weight:900; color:#B0B8C0;">λ Fora: {lambda_fora_orig:.2f}</div></div>""", unsafe_allow_html=True)
+            with col_adj:
+                st.markdown(f"""<div style="background:rgba(240,192,64,0.03); border:1px solid rgba(240,192,64,0.2); border-radius:8px; padding:16px; text-align:center;"><div style="font-size:13px; color:#F0C040;">Lambdas Ajustados</div><div style="font-size:28px; font-weight:900; color:#F0C040;">λ Casa: {lambda_casa_adj:.2f}</div><div style="font-size:28px; font-weight:900; color:#F0C040;">λ Fora: {lambda_fora_adj:.2f}</div></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="info-card" style="margin-top:16px;">Se o time da casa é muito superior (EC_A > EC_B), seu λ ofensivo <strong>aumenta</strong> e o λ do visitante <strong>diminui</strong>. Isso reduz a chance de o time mais fraco marcar, refletindo a superioridade medida pelo EngramScore.</div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 7: MERCADOS -----
+        with tabs[6]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">📊 PROBABILIDADES 1X2</div>', unsafe_allow_html=True)
+            col_p1, col_p2, col_p3 = st.columns(3)
+            with col_p1:
+                st.markdown(f"""<div class="prob-box"><div style="color:#00E676; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_casa}</div>{valor_com_destaque(p_A, p_A)}<div style="margin-top:8px;">{selo(p_A)}</div></div>""", unsafe_allow_html=True)
+            with col_p2:
+                st.markdown(f"""<div class="prob-box"><div style="color:#F0C040; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Empate</div>{valor_com_destaque(p_emp, p_emp)}<div style="margin-top:8px;">{selo(p_emp)}</div></div>""", unsafe_allow_html=True)
+            with col_p3:
+                st.markdown(f"""<div class="prob-box"><div style="color:#4A90D9; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_fora}</div>{valor_com_destaque(p_B, p_B)}<div style="margin-top:8px;">{selo(p_B)}</div></div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Gols totais
+            st.markdown('<div class="card-premium"><div class="card-header-premium">⚽ PROBABILIDADES DE GOLS (TOTAIS)</div>', unsafe_allow_html=True)
+            col_g1, col_g2, col_g3 = st.columns(3)
+            col_g1.metric("Over 1.5", f"{over15_adj:.1%}")
+            col_g2.metric("Over 2.5", f"{over25_adj:.1%}")
+            col_g3.metric("Over 3.5", f"{over35_adj:.1%}")
+            col_g4, col_g5, col_g6 = st.columns(3)
+            col_g4.metric("Under 1.5", f"{under15_adj:.1%}")
+            col_g5.metric("Under 2.5", f"{under25_adj:.1%}")
+            col_g6.metric("Under 3.5", f"{under35_adj:.1%}")
+            col_b1, col_b2, col_b3 = st.columns(3)
+            col_b1.metric("BTTS Sim", f"{btts_adj:.1%}")
+            col_b2.metric("BTTS Não", f"{1-btts_adj:.1%}")
+            col_b3.metric("Gol 1º Tempo", f"{prob_gol_ht_adj:.1%}")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Gols individuais
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🎯 PROBABILIDADES INDIVIDUAIS DE GOLS</div>', unsafe_allow_html=True)
+            col_i1, col_i2 = st.columns(2)
+            with col_i1:
+                st.markdown(f"**{nome_casa}**")
+                st.metric("Over 0.5", f"{casa_over05:.1%}")
+                st.metric("Over 1.5", f"{casa_over15:.1%}")
+                st.metric("Over 2.5", f"{casa_over25:.1%}")
+            with col_i2:
+                st.markdown(f"**{nome_fora}**")
+                st.metric("Over 0.5", f"{fora_over05:.1%}")
+                st.metric("Over 1.5", f"{fora_over15:.1%}")
+                st.metric("Over 2.5", f"{fora_over25:.1%}")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Edge
+            st.markdown('<div class="card-premium"><div class="card-header-premium">📈 COMPARAÇÃO MODELO vs MERCADO (EDGE)</div>', unsafe_allow_html=True)
+            probs_modelo = {
+                f"Vitória {nome_casa}": p_A,
+                "Empate": p_emp,
+                f"Vitória {nome_fora}": p_B,
+                "Over 1.5": over15_adj,
+                "Over 2.5": over25_adj,
+                "Over 3.5": over35_adj,
+                "BTTS Sim": btts_adj,
+                "BTTS Não": 1-btts_adj,
+                "Gol 1º Tempo": prob_gol_ht_adj,
+            }
+            odds_reais = {
+                f"Vitória {nome_casa}": odd_casa,
+                "Empate": odd_empate,
+                f"Vitória {nome_fora}": odd_fora,
+                "Over 1.5": odd_over15,
+                "Over 2.5": odd_over25,
+                "Over 3.5": odd_over35,
+                "BTTS Sim": odd_btts_sim,
+                "BTTS Não": odd_btts_nao,
+                "Gol 1º Tempo": odd_ht,
+            }
+            linhas = []
+            for mercado, prob in probs_modelo.items():
+                odd_mod = 1/prob if prob>0 else 999
+                odd_real = odds_reais.get(mercado)
+                if odd_real and odd_real > 1.0:
+                    ev = (prob * odd_real - 1) * 100
+                    linhas.append((mercado, f"{prob:.1%}", f"{odd_mod:.2f}", f"{odd_real:.2f}", f"{ev:+.1f}%", "💚 Valor" if ev>0 else "🔴 Sem Valor"))
+                else:
+                    linhas.append((mercado, f"{prob:.1%}", f"{odd_mod:.2f}", "-", "-", "⚪ Sem odd"))
+            df_edge = pd.DataFrame(linhas, columns=["Mercado", "Prob. Modelo", "Odd Justa", "Odd Real", "EV%", "Indicação"])
+            st.dataframe(df_edge, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 8: Destaques -----
+        with tabs[7]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">🌟 DESTAQUES (PROBABILIDADE > 65%)</div>', unsafe_allow_html=True)
+            destaques = []
+            if p_A > 0.65: destaques.append((f"Vitória {nome_casa}", p_A))
+            if p_emp > 0.65: destaques.append(("Empate", p_emp))
+            if p_B > 0.65: destaques.append((f"Vitória {nome_fora}", p_B))
+            for nome, prob in [
+                ("Over 1.5", over15_adj), ("Over 2.5", over25_adj), ("Over 3.5", over35_adj),
+                ("BTTS Sim", btts_adj), ("Gol 1º Tempo", prob_gol_ht_adj)
+            ]:
+                if prob > 0.65: destaques.append((nome, prob))
+            if destaques:
+                for nome, prob in destaques:
+                    st.markdown(f"""<div style="background:rgba(240,192,64,0.08); border:1px solid rgba(240,192,64,0.3); border-radius:10px; padding:14px; margin:6px 0; display:flex; justify-content:space-between; align-items:center;"><span style="color:#F0C040; font-weight:700;">{nome}</span><span style="font-size:24px; font-weight:900; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{prob:.1%}</span></div>""", unsafe_allow_html=True)
+            else:
+                st.markdown('<div style="color:#B0B8C0; text-align:center;">Nenhuma probabilidade acima de 65%.</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # ----- ABA 9: ANÁLISE DESCRITIVA (REFORÇADA COM PILARES) -----
+        with tabs[8]:
+            st.markdown('<div class="card-premium"><div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
+
+            st.markdown("### 🔍 Pilares Individuais")
+            st.markdown(f"""<div class="info-card"><strong>Momento Atual:</strong> {nome_casa} {ma_A:.1f} × {nome_fora} {ma_B:.1f}.<br><strong>Força Geral:</strong> {nome_casa} {fg_A:.1f} × {nome_fora} {fg_B:.1f}.<br><strong>Confronto:</strong> {nome_casa} {cpp_A:.1f} × {nome_fora} {cpp_B:.1f}.<br><strong>Psicológico:</strong> {nome_casa} {psic_A:.1f} × {nome_fora} {psic_B:.1f}.</div>""", unsafe_allow_html=True)
+
+            st.markdown("### ⚔️ Diferenciais por Pilar")
+            dif_ma = ma_A - ma_B
+            dif_fg = fg_A - fg_B
+            dif_cpp = cpp_A - cpp_B
+            dif_psic = psic_A - psic_B
+            vantagens_A = []
+            vantagens_B = []
+            if dif_ma > 0: vantagens_A.append("Momento Atual (MA)")
+            elif dif_ma < 0: vantagens_B.append("Momento Atual (MA)")
+            if dif_fg > 0: vantagens_A.append("Força Geral (FG)")
+            elif dif_fg < 0: vantagens_B.append("Força Geral (FG)")
+            if dif_cpp > 0: vantagens_A.append("Confronto (CPP)")
+            elif dif_cpp < 0: vantagens_B.append("Confronto (CPP)")
+            if dif_psic > 0: vantagens_A.append("Psicológico")
+            elif dif_psic < 0: vantagens_B.append("Psicológico")
+            if vantagens_A: st.markdown(f"<div class='info-card'><strong>{nome_casa}</strong> leva vantagem em: {', '.join(vantagens_A)}.</div>", unsafe_allow_html=True)
+            if vantagens_B: st.markdown(f"<div class='info-card'><strong>{nome_fora}</strong> leva vantagem em: {', '.join(vantagens_B)}.</div>", unsafe_allow_html=True)
+
+            st.markdown("### ⚡ EngramScore")
+            st.markdown(f"""<div class="info-card">{nome_casa} <strong>{EC_A:.1f}</strong> vs {nome_fora} <strong>{EC_B:.1f}</strong>.</div>""", unsafe_allow_html=True)
+
+            st.markdown("### 🎯 Desempenho Setorial")
+            st.markdown(f"""<div class="info-card"><strong>Ataque:</strong> {nome_casa} {atq_A:.1f} × {nome_fora} {atq_B:.1f}.<br><strong>Defesa:</strong> {nome_casa} {def_A:.1f} × {nome_fora} {def_B:.1f}.<br><strong>Meio:</strong> {nome_casa} {mei_A:.1f} × {nome_fora} {mei_B:.1f}.</div>""", unsafe_allow_html=True)
+
+            st.markdown(f"""<div class="info-card">{nome_casa} é <strong>{perfil_A}</strong>, {nome_fora} é <strong>{perfil_B}</strong>.</div>""", unsafe_allow_html=True)
+
+            cen = gerar_cenarios_justificados()
+            st.markdown(f"""<div class="info-card"><strong>Cenário mais provável:</strong> {cen[0][0]} ({cen[0][1]:.1%})</div>""", unsafe_allow_html=True)
+
+            # 8. Conclusão / Recomendação Final (coerente com os dados)
+            st.markdown("### 📌 Recomendação Final")
+
+            resultados = [
+                (f"Vitória do {nome_casa}", p_A, vantagens_A, "mandante"),
+                ("Empate", p_emp, [], "empate"),
+                (f"Vitória do {nome_fora}", p_B, vantagens_B, "visitante")
+            ]
+            resultado_final = max(resultados, key=lambda x: x[1])
+            nome_res, prob_res, vantagens_res, tipo_res = resultado_final
+
+            if tipo_res == "empate":
+                justificativa = "O equilíbrio nos pilares indica uma partida disputada, com pouca margem para desequilíbrio."
+                if diff_ec < 5:
+                    justificativa += " A diferença de EngramScore é mínima, reforçando a tendência de igualdade."
+                cor_borda = "#F0C040"
+            else:
+                if vantagens_res:
+                    justificativa = f"As vantagens nos pilares {', '.join(vantagens_res)} dão a {nome_res.split()[-1]} a superioridade necessária."
+                else:
+                    if tipo_res == "mandante":
+                        justificativa = "Apesar do equilíbrio nos pilares individuais, o fator casa e a ligeira superioridade no EngramScore inclinam a balança para o mandante."
+                    else:
+                        justificativa = "Mesmo sem dominar amplamente os pilares, o visitante apresenta um EngramScore superior, o que justifica o favoritismo."
+                cor_borda = "#00E676" if tipo_res == "mandante" else "#4A90D9"
+
+            st.markdown(f"""<div class="info-card" style="border-color:{cor_borda};"><strong>{nome_res}</strong> é o resultado mais provável, com <strong>{prob_res:.1%}</strong> de chance.<br>{justificativa}</div>""", unsafe_allow_html=True)
+
+            if tipo_res != "empate" and p_emp > 0.25:
+                st.markdown(f"""<div class="info-card" style="border-color:#F0C040; margin-top:8px;">⚠️ O empate também merece atenção, com <strong>{p_emp:.1%}</strong> de probabilidade.</div>""", unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # Rodapé
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
