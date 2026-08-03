@@ -12,7 +12,7 @@ from typing import Dict, Optional
 import os
 
 # Seus módulos
-from src.metricas.ma import calcular_ma
+from src.metricas.ma import calcular_ma, calcular_ma_simples
 from src.metricas.fg import calcular_fg
 from src.metricas.cpp import calcular_cpp
 from src.metricas.estilo import calcular_estilo
