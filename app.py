@@ -585,8 +585,8 @@ if gerar:
     over25_adj = sum(p for gA,gB,p in results_adj if gA+gB > 2.5)
     over35_adj = sum(p for gA,gB,p in results_adj if gA+gB > 3.5)
     btts_adj = sum(p for gA,gB,p in results_adj if gA>0 and gB>0)
-    over05_adj = sum(p for gA,gB,p in results_adj if gA+gB > 0.5)
 
+    # Gol 1º Tempo (mantido internamente, exibido junto com demais métricas)
     FATOR_HT = 0.44
     ajuste_estilo = 0
     if perfil_A in ["Pressão Alta", "Dominante"]:
@@ -934,7 +934,7 @@ if gerar:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 7: Mercados -----
+    # ----- ABA 7: Mercados (COM GOL HT INTEGRADO) -----
     with tabs[6]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📊 PROBABILIDADES 1X2</div>', unsafe_allow_html=True)
@@ -968,13 +968,13 @@ if gerar:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">⚽ PROBABILIDADES DE GOLS (AJUSTADAS)</div>', unsafe_allow_html=True)
         col_g1, col_g2, col_g3 = st.columns(3)
-        col_g1.metric("Over 0.5", f"{over05_adj:.1%}")
-        col_g2.metric("Over 1.5", f"{over15_adj:.1%}")
-        col_g3.metric("Over 2.5", f"{over25_adj:.1%}")
+        col_g1.metric("Over 1.5", f"{over15_adj:.1%}")
+        col_g2.metric("Over 2.5", f"{over25_adj:.1%}")
+        col_g3.metric("Over 3.5", f"{over35_adj:.1%}")
         col_g4, col_g5, col_g6 = st.columns(3)
-        col_g4.metric("Over 3.5", f"{over35_adj:.1%}")
-        col_g5.metric("Ambos Marcam (BTTS)", f"{btts_adj:.1%}")
-        col_g6.metric("BTTS Não", f"{1-btts_adj:.1%}")
+        col_g4.metric("Ambos Marcam (BTTS)", f"{btts_adj:.1%}")
+        col_g5.metric("BTTS Não", f"{1-btts_adj:.1%}")
+        col_g6.metric("Gol 1º Tempo (HT)", f"{prob_gol_ht_adj:.1%}")
         st.markdown(f"""
         <div class="info-card">
             <strong>λ original:</strong> Casa {lambda_casa_orig:.2f}, Fora {lambda_fora_orig:.2f}<br>
@@ -983,19 +983,7 @@ if gerar:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-        st.markdown('<div class="card-header-premium">⏱️ GOL NO 1º TEMPO</div>', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div style="text-align:center;">
-            <div style="font-size:52px; font-weight:900; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-                {prob_gol_ht_adj:.1%}
-            </div>
-            <div style="font-size:13px; color:#B0B8C0;">λ ajustado: {lambda_ht_adj:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ----- ABA 8: DESTAQUES (>65%) -----
+    # ----- ABA 8: DESTAQUES (COM GOL HT) -----
     with tabs[7]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">🌟 DESTAQUES (PROBABILIDADE &gt; 65%)</div>', unsafe_allow_html=True)
@@ -1007,8 +995,6 @@ if gerar:
             destaques.append(("Empate", p_emp))
         if p_B > 0.65:
             destaques.append((f"Vitória {nome_fora}", p_B))
-        if over05_adj > 0.65:
-            destaques.append(("Over 0.5 Gols", over05_adj))
         if over15_adj > 0.65:
             destaques.append(("Over 1.5 Gols", over15_adj))
         if over25_adj > 0.65:
@@ -1080,8 +1066,8 @@ if gerar:
         st.markdown(f"""
         <div class="info-card">
             Com base nos lambdas ajustados, a expectativa de gols é de <strong>{lambda_casa_adj+lambda_fora_adj:.2f}</strong> no total.
-            Isso resulta em Over 0.5 com <strong>{over05_adj:.1%}</strong>, Over 1.5 com <strong>{over15_adj:.1%}</strong> e Over 2.5 com <strong>{over25_adj:.1%}</strong>.
-            Ambos marcarem (BTTS) tem probabilidade de <strong>{btts_adj:.1%}</strong>.
+            Isso resulta em Over 1.5 com <strong>{over15_adj:.1%}</strong>, Over 2.5 com <strong>{over25_adj:.1%}</strong> e Over 3.5 com <strong>{over35_adj:.1%}</strong>.
+            Ambos marcarem (BTTS) tem probabilidade de <strong>{btts_adj:.1%}</strong>. Gol no 1º tempo: <strong>{prob_gol_ht_adj:.1%}</strong>.
         </div>
         """, unsafe_allow_html=True)
 
