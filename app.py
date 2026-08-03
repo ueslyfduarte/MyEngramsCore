@@ -253,7 +253,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     EC_A = max(0, min(100, EC_A))
     EC_B = max(0, min(100, EC_B))
 
-    # Probabilidades 1X2
+    # Probabilidades 1X2 (não mudam)
     total = EC_A + EC_B
     diff_rel = abs(EC_A - EC_B)/total if total>0 else 0
     p_emp = max(0.18, 0.40 - diff_rel*0.3)
@@ -261,27 +261,48 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     p_B = 1 - p_A - p_emp
 
     # -------------------------------
-    # PROBABILIDADES DE GOLS (POISSON)
+    # LAMBDAS ORIGINAIS (para referência)
     # -------------------------------
-    lambda_casa = (gm_casa + gs_fora) / 2
-    lambda_fora = (gm_fora + gs_casa) / 2
-    results = []
-    for i in range(6):
-        for j in range(6):
-            prob = math.exp(-lambda_casa)*(lambda_casa**i)/math.factorial(i) * \
-                   math.exp(-lambda_fora)*(lambda_fora**j)/math.factorial(j)
-            results.append((i, j, prob))
-    vitoria_casa = sum(p for gA,gB,p in results if gA>gB)
-    empate = sum(p for gA,gB,p in results if gA==gB)
-    vitoria_fora = sum(p for gA,gB,p in results if gA<gB)
-    over15 = sum(p for gA,gB,p in results if gA+gB > 1.5)
-    over25 = sum(p for gA,gB,p in results if gA+gB > 2.5)
-    over35 = sum(p for gA,gB,p in results if gA+gB > 3.5)
-    btts = sum(p for gA,gB,p in results if gA>0 and gB>0)
+    lambda_casa_orig = (gm_casa + gs_fora) / 2
+    lambda_fora_orig = (gm_fora + gs_casa) / 2
 
     # -------------------------------
-    # GOL NO 1º TEMPO (MODELO PRÓPRIO)
+    # AJUSTE DOS LAMBDAS PELO MYENGRAMSCORE
     # -------------------------------
+    def ajustar_lambdas(ec_a, ec_b, lam_casa, lam_fora, fator_impacto=0.5):
+        """
+        Ajusta os lambdas com base na diferença dos MyEngramScores.
+        Fator_impacto controla a intensidade da modulação (0.5 = até 50%).
+        """
+        diff_ec = (ec_a - ec_b) / 100.0  # entre -1 e 1
+        lam_casa_adj = lam_casa * (1.0 + diff_ec * fator_impacto)
+        lam_fora_adj = lam_fora * (1.0 - diff_ec * fator_impacto)
+        # Garantir não negativo
+        lam_casa_adj = max(0.0, lam_casa_adj)
+        lam_fora_adj = max(0.0, lam_fora_adj)
+        return lam_casa_adj, lam_fora_adj, diff_ec
+
+    lambda_casa_adj, lambda_fora_adj, fator_ajuste = ajustar_lambdas(
+        EC_A, EC_B, lambda_casa_orig, lambda_fora_orig
+    )
+
+    # Recalcular todas as probabilidades de gols com lambdas ajustados
+    results_adj = []
+    for i in range(6):
+        for j in range(6):
+            prob = math.exp(-lambda_casa_adj)*(lambda_casa_adj**i)/math.factorial(i) * \
+                   math.exp(-lambda_fora_adj)*(lambda_fora_adj**j)/math.factorial(j)
+            results_adj.append((i, j, prob))
+
+    vitoria_casa_adj = sum(p for gA,gB,p in results_adj if gA>gB)
+    empate_adj = sum(p for gA,gB,p in results_adj if gA==gB)
+    vitoria_fora_adj = sum(p for gA,gB,p in results_adj if gA<gB)
+    over15_adj = sum(p for gA,gB,p in results_adj if gA+gB > 1.5)
+    over25_adj = sum(p for gA,gB,p in results_adj if gA+gB > 2.5)
+    over35_adj = sum(p for gA,gB,p in results_adj if gA+gB > 3.5)
+    btts_adj = sum(p for gA,gB,p in results_adj if gA>0 and gB>0)
+
+    # Gol no 1º Tempo (modelo próprio, ajustado)
     FATOR_HT = 0.44
     ajuste_estilo = 0
     if perfil_A in ["Pressão Alta", "Dominante"]:
@@ -289,8 +310,8 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
     if perfil_B in ["Pressão Alta", "Dominante"]:
         ajuste_estilo -= 0.05
     ajuste_ma = (ma_A - 50) * 0.001 + (ma_B - 50) * 0.001
-    lambda_ht = (lambda_casa + lambda_fora) * (FATOR_HT + ajuste_estilo + ajuste_ma)
-    prob_gol_ht = 1 - math.exp(-lambda_ht)
+    lambda_ht_adj = (lambda_casa_adj + lambda_fora_adj) * (FATOR_HT + ajuste_estilo + ajuste_ma)
+    prob_gol_ht_adj = 1 - math.exp(-lambda_ht_adj)
 
     # -------------------------------
     # FUNÇÕES AUXILIARES (VISUALIZAÇÃO)
@@ -343,29 +364,29 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         return fig
 
     def gerar_cenarios_justificados():
-        """Retorna os 5 cenários mais prováveis com justificativas."""
+        """Retorna os 5 cenários mais prováveis com justificativas (usa lambdas ajustados)."""
         eventos = [
             ('Vitória do ' + nome_casa + ' por 2+ gols',
-             sum(p for gA,gB,p in results if gA >= gB+2),
-             f"Ataque eficiente do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j)."),
+             sum(p for gA,gB,p in results_adj if gA >= gB+2),
+             f"Ataque eficiente do {nome_casa} ({gm_casa:.1f} gols/j) contra defesa do {nome_fora} ({gs_fora:.1f} sofridos/j). MyEngramScore {EC_A:.1f} vs {EC_B:.1f}."),
             ('Empate',
-             empate,
+             empate_adj,
              f"Equilíbrio nos ECs ({EC_A:.1f} vs {EC_B:.1f}) e histórico de confrontos parelhos."),
             ('Vitória do ' + nome_fora,
-             vitoria_fora,
+             vitoria_fora_adj,
              f"{nome_fora} explora os espaços deixados pelo {nome_casa} ({gs_casa:.1f} sofridos/j) com seus {gm_fora:.1f} gols/j."),
             ('Over 1.5 Gols',
-             over15,
-             f"Média de {lambda_casa+lambda_fora:.2f} gols esperados; alta chance de pelo menos 2 gols."),
+             over15_adj,
+             f"Média de {lambda_casa_adj+lambda_fora_adj:.2f} gols esperados (já ajustada pelo MyEngramScore)."),
             ('Over 2.5 Gols',
-             over25,
-             f"Com {lambda_casa+lambda_fora:.2f} gols esperados, probabilidade de 3+ gols é relevante."),
+             over25_adj,
+             f"Com λ ajustado total de {lambda_casa_adj+lambda_fora_adj:.2f}, probabilidade de 3+ gols."),
             ('Over 3.5 Gols',
-             over35,
+             over35_adj,
              f"Ataques podem render um placar mais elástico, especialmente se a defesa falhar."),
             ('Ambos Marcam (BTTS)',
-             btts,
-             f"{nome_casa} marca {gm_casa:.1f} e sofre {gs_casa:.1f}; {nome_fora} marca {gm_fora:.1f} e sofre {gs_fora:.1f} → cenário propício para gols mútuos."),
+             btts_adj,
+             f"{nome_casa} marca {gm_casa:.1f} e sofre {gs_casa:.1f}; {nome_fora} marca {gm_fora:.1f} e sofre {gs_fora:.1f}. Ajuste EC reduziu λ_fora para {lambda_fora_adj:.2f}."),
         ]
         eventos.sort(key=lambda x: x[1], reverse=True)
         return eventos[:5]
@@ -430,6 +451,7 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         "⚔️ Comparação Setorial",
         "🗺️ Heatmap Tático",
         "🎲 Simulação de Cenários",
+        "🔧 Ajuste MyEngramScore",
         "📋 Dados para os Mercados",
         "💰 Mercados & Edge"
     ])
@@ -535,8 +557,33 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
             st.markdown("---")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 6: DADOS PARA OS MERCADOS (explicação + selos) -----
+    # ----- ABA 6: Ajuste MyEngramScore (explicação do impacto nos lambdas) -----
     with tabs[5]:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>🔧 Ajuste MyEngramScore nos Gols Esperados</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        **Fator de ajuste:** {fator_ajuste:+.2f}  
+        (Diferença entre ECs / 100, multiplicado por 0.5)
+        """)
+        col_orig, col_adj = st.columns(2)
+        with col_orig:
+            st.markdown("**Lambdas Originais** (média simples de gols marcados/sofridos)")
+            st.markdown(f"λ Casa: {lambda_casa_orig:.2f}")
+            st.markdown(f"λ Fora: {lambda_fora_orig:.2f}")
+        with col_adj:
+            st.markdown("**Lambdas Ajustados** (modulados pelo MyEngramScore)")
+            st.markdown(f"λ Casa: {lambda_casa_adj:.2f}")
+            st.markdown(f"λ Fora: {lambda_fora_adj:.2f}")
+        st.markdown("""
+        **Como funciona:**  
+        - Se o time da casa é muito superior (EC_A > EC_B), seu λ ofensivo **aumenta** e o λ do visitante **diminui**.  
+        - Isso reduz artificialmente a chance de o time mais fraco marcar, refletindo a superioridade geral medida pelo MyEngramScore.  
+        - As probabilidades de gols (Over, BTTS, Gol HT) exibidas nas abas seguintes **já incluem esse ajuste**.
+        """)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ----- ABA 7: DADOS PARA OS MERCADOS (com lambdas ajustados) -----
+    with tabs[6]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>📊 Probabilidades 1X2 (Modelo)</div>", unsafe_allow_html=True)
         col_p1, col_p2, col_p3 = st.columns(3)
@@ -555,36 +602,33 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>⚽ Probabilidades de Gols (Modelo)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>⚽ Probabilidades de Gols (Modelo Ajustado pelo MyEngramScore)</div>", unsafe_allow_html=True)
         col_g1, col_g2, col_g3 = st.columns(3)
-        col_g1.metric("Over 1.5", f"{over15:.1%}")
-        col_g2.metric("Over 2.5", f"{over25:.1%}")
-        col_g3.metric("Over 3.5", f"{over35:.1%}")
+        col_g1.metric("Over 1.5", f"{over15_adj:.1%}")
+        col_g2.metric("Over 2.5", f"{over25_adj:.1%}")
+        col_g3.metric("Over 3.5", f"{over35_adj:.1%}")
         col_g4, col_g5 = st.columns(2)
-        col_g4.metric("Ambos Marcam (BTTS)", f"{btts:.1%}")
-        col_g5.metric("BTTS Não", f"{1-btts:.1%}")
-        st.markdown("""
-        **Explicação:** As probabilidades de gols são calculadas via distribuição de Poisson,
-        usando a média de gols marcados/sofridos de cada time.
-        - Lambda do time da casa = (Gols marcados_casa + Gols sofridos_fora) / 2
-        - Lambda do time visitante = (Gols marcados_fora + Gols sofridos_casa) / 2
-
-        Assim, um ataque forte contra uma defesa fraca aumenta a expectativa de gols,
-        e vice‑versa. Os ajustes de estilo e momento refinam ainda mais as probabilidades.
+        col_g4.metric("Ambos Marcam (BTTS)", f"{btts_adj:.1%}")
+        col_g5.metric("BTTS Não", f"{1-btts_adj:.1%}")
+        st.markdown(f"""
+        **Como o ajuste do MyEngramScore influenciou:**  
+        - λ original: Casa {lambda_casa_orig:.2f}, Fora {lambda_fora_orig:.2f}  
+        - λ ajustado: Casa {lambda_casa_adj:.2f}, Fora {lambda_fora_adj:.2f}  
+        Um time com EC muito maior reduz a expectativa de gol adversária.
         """)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header'>⏱️ Gol no 1º Tempo (Modelo Proprietário)</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='big-number'>{prob_gol_ht:.1%}</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-header'>⏱️ Gol no 1º Tempo (Modelo Proprietário, Ajustado)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='big-number'>{prob_gol_ht_adj:.1%}</div>", unsafe_allow_html=True)
         st.markdown(f"""
-        **Explicação:** Probabilidade de gol no 1º tempo baseada em λ={lambda_ht:.2f},
-        ajustada pelo estilo de jogo (pressão alta/dominante) e momento atual.
+        **Explicação:** Probabilidade de gol no 1º tempo baseada em λ ajustado total={lambda_ht_adj:.2f},
+        incluindo ajustes de estilo e momento.
         """)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ----- ABA 7: MERCADOS & EDGE (COM INPUTS REAIS) -----
-    with tabs[6]:
+    # ----- ABA 8: MERCADOS & EDGE (COM INPUTS REAIS, USANDO PROBS AJUSTADAS) -----
+    with tabs[7]:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header'>💰 Insira as Odds Reais de Mercado</div>", unsafe_allow_html=True)
         st.markdown("<small>Preencha as odds para ver o edge (valor esperado). Deixe em branco para mercados não disponíveis.</small>", unsafe_allow_html=True)
@@ -604,9 +648,9 @@ if st.button("🔍 GERAR MyEngramScore", type="primary", width='stretch'):
             f"Vitória {nome_casa}": p_A,
             "Empate": p_emp,
             f"Vitória {nome_fora}": p_B,
-            "Over 2.5 Gols": over25,
-            "BTTS Sim": btts,
-            "Gol 1º Tempo": prob_gol_ht,
+            "Over 2.5 Gols": over25_adj,
+            "BTTS Sim": btts_adj,
+            "Gol 1º Tempo": prob_gol_ht_adj,
         }
 
         odds_reais = {
