@@ -1,16 +1,33 @@
 import sys
+import importlib.util
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# Caminho base do projeto
+BASE_DIR = Path(__file__).resolve().parent
+SRC_DIR = BASE_DIR / "src"
+INTERFACE_DIR = SRC_DIR / "interface"
+
+# Adicionar ao sys.path para importações internas dos módulos
+sys.path.insert(0, str(BASE_DIR))
+sys.path.insert(0, str(SRC_DIR))
 
 import streamlit as st
 
-# Interface
-from src.interface.css import carregar_css, renderizar_header, renderizar_rodape
-from src.interface.sidebar import renderizar_sidebar
-from src.interface.entrada_fbref import renderizar_modo_fbref
-from src.interface.entrada_manual import renderizar_modo_manual
-from src.interface.odds import renderizar_odds
-from src.interface.resultados import renderizar_resultados
+# Função para carregar um módulo diretamente do caminho
+def carregar_modulo(nome_arquivo, nome_modulo):
+    caminho = INTERFACE_DIR / nome_arquivo
+    spec = importlib.util.spec_from_file_location(nome_modulo, caminho)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+# Carregar todos os módulos da interface
+css = carregar_modulo("css.py", "css")
+sidebar = carregar_modulo("sidebar.py", "sidebar")
+entrada_fbref = carregar_modulo("entrada_fbref.py", "entrada_fbref")
+entrada_manual = carregar_modulo("entrada_manual.py", "entrada_manual")
+odds = carregar_modulo("odds.py", "odds")
+resultados = carregar_modulo("resultados.py", "resultados")
 
 # ------------------------------------------------------------
 # CONFIGURAÇÃO DA PÁGINA
@@ -18,19 +35,17 @@ from src.interface.resultados import renderizar_resultados
 st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 
 # Carregar CSS
-carregar_css()
+css.carregar_css()
 
 # Header
-renderizar_header()
+css.renderizar_header()
 
 # Sidebar
-renderizar_sidebar()
+sidebar.renderizar_sidebar()
 
 # ------------------------------------------------------------
 # ÁREA PRINCIPAL
 # ------------------------------------------------------------
-
-# Verificar se um jogo foi selecionado da barra lateral
 if "jogo_selecionado" in st.session_state:
     jogo = st.session_state["jogo_selecionado"]
     st.markdown(f"""
@@ -41,37 +56,29 @@ if "jogo_selecionado" in st.session_state:
     </div>
     """, unsafe_allow_html=True)
     st.info("📊 A análise completa com gráficos será carregada na próxima atualização do sistema.")
-    
-    # Botão para limpar seleção
     if st.button("🔄 Voltar para nova análise"):
         del st.session_state["jogo_selecionado"]
         st.rerun()
-
 else:
-    # Modo de entrada
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Dados do Confronto</span></div>""", unsafe_allow_html=True)
 
     modo_entrada = st.radio("Modo de entrada:", ["📋 Colar do FBref", "✏️ Manual"], horizontal=True)
 
-    # Renderizar modo selecionado
     if modo_entrada == "📋 Colar do FBref":
-        dados = renderizar_modo_fbref()
+        dados = entrada_fbref.renderizar_modo_fbref()
     else:
-        dados = renderizar_modo_manual()
+        dados = entrada_manual.renderizar_modo_manual()
 
-    # Renderizar odds (comum aos dois modos)
-    odds = renderizar_odds()
+    odds_data = odds.renderizar_odds()
 
-    # Botão de análise
     if dados is not None:
         st.markdown("<br>", unsafe_allow_html=True)
         col_btn = st.columns([1, 2, 1])
         with col_btn[1]:
             gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
-
         if gerar:
-            renderizar_resultados(dados, odds)
+            resultados.renderizar_resultados(dados, odds_data)
 
 # Rodapé
-renderizar_rodape()
+css.renderizar_rodape()
