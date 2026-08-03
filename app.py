@@ -1057,16 +1057,49 @@ if gerar:
         cen = gerar_cenarios_justificados()
         st.markdown(f"""<div class="info-card"><strong>Cenário mais provável:</strong> {cen[0][0]} ({cen[0][1]:.1%})</div>""", unsafe_allow_html=True)
 
-        # 8. Conclusão / Recomendação
+        ## 8. Conclusão / Recomendação Final (coerente com os dados)
         st.markdown("### 📌 Recomendação Final")
-        if p_A >= 0.50:
-            st.markdown(f"""<div class="info-card" style="border-color:#00E676;">Com base nos pilares, <strong>{nome_casa}</strong> tem maior probabilidade de vencer ({p_A:.1%}). Os diferenciais em {', '.join(vantagens_A) if vantagens_A else 'nenhum pilar específico'} sustentam essa vantagem.</div>""", unsafe_allow_html=True)
-        elif p_B >= 0.50:
-            st.markdown(f"""<div class="info-card" style="border-color:#4A90D9;"><strong>{nome_fora}</strong> aparece como favorito com {p_B:.1%} de chance, apoiado pelos pilares {', '.join(vantagens_B) if vantagens_B else 'equilibrados'}.</div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(f"""<div class="info-card" style="border-color:#F0C040;">O equilíbrio é a marca deste confronto. Empate tem {p_emp:.1%} de chance, refletindo a divisão de forças nos pilares.</div>""", unsafe_allow_html=True)
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Identifica o resultado mais provável
+        resultados = [
+            (f"Vitória do {nome_casa}", p_A, vantagens_A, "mandante"),
+            ("Empate", p_emp, [], "empate"),
+            (f"Vitória do {nome_fora}", p_B, vantagens_B, "visitante")
+        ]
+        resultado_final = max(resultados, key=lambda x: x[1])
+        nome_res, prob_res, vantagens_res, tipo_res = resultado_final
+
+        # Monta justificativa baseada nos diferenciais de pilares
+        if tipo_res == "empate":
+            justificativa = "O equilíbrio nos pilares indica uma partida disputada, com pouca margem para desequilíbrio."
+            if diff_ec < 5:
+                justificativa += " A diferença de EngramScore é mínima, reforçando a tendência de igualdade."
+            cor_borda = "#F0C040"
+        else:
+            if vantagens_res:
+                justificativa = f"As vantagens nos pilares {', '.join(vantagens_res)} dão a {nome_res.split()[-1]} a superioridade necessária."
+            else:
+                # Se não há vantagem clara em nenhum pilar, mas o time é favorito, pode ser pelo fator casa (mandante) ou pequenas margens
+                if tipo_res == "mandante":
+                    justificativa = "Apesar do equilíbrio nos pilares individuais, o fator casa e a ligeira superioridade no EngramScore inclinam a balança para o mandante."
+                else:
+                    justificativa = "Mesmo sem dominar amplamente os pilares, o visitante apresenta um EngramScore superior, o que justifica o favoritismo."
+            cor_borda = "#00E676" if tipo_res == "mandante" else "#4A90D9"
+
+        st.markdown(f"""
+        <div class="info-card" style="border-color:{cor_borda};">
+            <strong>{nome_res}</strong> é o resultado mais provável, com <strong>{prob_res:.1%}</strong> de chance.<br>
+            {justificativa}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Adiciona uma nota sobre o empate se ele não for o principal, mas tiver probabilidade relevante
+        if tipo_res != "empate" and p_emp > 0.25:
+            st.markdown(f"""
+            <div class="info-card" style="border-color:#F0C040; margin-top:8px;">
+                ⚠️ O empate também merece atenção, com <strong>{p_emp:.1%}</strong> de probabilidade.
+            </div>
+            """, unsafe_allow_html=True)
 
     # Rodapé
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
