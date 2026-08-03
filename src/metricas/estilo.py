@@ -1,8 +1,9 @@
 """
-Métrica Estilo (Dominância Ofensiva)
+Métrica Estilo v2 (Dominância Ofensiva)
 
 Mede o perfil tático do time: do totalmente reativo (0) ao extremamente
-dominante (100), com base em posse, finalizações no alvo e escanteios.
+dominante (100), com base em posse, finalizações, escanteios, passes
+progressivos, pressão e cruzamentos.
 Indicadores normalizados em relação à média da liga, com atualização bayesiana.
 """
 
@@ -15,9 +16,13 @@ from src.utils import (
 )
 
 INDICADORES_ESTILO = {
-    'Posse': 'Posse',
-    'FA': 'FA',
-    'ECa': 'ECa',
+    'Posse': 'Poss',
+    'FA': 'SoT',
+    'ECa': 'CK',
+    'PrgP': 'PrgP',
+    'Press': 'Press',
+    'Crs': 'Crs',
+    'PPA': 'PPA',
 }
 
 
@@ -40,7 +45,7 @@ def calcular_estilo(dados_time: Dict[str, float],
 
     Parâmetros:
         dados_time: dicionário com as médias por jogo.
-                    Ex: {'Posse': 55.0, 'FA': 5.2, 'ECa': 6.1}
+                    Ex: {'Poss': 55.0, 'SoT': 5.2, 'CK': 6.1, 'PrgP': 42, ...}
         medias_liga: médias da liga (mesmas chaves).
         n_jogos: partidas já disputadas.
         alpha: peso do prior bayesiano.
