@@ -996,22 +996,76 @@ if gerar:
             st.markdown('<div style="color:#B0B8C0; text-align:center;">Nenhuma probabilidade acima de 65%.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 9: Análise Descritiva -----
+    # ----- ABA 9: ANÁLISE DESCRITIVA (REFORÇADA COM PILARES) -----
     with tabs[8]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
-        st.markdown(f"""<div class="info-card"><strong>Momento Atual:</strong> {nome_casa} {ma_A:.1f} × {nome_fora} {ma_B:.1f}.<br><strong>Força Geral:</strong> {nome_casa} {fg_A:.1f} × {nome_fora} {fg_B:.1f}.<br><strong>Confronto:</strong> {nome_casa} {cpp_A:.1f} × {nome_fora} {cpp_B:.1f}.<br><strong>Psicológico:</strong> {nome_casa} {psic_A:.1f} × {nome_fora} {psic_B:.1f}.</div>""", unsafe_allow_html=True)
-        st.markdown(f"""<div class="info-card"><strong>EngramScore:</strong> {nome_casa} {EC_A:.1f} vs {nome_fora} {EC_B:.1f}. {'Vantagem clara para o mandante.' if EC_A>EC_B+5 else 'O visitante é o favorito.' if EC_B>EC_A+5 else 'Confronto extremamente equilibrado.'}</div>""", unsafe_allow_html=True)
+
+        # 1. Pilares individuais
+        st.markdown("### 🔍 Pilares Individuais")
+        st.markdown(f"""
+        <div class="info-card">
+            <strong>Momento Atual (MA):</strong> {nome_casa} {ma_A:.1f} × {nome_fora} {ma_B:.1f}. 
+            {'O time da casa vive melhor fase.' if ma_A > ma_B else 'O visitante chega em melhor momento.' if ma_B > ma_A else 'Ambos estão em momentos semelhantes.'}<br>
+            <strong>Força Geral (FG):</strong> {nome_casa} {fg_A:.1f} × {nome_fora} {fg_B:.1f}. 
+            {'A casa tem um elenco mais forte.' if fg_A > fg_B else 'O visitante possui maior força geral.' if fg_B > fg_A else 'Força equilibrada.'}<br>
+            <strong>Confronto por Prateleira (CPP):</strong> {nome_casa} {cpp_A:.1f} × {nome_fora} {cpp_B:.1f}. 
+            {'Bom histórico contra times do mesmo nível.' if cpp_A > 60 else 'Histórico regular.' if cpp_A > 40 else 'Desempenho ruim contra pares.'}<br>
+            <strong>Psicológico:</strong> {nome_casa} {psic_A:.1f} × {nome_fora} {psic_B:.1f}. 
+            {'Time da casa mais confiante.' if psic_A > psic_B else 'Visitante com melhor preparo mental.' if psic_B > psic_A else 'Fatores psicológicos empatados.'}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 2. Diferenciais (quem vence cada pilar)
+        st.markdown("### ⚔️ Diferenciais por Pilar")
+        dif_ma = ma_A - ma_B
+        dif_fg = fg_A - fg_B
+        dif_cpp = cpp_A - cpp_B
+        dif_psic = psic_A - psic_B
+        vantagens_A = []
+        vantagens_B = []
+        if dif_ma > 0: vantagens_A.append("Momento Atual (MA)")
+        elif dif_ma < 0: vantagens_B.append("Momento Atual (MA)")
+        if dif_fg > 0: vantagens_A.append("Força Geral (FG)")
+        elif dif_fg < 0: vantagens_B.append("Força Geral (FG)")
+        if dif_cpp > 0: vantagens_A.append("Confronto (CPP)")
+        elif dif_cpp < 0: vantagens_B.append("Confronto (CPP)")
+        if dif_psic > 0: vantagens_A.append("Psicológico")
+        elif dif_psic < 0: vantagens_B.append("Psicológico")
+
+        if vantagens_A:
+            st.markdown(f"<div class='info-card'><strong>{nome_casa}</strong> leva vantagem em: {', '.join(vantagens_A)}.</div>", unsafe_allow_html=True)
+        if vantagens_B:
+            st.markdown(f"<div class='info-card'><strong>{nome_fora}</strong> leva vantagem em: {', '.join(vantagens_B)}.</div>", unsafe_allow_html=True)
+        if not vantagens_A and not vantagens_B:
+            st.markdown("<div class='info-card'>Nenhum time tem vantagem clara nos pilares — equilíbrio total.</div>", unsafe_allow_html=True)
+
+        # 3. EngramScore
+        st.markdown("### ⚡ EngramScore")
+        st.markdown(f"""<div class="info-card">O índice final: {nome_casa} <strong>{EC_A:.1f}</strong> vs {nome_fora} <strong>{EC_B:.1f}</strong>. {'Vantagem clara para o mandante.' if EC_A>EC_B+5 else 'O visitante é o favorito.' if EC_B>EC_A+5 else 'Confronto extremamente equilibrado.'}</div>""", unsafe_allow_html=True)
+
+        # 4. Setores
+        st.markdown("### 🎯 Desempenho Setorial")
         st.markdown(f"""<div class="info-card"><strong>Ataque:</strong> {nome_casa} {atq_A:.1f} × {nome_fora} {atq_B:.1f}.<br><strong>Defesa:</strong> {nome_casa} {def_A:.1f} × {nome_fora} {def_B:.1f}.<br><strong>Meio:</strong> {nome_casa} {mei_A:.1f} × {nome_fora} {mei_B:.1f}.</div>""", unsafe_allow_html=True)
+
+        # 5. Estilos
         st.markdown(f"""<div class="info-card">{nome_casa} é <strong>{perfil_A}</strong>, {nome_fora} é <strong>{perfil_B}</strong>.</div>""", unsafe_allow_html=True)
+
+        # 6. Expectativa de gols
         st.markdown(f"""<div class="info-card">Expectativa total de gols: {lambda_casa_adj+lambda_fora_adj:.2f}. Over 1.5: {over15_adj:.1%}, Over 2.5: {over25_adj:.1%}, BTTS: {btts_adj:.1%}, Gol 1ºT: {prob_gol_ht_adj:.1%}.</div>""", unsafe_allow_html=True)
+
+        # 7. Cenário mais provável
         cen = gerar_cenarios_justificados()
         st.markdown(f"""<div class="info-card"><strong>Cenário mais provável:</strong> {cen[0][0]} ({cen[0][1]:.1%})</div>""", unsafe_allow_html=True)
-        if p_A >= 0.65:
-            st.markdown(f"""<div class="info-card" style="border-color:#00E676;">{nome_casa} é grande favorito com {p_A:.1%} de chance.</div>""", unsafe_allow_html=True)
-        elif p_B >= 0.65:
-            st.markdown(f"""<div class="info-card" style="border-color:#00E676;">{nome_fora} é favorito com {p_B:.1%} de chance.</div>""", unsafe_allow_html=True)
+
+        # 8. Conclusão / Recomendação
+        st.markdown("### 📌 Recomendação Final")
+        if p_A >= 0.50:
+            st.markdown(f"""<div class="info-card" style="border-color:#00E676;">Com base nos pilares, <strong>{nome_casa}</strong> tem maior probabilidade de vencer ({p_A:.1%}). Os diferenciais em {', '.join(vantagens_A) if vantagens_A else 'nenhum pilar específico'} sustentam essa vantagem.</div>""", unsafe_allow_html=True)
+        elif p_B >= 0.50:
+            st.markdown(f"""<div class="info-card" style="border-color:#4A90D9;"><strong>{nome_fora}</strong> aparece como favorito com {p_B:.1%} de chance, apoiado pelos pilares {', '.join(vantagens_B) if vantagens_B else 'equilibrados'}.</div>""", unsafe_allow_html=True)
         else:
-            st.markdown(f"""<div class="info-card" style="border-color:#F0C040;">Confronto equilibrado, empate provável.</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="info-card" style="border-color:#F0C040;">O equilíbrio é a marca deste confronto. Empate tem {p_emp:.1%} de chance, refletindo a divisão de forças nos pilares.</div>""", unsafe_allow_html=True)
+
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Rodapé
