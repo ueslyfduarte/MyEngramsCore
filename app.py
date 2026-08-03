@@ -29,458 +29,349 @@ from src.metricas.estilo_perfil import obter_perfil_time
 st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 
 # ------------------------------------------------------------
-# CSS PREMIUM — LEGIBILIDADE E ESTILO EA FC
+# CSS PREMIUM
 # ------------------------------------------------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
     * { font-family: 'Inter', sans-serif; }
-
-    .stApp {
-        background: linear-gradient(135deg, #06080D 0%, #0B0F17 50%, #0D111A 100%);
-    }
-
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0A0D14 0%, #0F1219 100%);
-        border-right: 1px solid #1E2330;
-    }
-    [data-testid="stSidebar"] h2 {
-        color: #F0C040 !important;
-        font-weight: 800;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        font-size: 14px;
-        border-bottom: 2px solid #F0C040;
-        padding-bottom: 8px;
-        margin-bottom: 16px;
-    }
-    [data-testid="stSidebar"] .stNumberInput input {
-        background: #111620;
-        border: 1px solid #252B38;
-        border-radius: 6px;
-        color: #E0E0E0;
-    }
-    [data-testid="stSidebar"] .stNumberInput input:focus {
-        border-color: #F0C040;
-        box-shadow: 0 0 8px rgba(240,192,64,0.2);
-    }
-
-    /* Cards premium */
-    .card-premium {
-        background: linear-gradient(145deg, rgba(20,24,35,0.9) 0%, rgba(16,20,30,0.95) 100%);
-        border: 1px solid #252B38;
-        border-radius: 14px;
-        padding: 20px 16px;
-        margin: 8px 0;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
-        position: relative;
-        overflow: hidden;
-    }
-    .card-premium::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(240,192,64,0.3), transparent);
-    }
-    .card-premium:hover {
-        border-color: #F0C040;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(240,192,64,0.1);
-    }
-    .card-header-premium {
-        font-size: 14px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: #B0B8C0;
-        margin-bottom: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    /* Métricas gigantes */
-    .metric-premium {
-        font-size: 52px;
-        font-weight: 900;
-        text-align: center;
-        background: linear-gradient(180deg, #F0C040 0%, #D4A017 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        letter-spacing: -2px;
-        line-height: 1;
-        margin: 6px 0;
-    }
-    .metric-premium-blue {
-        font-size: 52px;
-        font-weight: 900;
-        text-align: center;
-        background: linear-gradient(180deg, #4A90D9 0%, #2A5FA0 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        letter-spacing: -2px;
-        line-height: 1;
-        margin: 6px 0;
-    }
-
-    .high-confidence {
-        background: linear-gradient(180deg, #F0C040 0%, #D4A017 100%) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
-        font-weight: 900;
-    }
-
-    .metric-label-premium {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        color: #B0B8C0;
-        text-align: center;
-        font-weight: 600;
-    }
-
-    /* Barras de progresso */
-    .bar-premium {
-        height: 6px;
-        border-radius: 3px;
-        background: rgba(255,255,255,0.05);
-        margin: 10px 0;
-        overflow: hidden;
-    }
-    .bar-fill-gold {
-        height: 100%;
-        border-radius: 3px;
-        background: linear-gradient(90deg, #F0C040, #D4A017);
-    }
-    .bar-fill-blue {
-        height: 100%;
-        border-radius: 3px;
-        background: linear-gradient(90deg, #4A90D9, #2A5FA0);
-    }
-
-    /* Selos */
-    .selo-dourado {
-        border: 2px solid #F0C040;
-        border-radius: 20px;
-        padding: 5px 14px;
-        background: linear-gradient(135deg, rgba(240,192,64,0.15) 0%, rgba(240,192,64,0.05) 100%);
-        color: #F0C040;
-        font-weight: 700;
-        font-size: 12px;
-        display: inline-block;
-        letter-spacing: 1px;
-    }
-    .selo-verde {
-        border: 2px solid #00E676;
-        border-radius: 20px;
-        padding: 5px 14px;
-        background: linear-gradient(135deg, rgba(0,230,118,0.15) 0%, rgba(0,230,118,0.05) 100%);
-        color: #00E676;
-        font-weight: 700;
-        font-size: 12px;
-        display: inline-block;
-        letter-spacing: 1px;
-    }
-    .selo-amarelo {
-        border: 2px solid #FFB300;
-        border-radius: 20px;
-        padding: 5px 14px;
-        background: linear-gradient(135deg, rgba(255,179,0,0.15) 0%, rgba(255,179,0,0.05) 100%);
-        color: #FFB300;
-        font-weight: 700;
-        font-size: 12px;
-        display: inline-block;
-        letter-spacing: 1px;
-    }
-
-    /* Botão principal */
-    .stButton > button {
-        background: linear-gradient(135deg, #F0C040 0%, #D4A017 100%);
-        color: #0A0D14;
-        font-weight: 800;
-        font-size: 15px;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        border: none;
-        border-radius: 12px;
-        padding: 14px 40px;
-        box-shadow: 0 8px 24px rgba(240,192,64,0.3);
-        transition: all 0.3s ease;
-    }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 32px rgba(240,192,64,0.5);
-    }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        background: rgba(255,255,255,0.02);
-        border-radius: 12px;
-        padding: 4px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        padding: 10px 18px;
-        font-weight: 600;
-        font-size: 14px;
-        color: #B0B8C0;
-        transition: all 0.2s;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(240,192,64,0.15) 0%, rgba(240,192,64,0.05) 100%) !important;
-        color: #F0C040 !important;
-        border: 1px solid rgba(240,192,64,0.3);
-    }
-
-    /* Prob boxes */
-    .prob-box {
-        background: linear-gradient(145deg, rgba(20,24,35,0.8) 0%, rgba(16,20,30,0.9) 100%);
-        border-radius: 14px;
-        padding: 20px 12px;
-        text-align: center;
-        border: 1px solid #252B38;
-    }
-
-    /* Info cards */
-    .info-card {
-        background: rgba(240,192,64,0.03);
-        border: 1px solid rgba(240,192,64,0.1);
-        border-radius: 12px;
-        padding: 14px;
-        margin: 6px 0;
-        font-size: 15px;
-        color: #E0E0E0;
-        line-height: 1.6;
-    }
-
-    /* Divisor */
-    .divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #252B38, transparent);
-        margin: 20px 0;
-    }
-
-    /* Campos de input */
-    .stNumberInput input, .stTextInput input {
-        background: #111620 !important;
-        border: 1px solid #252B38 !important;
-        border-radius: 8px !important;
-        color: #E0E0E0 !important;
-    }
-    .stSelectbox > div > div {
-        background: #111620 !important;
-        border: 1px solid #252B38 !important;
-        border-radius: 8px !important;
-    }
-
-    /* Títulos e subtítulos */
-    h2, h3 {
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-        color: #F0C040 !important;
-    }
+    .stApp { background: linear-gradient(135deg, #06080D 0%, #0B0F17 50%, #0D111A 100%); }
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, #0A0D14 0%, #0F1219 100%); border-right: 1px solid #1E2330; }
+    [data-testid="stSidebar"] h2 { color: #F0C040 !important; font-weight:800; letter-spacing:2px; text-transform:uppercase; font-size:14px; border-bottom:2px solid #F0C040; padding-bottom:8px; margin-bottom:16px; }
+    .card-premium { background: linear-gradient(145deg, rgba(20,24,35,0.9) 0%, rgba(16,20,30,0.95) 100%); border:1px solid #252B38; border-radius:14px; padding:20px 16px; margin:8px 0; backdrop-filter:blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03); position:relative; overflow:hidden; }
+    .card-premium::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(240,192,64,0.3), transparent); }
+    .card-premium:hover { border-color:#F0C040; box-shadow:0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(240,192,64,0.1); }
+    .card-header-premium { font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:#B0B8C0; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+    .metric-premium { font-size:52px; font-weight:900; text-align:center; background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-2px; line-height:1; margin:6px 0; }
+    .metric-premium-blue { font-size:52px; font-weight:900; text-align:center; background:linear-gradient(180deg, #4A90D9 0%, #2A5FA0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-2px; line-height:1; margin:6px 0; }
+    .high-confidence { background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%) !important; -webkit-background-clip:text !important; -webkit-text-fill-color:transparent !important; background-clip:text !important; font-weight:900; }
+    .metric-label-premium { font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0; text-align:center; font-weight:600; }
+    .bar-premium { height:6px; border-radius:3px; background:rgba(255,255,255,0.05); margin:10px 0; overflow:hidden; }
+    .bar-fill-gold { height:100%; border-radius:3px; background:linear-gradient(90deg, #F0C040, #D4A017); }
+    .bar-fill-blue { height:100%; border-radius:3px; background:linear-gradient(90deg, #4A90D9, #2A5FA0); }
+    .selo-dourado { border:2px solid #F0C040; border-radius:20px; padding:5px 14px; background:linear-gradient(135deg, rgba(240,192,64,0.15) 0%, rgba(240,192,64,0.05) 100%); color:#F0C040; font-weight:700; font-size:12px; display:inline-block; letter-spacing:1px; }
+    .selo-verde { border:2px solid #00E676; border-radius:20px; padding:5px 14px; background:linear-gradient(135deg, rgba(0,230,118,0.15) 0%, rgba(0,230,118,0.05) 100%); color:#00E676; font-weight:700; font-size:12px; display:inline-block; letter-spacing:1px; }
+    .selo-amarelo { border:2px solid #FFB300; border-radius:20px; padding:5px 14px; background:linear-gradient(135deg, rgba(255,179,0,0.15) 0%, rgba(255,179,0,0.05) 100%); color:#FFB300; font-weight:700; font-size:12px; display:inline-block; letter-spacing:1px; }
+    .stButton > button { background:linear-gradient(135deg, #F0C040 0%, #D4A017 100%); color:#0A0D14; font-weight:800; font-size:15px; letter-spacing:2px; text-transform:uppercase; border:none; border-radius:12px; padding:14px 40px; box-shadow:0 8px 24px rgba(240,192,64,0.3); transition:all 0.3s ease; }
+    .stButton > button:hover { transform:translateY(-2px); box-shadow:0 12px 32px rgba(240,192,64,0.5); }
+    .stTabs [data-baseweb="tab-list"] { gap:4px; background:rgba(255,255,255,0.02); border-radius:12px; padding:4px; }
+    .stTabs [data-baseweb="tab"] { border-radius:8px; padding:10px 18px; font-weight:600; font-size:14px; color:#B0B8C0; transition:all 0.2s; }
+    .stTabs [aria-selected="true"] { background:linear-gradient(135deg, rgba(240,192,64,0.15) 0%, rgba(240,192,64,0.05) 100%) !important; color:#F0C040 !important; border:1px solid rgba(240,192,64,0.3); }
+    .prob-box { background:linear-gradient(145deg, rgba(20,24,35,0.8) 0%, rgba(16,20,30,0.9) 100%); border-radius:14px; padding:20px 12px; text-align:center; border:1px solid #252B38; }
+    .info-card { background:rgba(240,192,64,0.03); border:1px solid rgba(240,192,64,0.1); border-radius:12px; padding:14px; margin:6px 0; font-size:15px; color:#E0E0E0; line-height:1.6; }
+    .divider { height:1px; background:linear-gradient(90deg, transparent, #252B38, transparent); margin:20px 0; }
+    .stNumberInput input, .stTextInput input { background:#111620 !important; border:1px solid #252B38 !important; border-radius:8px !important; color:#E0E0E0 !important; }
+    .stSelectbox > div > div { background:#111620 !important; border:1px solid #252B38 !important; border-radius:8px !important; }
+    h2, h3 { font-weight:800 !important; letter-spacing:-0.5px; color:#F0C040 !important; }
+    .stTextArea textarea { background:#111620 !important; border:1px solid #252B38 !important; border-radius:8px !important; color:#E0E0E0 !important; font-size:13px !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# HEADER ENGRAMSCORE
+# HEADER
 # ------------------------------------------------------------
 st.markdown("""
 <div style="text-align:center; padding: 20px 0 30px 0;">
-    <div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0; margin-bottom:8px;">
-        Sistema de Análise Esportiva
-    </div>
+    <div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0; margin-bottom:8px;">Sistema de Análise Esportiva</div>
     <h1 style="font-size:44px; font-weight:900; margin:0; letter-spacing:-1px;">
-        <span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-            ENGRAM
-        </span>
+        <span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">ENGRAM</span>
         <span style="color:#E0E0E0; font-weight:300;">SCORE</span>
     </h1>
-    <div style="font-size:13px; color:#B0B8C0; letter-spacing:3px; margin-top:4px;">
-        ÍNDICE DE FORÇA ABSOLUTA — ONDE A MEMÓRIA CONSOLIDA O PADRÃO
-    </div>
+    <div style="font-size:13px; color:#B0B8C0; letter-spacing:3px; margin-top:4px;">ÍNDICE DE FORÇA ABSOLUTA — ONDE A MEMÓRIA CONSOLIDA O PADRÃO</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# BARRA LATERAL - LIGA + JOGOS PENDENTES + ANÁLISES PRONTAS
+# BARRA LATERAL - JOGOS PENDENTES + ANÁLISES
 # ------------------------------------------------------------
 with st.sidebar:
-    st.markdown("## 🏆 Liga de Referência")
-    with st.expander("⚙️ Médias da Competição", expanded=False):
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            media_gm = st.number_input("Gols/jogo", 0.1, 5.0, 1.4, 0.1, key="media_gm")
-            media_fa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.0, 0.1, key="media_fa")
-            media_eca = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.0, 0.1, key="media_eca")
-            media_posse = st.number_input("Posse (%)", 0.0, 100.0, 50.0, 1.0, key="media_posse")
-            media_gs = st.number_input("Gols sofridos/j", 0.1, 5.0, 1.4, 0.1, key="media_gs")
-        with col_s2:
-            media_fas = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 4.0, 0.1, key="media_fas")
-            media_ecc = st.number_input("Escanteios contra/j", 0.0, 20.0, 5.0, 0.1, key="media_ecc")
-            media_des = st.number_input("Desarmes/j", 0.0, 50.0, 15.0, 0.1, key="media_des")
-            media_fc = st.number_input("Faltas/j", 0.0, 30.0, 12.0, 0.1, key="media_fc")
-            media_ca = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.0, 0.1, key="media_ca")
-
-    medias_liga = {
-        'GM': media_gm, 'FA': media_fa, 'ECa': media_eca,
-        'GS': media_gs, 'FAS': media_fas, 'ECc': media_ecc,
-        'FC': media_fc, 'CA': media_ca, 'Des': media_des, 'Posse': media_posse,
-    }
-
-    st.markdown("---")
     st.markdown("## 📋 Jogos Pendentes")
-    st.markdown("*Adicione os jogos que serão analisados de madrugada.*")
+    st.markdown("*Adicione jogos para análise futura.*")
 
-    # Carregar lista de jogos pendentes (se existir)
     arquivo_pendentes = "dados/jogos_pendentes.csv"
     if os.path.exists(arquivo_pendentes):
         df_pendentes = pd.read_csv(arquivo_pendentes)
     else:
-        df_pendentes = pd.DataFrame(columns=["casa", "fora"])
+        df_pendentes = pd.DataFrame(columns=["casa", "fora", "liga"])
 
-    # Adicionar novo jogo
     col_add1, col_add2 = st.columns(2)
     with col_add1:
-        novo_casa = st.text_input("Time Casa", key="pendente_casa", placeholder="Ex.: Palmeiras")
+        novo_casa = st.text_input("Casa", key="pend_casa", placeholder="Palmeiras")
     with col_add2:
-        novo_fora = st.text_input("Time Fora", key="pendente_fora", placeholder="Ex.: Vasco")
+        novo_fora = st.text_input("Fora", key="pend_fora", placeholder="Vasco")
 
-    if st.button("➕ Adicionar Jogo"):
+    nova_liga = st.selectbox("Liga", [
+        "brasileirao_serie_a", "brasileirao_serie_b", "premier_league",
+        "la_liga", "bundesliga", "serie_a", "ligue_1", "mls", "liga_mx",
+        "primera_division_argentina"
+    ], key="pend_liga")
+
+    if st.button("➕ Adicionar"):
         if novo_casa and novo_fora:
-            novo_jogo = pd.DataFrame({"casa": [novo_casa], "fora": [novo_fora]})
-            df_pendentes = pd.concat([df_pendentes, novo_jogo], ignore_index=True)
+            novo = pd.DataFrame({"casa": [novo_casa], "fora": [novo_fora], "liga": [nova_liga]})
+            df_pendentes = pd.concat([df_pendentes, novo], ignore_index=True)
             df_pendentes.to_csv(arquivo_pendentes, index=False)
             st.success(f"{novo_casa} x {novo_fora} adicionado!")
             st.rerun()
 
-    # Exibir jogos pendentes
     if not df_pendentes.empty:
-        st.markdown("**Jogos para análise:**")
+        st.markdown("---")
         for idx, row in df_pendentes.iterrows():
-            col_jogo, col_remover = st.columns([4, 1])
-            with col_jogo:
+            col_j, col_r = st.columns([4, 1])
+            with col_j:
                 st.markdown(f"• {row['casa']} x {row['fora']}")
-            with col_remover:
-                if st.button("🗑️", key=f"remover_{idx}"):
+            with col_r:
+                if st.button("🗑️", key=f"rem_{idx}"):
                     df_pendentes = df_pendentes.drop(idx).reset_index(drop=True)
                     df_pendentes.to_csv(arquivo_pendentes, index=False)
                     st.rerun()
 
-        if st.button("💾 Salvar Lista Final"):
-            st.success("Lista salva! O PC Linux processará esses jogos de madrugada.")
-    else:
-        st.info("Nenhum jogo pendente. Adicione acima.")
-
     st.markdown("---")
     st.markdown("## 📊 Análises do Dia")
-    st.markdown("*Resultados processados pelo PC Linux.*")
-
-    # Carregar análises prontas (se existirem)
     arquivo_analises = "dados/analises_prontas.csv"
     if os.path.exists(arquivo_analises):
         df_analises = pd.read_csv(arquivo_analises)
         st.success(f"✅ {len(df_analises)} análises disponíveis")
         for idx, row in df_analises.iterrows():
-            if st.button(f"📊 {row['casa']} x {row['fora']}", key=f"analise_{idx}"):
+            if st.button(f"📊 {row['casa']} x {row['fora']}", key=f"ana_{idx}"):
                 st.session_state["jogo_selecionado"] = {
-                    "casa": row["casa"],
-                    "fora": row["fora"],
+                    "casa": row["casa"], "fora": row["fora"],
+                    "EC_A": row["EC_A"], "EC_B": row["EC_B"],
+                    "p_A": row["p_A"], "p_emp": row["p_emp"], "p_B": row["p_B"],
+                    "resultado_previsto": row["resultado_previsto"],
                 }
                 st.rerun()
     else:
-        st.info("Nenhuma análise pronta. As análises aparecerão aqui após o processamento noturno.")
-
-# ------------------------------------------------------------
+        st.info("Nenhuma análise pronta ainda.")
+        # ------------------------------------------------------------
 # ÁREA PRINCIPAL
 # ------------------------------------------------------------
-
-# Verificar se um jogo foi selecionado (da lista de análises prontas)
 if "jogo_selecionado" in st.session_state:
+    jogo = st.session_state["jogo_selecionado"]
     st.markdown(f"""
-    <div style="text-align:center; margin-bottom:20px;">
-        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análise do Dia</span>
-        <h2 style="font-weight:900; margin:8px 0;">
-            {st.session_state["jogo_selecionado"]["casa"]} vs {st.session_state["jogo_selecionado"]["fora"]}
-        </h2>
+    <div style="text-align:center; margin:20px 0;">
+        <h2>{jogo['casa']} vs {jogo['fora']}</h2>
+        <div style="font-size:18px; color:#F0C040;">{jogo.get('resultado_previsto', '')}</div>
+        <div style="font-size:14px; color:#B0B8C0;">EC Casa: {jogo['EC_A']} | EC Fora: {jogo['EC_B']}</div>
     </div>
     """, unsafe_allow_html=True)
-
-    # Aqui você pode carregar os dados completos desse jogo do CSV de análises
-    # e exibir o EngramScore completo (pilares, heatmap, cenários, etc.)
-    st.info("A análise completa será carregada aqui com todos os gráficos e métricas.")
+    st.info("📊 A análise completa com gráficos e heatmap será carregada na próxima atualização do sistema.")
 
 else:
-    # Modo manual (entrada de dados)
+    # ============= MODO DE ENTRADA =============
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align:center; margin-bottom:20px;">
-        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Ou faça uma análise manual</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Dados do Confronto</span></div>""", unsafe_allow_html=True)
 
-    colA, colB = st.columns(2)
+    modo_entrada = st.radio("Modo de entrada:", ["📋 Colar do FBref", "✏️ Manual"], horizontal=True)
 
-    with colA:
-        with st.container():
-            st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-            st.markdown('<div class="card-header-premium">🏠 TIME DA CASA</div>', unsafe_allow_html=True)
-            nome_casa = st.text_input("Nome", "Time A", key="casa", label_visibility="collapsed")
-            n_casa = st.number_input("Jogos", 1, 38, 10, key="nj_casa")
-            gm_casa = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_casa")
-            fa_casa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_casa")
-            eca_casa = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.5, 0.1, key="eca_casa")
-            posse_casa = st.slider("Posse (%)", 0, 100, 55, key="posse_casa")
-            gs_casa = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_casa")
-            fas_casa = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.0, 0.1, key="fas_casa")
-            des_casa = st.number_input("Desarmes/j", 0.0, 50.0, 16.0, 0.1, key="des_casa")
-            fc_casa = st.number_input("Faltas/j", 0.0, 30.0, 13.0, 0.1, key="fc_casa")
-            ca_casa = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.2, 0.1, key="ca_casa")
-            res_casa = st.text_input("Últ. 5 resultados (V/E/D)", "VVEDV", key="res_casa").upper()
-            cons_casa = st.text_input("Últ. 10 resultados (V/E/D)", "VVEDVVEDVV", key="cons_casa").upper()
-            moral_casa = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_casa")
-            pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
-            jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
-            prat_casa = st.selectbox("Prateleira do Adversário", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_casa")
-            pos_casa = st.number_input("Posição na tabela", 1, 24, 2, key="pos_casa")
-            st.markdown('</div>', unsafe_allow_html=True)
+    # ============= MODO FBREF =============
+    if modo_entrada == "📋 Colar do FBref":
+        st.markdown("### 📋 Cole a tabela do FBref")
+        st.markdown("*Acesse [fbref.com](https://fbref.com), escolha a liga, selecione a tabela inteira (Ctrl+A) e cole abaixo.*")
 
-    with colB:
-        with st.container():
-            st.markdown('<div class="card-premium">', unsafe_allow_html=True)
-            st.markdown('<div class="card-header-premium">✈️ TIME VISITANTE</div>', unsafe_allow_html=True)
-            nome_fora = st.text_input("Nome", "Time B", key="fora", label_visibility="collapsed")
-            n_fora = st.number_input("Jogos", 1, 38, 10, key="nj_fora")
-            gm_fora = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_fora")
-            fa_fora = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_fora")
-            eca_fora = st.number_input("Escanteios a favor/j", 0.0, 20.0, 4.5, 0.1, key="eca_fora")
-            posse_fora = st.slider("Posse (%)", 0, 100, 48, key="posse_fora")
-            gs_fora = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_fora")
-            fas_fora = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.8, 0.1, key="fas_fora")
-            des_fora = st.number_input("Desarmes/j", 0.0, 50.0, 14.0, 0.1, key="des_fora")
-            fc_fora = st.number_input("Faltas/j", 0.0, 30.0, 11.0, 0.1, key="fc_fora")
-            ca_fora = st.number_input("Cartões amarelos/j", 0.0, 10.0, 1.8, 0.1, key="ca_fora")
-            res_fora = st.text_input("Últ. 5 resultados (V/E/D)", "DDVVE", key="res_fora").upper()
-            cons_fora = st.text_input("Últ. 10 resultados (V/E/D)", "DDVVEDDVV", key="cons_fora").upper()
-            moral_fora = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_fora")
-            pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
-            jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
-            prat_fora = st.selectbox("Prateleira do Adversário", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_fora")
-            pos_fora = st.number_input("Posição na tabela", 1, 24, 16, key="pos_fora")
-            st.markdown('</div>', unsafe_allow_html=True)
+        texto_colado = st.text_area(
+            "Cole aqui a tabela do FBref",
+            height=200,
+            placeholder="Squad\tMP\tGls\tAst\t...\nPalmeiras\t10\t21\t15\t...\nVasco\t10\t12\t8\t...",
+            help="Selecione a tabela 'Standard Stats' inteira no FBref e cole aqui."
+        )
 
-    # Odds
+        if texto_colado:
+            try:
+                linhas = texto_colado.strip().split('\n')
+                cabecalho = linhas[0].split('\t')
+                dados_times = {}
+                for linha in linhas[1:]:
+                    partes = linha.split('\t')
+                    if len(partes) >= 3:
+                        nome_time = partes[0].strip()
+                        if nome_time and nome_time not in ['Squad', '']:
+                            dados_times[nome_time] = partes
+
+                if dados_times:
+                    st.success(f"✅ {len(dados_times)} times encontrados!")
+
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1:
+                        nome_casa = st.selectbox("🏠 Time da Casa", list(dados_times.keys()), key="fb_casa")
+                    with col_t2:
+                        nome_fora = st.selectbox("✈️ Time Visitante", list(dados_times.keys()), key="fb_fora")
+
+                    # Função para extrair valores
+                    def extrair_valor(partes, cabecalho, padroes):
+                        for padrao in padroes:
+                            for i, col in enumerate(cabecalho):
+                                if padrao.lower() in col.lower() and i < len(partes):
+                                    try:
+                                        return float(partes[i])
+                                    except:
+                                        continue
+                        return 0.0
+
+                    partes_casa = dados_times[nome_casa]
+                    partes_fora = dados_times[nome_fora]
+
+                    gm_casa = extrair_valor(partes_casa, cabecalho, ['Gls', 'Goals'])
+                    fa_casa = extrair_valor(partes_casa, cabecalho, ['SoT'])
+                    eca_casa = extrair_valor(partes_casa, cabecalho, ['CK'])
+                    posse_casa = extrair_valor(partes_casa, cabecalho, ['Poss'])
+                    gs_casa = extrair_valor(partes_casa, cabecalho, ['GA', 'Goals Against'])
+                    fas_casa = extrair_valor(partes_casa, cabecalho, ['SoTA'])
+                    des_casa = extrair_valor(partes_casa, cabecalho, ['Tkl'])
+                    fc_casa = extrair_valor(partes_casa, cabecalho, ['Fls'])
+                    ca_casa = extrair_valor(partes_casa, cabecalho, ['CrdY'])
+
+                    gm_fora = extrair_valor(partes_fora, cabecalho, ['Gls', 'Goals'])
+                    fa_fora = extrair_valor(partes_fora, cabecalho, ['SoT'])
+                    eca_fora = extrair_valor(partes_fora, cabecalho, ['CK'])
+                    posse_fora = extrair_valor(partes_fora, cabecalho, ['Poss'])
+                    gs_fora = extrair_valor(partes_fora, cabecalho, ['GA', 'Goals Against'])
+                    fas_fora = extrair_valor(partes_fora, cabecalho, ['SoTA'])
+                    des_fora = extrair_valor(partes_fora, cabecalho, ['Tkl'])
+                    fc_fora = extrair_valor(partes_fora, cabecalho, ['Fls'])
+                    ca_fora = extrair_valor(partes_fora, cabecalho, ['CrdY'])
+
+                    # Calcular médias da liga
+                    def media_liga(padroes, cabecalho, dados):
+                        valores = []
+                        for nome, partes in dados.items():
+                            val = extrair_valor(partes, cabecalho, padroes)
+                            if val > 0:
+                                valores.append(val)
+                        return sum(valores) / len(valores) if valores else 0.0
+
+                    medias_liga = {
+                        'GM': media_liga(['Gls', 'Goals'], cabecalho, dados_times),
+                        'FA': media_liga(['SoT'], cabecalho, dados_times),
+                        'ECa': media_liga(['CK'], cabecalho, dados_times),
+                        'Posse': media_liga(['Poss'], cabecalho, dados_times),
+                        'GS': media_liga(['GA', 'Goals Against'], cabecalho, dados_times),
+                        'FAS': media_liga(['SoTA'], cabecalho, dados_times),
+                        'ECc': media_liga(['CK'], cabecalho, dados_times),
+                        'Des': media_liga(['Tkl'], cabecalho, dados_times),
+                        'FC': media_liga(['Fls'], cabecalho, dados_times),
+                        'CA': media_liga(['CrdY'], cabecalho, dados_times),
+                    }
+
+                    st.markdown("### 📊 Médias da Liga (auto-calculadas)")
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        st.metric("Gols/jogo", f"{medias_liga['GM']:.2f}")
+                        st.metric("Posse", f"{medias_liga['Posse']:.1f}%")
+                    with col_m2:
+                        st.metric("Finalizações alvo/j", f"{medias_liga['FA']:.2f}")
+                        st.metric("Desarmes/j", f"{medias_liga['Des']:.1f}")
+                    with col_m3:
+                        st.metric("Escanteios/j", f"{medias_liga['ECa']:.2f}")
+                        st.metric("Faltas/j", f"{medias_liga['FC']:.1f}")
+
+                    # Campos manuais restantes
+                    st.markdown("### 📝 Dados Complementares")
+                    st.markdown("*Preencha os resultados recentes e dados de confronto.*")
+                    col_extra1, col_extra2 = st.columns(2)
+                    with col_extra1:
+                        res_casa = st.text_input("Últ. 5 resultados Casa (V/E/D)", "VVEDV", key="fb_res_casa").upper()
+                        cons_casa = st.text_input("Últ. 10 resultados Casa (V/E/D)", "VVEDVVEDVV", key="fb_cons_casa").upper()
+                        moral_casa = st.slider("Moral Casa (pts 3j)", 0, 9, 6, key="fb_moral_casa")
+                        pos_casa = st.number_input("Posição Casa", 1, 24, 2, key="fb_pos_casa")
+                        prat_casa = st.selectbox("Prateleira Adv. Casa", ["Elite","Alta","Média","Baixa","Crítica"], key="fb_prat_casa")
+                        pts_cpp_casa = st.number_input("Pontos CPP Casa", 0, 30, 6, key="fb_cpp_casa")
+                        jogos_cpp_casa = st.number_input("Jogos CPP Casa", 0, 10, 3, key="fb_jcpp_casa")
+                    with col_extra2:
+                        res_fora = st.text_input("Últ. 5 resultados Fora (V/E/D)", "DDVVE", key="fb_res_fora").upper()
+                        cons_fora = st.text_input("Últ. 10 resultados Fora (V/E/D)", "DDVVEDDVV", key="fb_cons_fora").upper()
+                        moral_fora = st.slider("Moral Fora (pts 3j)", 0, 9, 3, key="fb_moral_fora")
+                        pos_fora = st.number_input("Posição Fora", 1, 24, 16, key="fb_pos_fora")
+                        prat_fora = st.selectbox("Prateleira Adv. Fora", ["Elite","Alta","Média","Baixa","Crítica"], key="fb_prat_fora")
+                        pts_cpp_fora = st.number_input("Pontos CPP Fora", 0, 30, 4, key="fb_cpp_fora")
+                        jogos_cpp_fora = st.number_input("Jogos CPP Fora", 0, 10, 2, key="fb_jcpp_fora")
+
+                    n_casa = n_fora = 10
+                    dados_A = {'GM': gm_casa, 'FA': fa_casa, 'ECa': eca_casa, 'Posse': posse_casa, 'GS': gs_casa, 'FAS': fas_casa, 'ECc': 0, 'Des': des_casa, 'FC': fc_casa, 'CA': ca_casa}
+                    dados_B = {'GM': gm_fora, 'FA': fa_fora, 'ECa': eca_fora, 'Posse': posse_fora, 'GS': gs_fora, 'FAS': fas_fora, 'ECc': 0, 'Des': des_fora, 'FC': fc_fora, 'CA': ca_fora}
+
+            except Exception as e:
+                st.error(f"❌ Erro ao processar tabela. Verifique se o formato está correto (copie do FBref).")
+
+    # ============= MODO MANUAL =============
+    else:
+        colA, colB = st.columns(2)
+
+        with colA:
+            with st.container():
+                st.markdown('<div class="card-premium"><div class="card-header-premium">🏠 TIME DA CASA</div>', unsafe_allow_html=True)
+                nome_casa = st.text_input("Nome", "Time A", key="casa", label_visibility="collapsed")
+                n_casa = st.number_input("Jogos", 1, 38, 10, key="nj_casa")
+                gm_casa = st.number_input("Gols/jogo", 0.0, 5.0, 2.0, 0.1, key="gm_casa")
+                fa_casa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.5, 0.1, key="fa_casa")
+                eca_casa = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.5, 0.1, key="eca_casa")
+                posse_casa = st.slider("Posse (%)", 0, 100, 55, key="posse_casa")
+                gs_casa = st.number_input("Gols sofridos/j", 0.0, 5.0, 0.8, 0.1, key="gs_casa")
+                fas_casa = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.0, 0.1, key="fas_casa")
+                des_casa = st.number_input("Desarmes/j", 0.0, 50.0, 16.0, 0.1, key="des_casa")
+                fc_casa = st.number_input("Faltas/j", 0.0, 30.0, 13.0, 0.1, key="fc_casa")
+                ca_casa = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.2, 0.1, key="ca_casa")
+                res_casa = st.text_input("Últ. 5 resultados (V/E/D)", "VVEDV", key="res_casa").upper()
+                cons_casa = st.text_input("Últ. 10 resultados (V/E/D)", "VVEDVVEDVV", key="cons_casa").upper()
+                moral_casa = st.slider("Moral (pts 3j)", 0, 9, 6, key="moral_casa")
+                pts_cpp_casa = st.number_input("Pontos contra prateleira", 0, 30, 6, key="pcpp_casa")
+                jogos_cpp_casa = st.number_input("Jogos contra prateleira", 0, 10, 3, key="jcpp_casa")
+                prat_casa = st.selectbox("Prateleira do Adversário", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_casa")
+                pos_casa = st.number_input("Posição na tabela", 1, 24, 2, key="pos_casa")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        with colB:
+            with st.container():
+                st.markdown('<div class="card-premium"><div class="card-header-premium">✈️ TIME VISITANTE</div>', unsafe_allow_html=True)
+                nome_fora = st.text_input("Nome", "Time B", key="fora", label_visibility="collapsed")
+                n_fora = st.number_input("Jogos", 1, 38, 10, key="nj_fora")
+                gm_fora = st.number_input("Gols/jogo", 0.0, 5.0, 1.2, 0.1, key="gm_fora")
+                fa_fora = st.number_input("Finalizações alvo/j", 0.0, 10.0, 3.2, 0.1, key="fa_fora")
+                eca_fora = st.number_input("Escanteios a favor/j", 0.0, 20.0, 4.5, 0.1, key="eca_fora")
+                posse_fora = st.slider("Posse (%)", 0, 100, 48, key="posse_fora")
+                gs_fora = st.number_input("Gols sofridos/j", 0.0, 5.0, 1.5, 0.1, key="gs_fora")
+                fas_fora = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 3.8, 0.1, key="fas_fora")
+                des_fora = st.number_input("Desarmes/j", 0.0, 50.0, 14.0, 0.1, key="des_fora")
+                fc_fora = st.number_input("Faltas/j", 0.0, 30.0, 11.0, 0.1, key="fc_fora")
+                ca_fora = st.number_input("Cartões amarelos/j", 0.0, 10.0, 1.8, 0.1, key="ca_fora")
+                res_fora = st.text_input("Últ. 5 resultados (V/E/D)", "DDVVE", key="res_fora").upper()
+                cons_fora = st.text_input("Últ. 10 resultados (V/E/D)", "DDVVEDDVV", key="cons_fora").upper()
+                moral_fora = st.slider("Moral (pts 3j)", 0, 9, 3, key="moral_fora")
+                pts_cpp_fora = st.number_input("Pontos contra prateleira", 0, 30, 4, key="pcpp_fora")
+                jogos_cpp_fora = st.number_input("Jogos contra prateleira", 0, 10, 2, key="jcpp_fora")
+                prat_fora = st.selectbox("Prateleira do Adversário", ["Elite","Alta","Média","Baixa","Crítica"], key="prat_fora")
+                pos_fora = st.number_input("Posição na tabela", 1, 24, 16, key="pos_fora")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        # Médias da liga (manual)
+        with st.expander("⚙️ Médias da Liga (Manual)", expanded=False):
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+                media_gm = st.number_input("Gols/jogo", 0.1, 5.0, 1.4, 0.1, key="media_gm")
+                media_fa = st.number_input("Finalizações alvo/j", 0.0, 10.0, 4.0, 0.1, key="media_fa")
+                media_eca = st.number_input("Escanteios a favor/j", 0.0, 20.0, 5.0, 0.1, key="media_eca")
+                media_posse = st.number_input("Posse (%)", 0.0, 100.0, 50.0, 1.0, key="media_posse")
+                media_gs = st.number_input("Gols sofridos/j", 0.1, 5.0, 1.4, 0.1, key="media_gs")
+            with col_s2:
+                media_fas = st.number_input("Finalizações alvo sofridas/j", 0.0, 10.0, 4.0, 0.1, key="media_fas")
+                media_ecc = st.number_input("Escanteios contra/j", 0.0, 20.0, 5.0, 0.1, key="media_ecc")
+                media_des = st.number_input("Desarmes/j", 0.0, 50.0, 15.0, 0.1, key="media_des")
+                media_fc = st.number_input("Faltas/j", 0.0, 30.0, 12.0, 0.1, key="media_fc")
+                media_ca = st.number_input("Cartões amarelos/j", 0.0, 10.0, 2.0, 0.1, key="media_ca")
+
+            medias_liga = {
+                'GM': media_gm, 'FA': media_fa, 'ECa': media_eca,
+                'GS': media_gs, 'FAS': media_fas, 'ECc': media_ecc,
+                'FC': media_fc, 'CA': media_ca, 'Des': media_des, 'Posse': media_posse,
+            }
+
+        dados_A = {'GM': gm_casa, 'FA': fa_casa, 'ECa': eca_casa, 'Posse': posse_casa, 'GS': gs_casa, 'FAS': fas_casa, 'ECc': 0, 'Des': des_casa, 'FC': fc_casa, 'CA': ca_casa}
+        dados_B = {'GM': gm_fora, 'FA': fa_fora, 'ECa': eca_fora, 'Posse': posse_fora, 'GS': gs_fora, 'FAS': fas_fora, 'ECc': 0, 'Des': des_fora, 'FC': fc_fora, 'CA': ca_fora}
+
+    # ============= ODDS (COMUM AOS DOIS MODOS) =============
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("### 💰 Odds de Mercado")
+    st.markdown("**1X2**")
     col_odd1, col_odd2, col_odd3 = st.columns(3)
     with col_odd1:
         odd_casa = st.number_input("🏠 Vitória Casa", 1.01, 10.0, 1.80, 0.01, key="odd_casa")
@@ -507,8 +398,7 @@ else:
 
     st.markdown("**Gol 1º Tempo**")
     odd_ht = st.number_input("Gol 1º Tempo (Sim)", 1.01, 20.0, value=None, step=0.01, format="%.2f", key="odd_ht")
-
-    # Botão de análise
+    # ============= BOTÃO DE ANÁLISE =============
     st.markdown("<br>", unsafe_allow_html=True)
     col_btn = st.columns([1,2,1])
     with col_btn[1]:
@@ -535,16 +425,6 @@ else:
         ma_A = ma_recente(seq_casa, prob_v_casa, prob_emp, n_casa)
         ma_B = ma_recente(seq_fora, prob_v_fora, prob_emp, n_fora)
 
-        dados_A = {
-            'GM': gm_casa, 'FA': fa_casa, 'ECa': eca_casa, 'Posse': posse_casa,
-            'GS': gs_casa, 'FAS': fas_casa, 'ECc': 0, 'Des': des_casa,
-            'FC': fc_casa, 'CA': ca_casa
-        }
-        dados_B = {
-            'GM': gm_fora, 'FA': fa_fora, 'ECa': eca_fora, 'Posse': posse_fora,
-            'GS': gs_fora, 'FAS': fas_fora, 'ECc': 0, 'Des': des_fora,
-            'FC': fc_fora, 'CA': ca_fora
-        }
         fg_A = calcular_fg(dados_A, medias_liga, n_casa)
         fg_B = calcular_fg(dados_B, medias_liga, n_fora)
 
@@ -795,48 +675,8 @@ else:
 
         # ----- ABA 1: Pilares -----
         with tabs[0]:
-            st.markdown('<div class="card-premium"><div class="card-header-premium">🔍 PILARES INDIVIDUAIS</div>', unsafe_allow_html=True)
-            pilares_nomes = ['Momento Atual', 'Força Geral', 'Confronto', 'Psicológico']
-            valores_A = [ma_A, fg_A, cpp_A, psic_A]
-            valores_B = [ma_B, fg_B, cpp_B, psic_B]
-            df = pd.DataFrame({'Pilar': pilares_nomes*2, 'Time': [nome_casa]*4+[nome_fora]*4, 'Força': valores_A+valores_B})
-            fig = px.bar(df, x='Pilar', y='Força', color='Time', barmode='group', text_auto='.1f',
-                         color_discrete_map={nome_casa:'#F0C040', nome_fora:'#4a90d9'})
-            fig.update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            st.markdown('<div class="card-premium"><div class="card-header-premium">🎯 FORÇA SETORIAL</div>', unsafe_allow_html=True)
-            def norm_rad(val, media):
-                if media==0: return 50
-                return max(0, min(100, 50 + (val-media)/media*50))
-            atq_A = (norm_rad(gm_casa, media_gm) + norm_rad(fa_casa, media_fa))/2
-            def_A = (100 - norm_rad(gs_casa, media_gs) + 100 - norm_rad(fas_casa, media_fas))/2
-            mei_A = norm_rad(posse_casa, media_posse)
-            atq_B = (norm_rad(gm_fora, media_gm) + norm_rad(fa_fora, media_fa))/2
-            def_B = (100 - norm_rad(gs_fora, media_gs) + 100 - norm_rad(fas_fora, media_fas))/2
-            mei_B = norm_rad(posse_fora, media_posse)
-            fig_radar = go.Figure()
-            fig_radar.add_trace(go.Scatterpolar(r=[atq_A, def_A, mei_A], theta=['Ataque','Defesa','Meio'],
-                                                fill='toself', name=nome_casa, marker_color='#F0C040'))
-            fig_radar.add_trace(go.Scatterpolar(r=[atq_B, def_B, mei_B], theta=['Ataque','Defesa','Meio'],
-                                                fill='toself', name=nome_fora, marker_color='#4a90d9'))
-            fig_radar.update_layout(polar=dict(radialaxis=dict(range=[0,100])), template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_radar, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # ----- ABA 2: Estilo de Jogo -----
-        with tabs[1]:
-            st.markdown('<div class="card-premium"><div class="card-header-premium">🎭 PERFIS TÁTICOS</div>', unsafe_allow_html=True)
-            col_perf1, col_perf2 = st.columns(2)
-            with col_perf1:
-                st.markdown(f"""<div style="background:rgba(240,192,64,0.05); border:1px solid rgba(240,192,64,0.2); border-radius:12px; padding:20px; text-align:center;"><div style="font-size:18px; font-weight:700; color:#F0C040; margin-bottom:8px;">🏠 {nome_casa}</div><div style="font-size:24px; font-weight:900; color:#F0C040;">{perfil_A}</div><div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_A:.1f}/100</div></div>""", unsafe_allow_html=True)
-            with col_perf2:
-                st.markdown(f"""<div style="background:rgba(74,144,217,0.05); border:1px solid rgba(74,144,217,0.2); border-radius:12px; padding:20px; text-align:center;"><div style="font-size:18px; font-weight:700; color:#4A90D9; margin-bottom:8px;">✈️ {nome_fora}</div><div style="font-size:24px; font-weight:900; color:#4A90D9;">{perfil_B}</div><div style="font-size:13px; color:#B0B8C0; margin-top:8px;">Dominância: {estilo_B:.1f}/100</div></div>""", unsafe_allow_html=True)
-            st.markdown("""<div class="info-card" style="margin-top:16px;"><strong>🏆 Dominante:</strong> Controla posse, finaliza muito, pressiona.<br><strong>🔥 Pressão Alta:</strong> Extremamente agressivo, muitas faltas e desarmes.<br><strong>⚡ Reativo/Contra‑ataque:</strong> Pouca posse, transições rápidas e certeiras.<br><strong>🛡️ Defensivo:</strong> Prioriza não sofrer gols, jogo físico, baixa posse.<br><strong>⚖️ Equilibrado:</strong> Sem extremos, jogo balanceado.<br><strong>🔄 Posse Estéril:</strong> Muita posse, pouca efetividade.<br><strong>🎯 Efetivo:</strong> Pouca posse, alto aproveitamento.</div>""", unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # ----- ABA 3: Comparação Setorial -----
+            st.markdown('<div class="card-premium"><div class="card-header-premium">
+                        # ----- ABA 3: Comparação Setorial -----
         with tabs[2]:
             st.markdown('<div class="card-premium"><div class="card-header-premium">⚔️ CONFRONTO POR ESTATÍSTICA</div>', unsafe_allow_html=True)
             stats = [
@@ -896,7 +736,6 @@ else:
                 st.markdown(f"""<div class="prob-box"><div style="color:#4A90D9; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Vitória {nome_fora}</div>{valor_com_destaque(p_B, p_B)}<div style="margin-top:8px;">{selo(p_B)}</div></div>""", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Gols totais
             st.markdown('<div class="card-premium"><div class="card-header-premium">⚽ PROBABILIDADES DE GOLS (TOTAIS)</div>', unsafe_allow_html=True)
             col_g1, col_g2, col_g3 = st.columns(3)
             col_g1.metric("Over 1.5", f"{over15_adj:.1%}")
@@ -910,9 +749,9 @@ else:
             col_b1.metric("BTTS Sim", f"{btts_adj:.1%}")
             col_b2.metric("BTTS Não", f"{1-btts_adj:.1%}")
             col_b3.metric("Gol 1º Tempo", f"{prob_gol_ht_adj:.1%}")
+            st.markdown(f"""<div class="info-card"><strong>λ original:</strong> Casa {lambda_casa_orig:.2f}, Fora {lambda_fora_orig:.2f}<br><strong>λ ajustado:</strong> Casa {lambda_casa_adj:.2f}, Fora {lambda_fora_adj:.2f}</div>""", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Gols individuais
             st.markdown('<div class="card-premium"><div class="card-header-premium">🎯 PROBABILIDADES INDIVIDUAIS DE GOLS</div>', unsafe_allow_html=True)
             col_i1, col_i2 = st.columns(2)
             with col_i1:
@@ -927,29 +766,16 @@ else:
                 st.metric("Over 2.5", f"{fora_over25:.1%}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Edge
             st.markdown('<div class="card-premium"><div class="card-header-premium">📈 COMPARAÇÃO MODELO vs MERCADO (EDGE)</div>', unsafe_allow_html=True)
             probs_modelo = {
-                f"Vitória {nome_casa}": p_A,
-                "Empate": p_emp,
-                f"Vitória {nome_fora}": p_B,
-                "Over 1.5": over15_adj,
-                "Over 2.5": over25_adj,
-                "Over 3.5": over35_adj,
-                "BTTS Sim": btts_adj,
-                "BTTS Não": 1-btts_adj,
-                "Gol 1º Tempo": prob_gol_ht_adj,
+                f"Vitória {nome_casa}": p_A, "Empate": p_emp, f"Vitória {nome_fora}": p_B,
+                "Over 1.5": over15_adj, "Over 2.5": over25_adj, "Over 3.5": over35_adj,
+                "BTTS Sim": btts_adj, "BTTS Não": 1-btts_adj, "Gol 1º Tempo": prob_gol_ht_adj,
             }
             odds_reais = {
-                f"Vitória {nome_casa}": odd_casa,
-                "Empate": odd_empate,
-                f"Vitória {nome_fora}": odd_fora,
-                "Over 1.5": odd_over15,
-                "Over 2.5": odd_over25,
-                "Over 3.5": odd_over35,
-                "BTTS Sim": odd_btts_sim,
-                "BTTS Não": odd_btts_nao,
-                "Gol 1º Tempo": odd_ht,
+                f"Vitória {nome_casa}": odd_casa, "Empate": odd_empate, f"Vitória {nome_fora}": odd_fora,
+                "Over 1.5": odd_over15, "Over 2.5": odd_over25, "Over 3.5": odd_over35,
+                "BTTS Sim": odd_btts_sim, "BTTS Não": odd_btts_nao, "Gol 1º Tempo": odd_ht,
             }
             linhas = []
             for mercado, prob in probs_modelo.items():
@@ -971,10 +797,7 @@ else:
             if p_A > 0.65: destaques.append((f"Vitória {nome_casa}", p_A))
             if p_emp > 0.65: destaques.append(("Empate", p_emp))
             if p_B > 0.65: destaques.append((f"Vitória {nome_fora}", p_B))
-            for nome, prob in [
-                ("Over 1.5", over15_adj), ("Over 2.5", over25_adj), ("Over 3.5", over35_adj),
-                ("BTTS Sim", btts_adj), ("Gol 1º Tempo", prob_gol_ht_adj)
-            ]:
+            for nome, prob in [("Over 1.5", over15_adj), ("Over 2.5", over25_adj), ("Over 3.5", over35_adj), ("BTTS Sim", btts_adj), ("Gol 1º Tempo", prob_gol_ht_adj)]:
                 if prob > 0.65: destaques.append((nome, prob))
             if destaques:
                 for nome, prob in destaques:
@@ -983,7 +806,7 @@ else:
                 st.markdown('<div style="color:#B0B8C0; text-align:center;">Nenhuma probabilidade acima de 65%.</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # ----- ABA 9: ANÁLISE DESCRITIVA (REFORÇADA COM PILARES) -----
+        # ----- ABA 9: ANÁLISE DESCRITIVA -----
         with tabs[8]:
             st.markdown('<div class="card-premium"><div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
 
@@ -1016,12 +839,14 @@ else:
 
             st.markdown(f"""<div class="info-card">{nome_casa} é <strong>{perfil_A}</strong>, {nome_fora} é <strong>{perfil_B}</strong>.</div>""", unsafe_allow_html=True)
 
+            st.markdown("### 📊 Expectativa de Gols")
+            st.markdown(f"""<div class="info-card">Total esperado: <strong>{lambda_casa_adj+lambda_fora_adj:.2f}</strong> gols. Over 1.5: <strong>{over15_adj:.1%}</strong>, Over 2.5: <strong>{over25_adj:.1%}</strong>, BTTS: <strong>{btts_adj:.1%}</strong>, Gol 1ºT: <strong>{prob_gol_ht_adj:.1%}</strong>.</div>""", unsafe_allow_html=True)
+
             cen = gerar_cenarios_justificados()
             st.markdown(f"""<div class="info-card"><strong>Cenário mais provável:</strong> {cen[0][0]} ({cen[0][1]:.1%})</div>""", unsafe_allow_html=True)
 
-            # 8. Conclusão / Recomendação Final (coerente com os dados)
+            # 8. Recomendação Final
             st.markdown("### 📌 Recomendação Final")
-
             resultados = [
                 (f"Vitória do {nome_casa}", p_A, vantagens_A, "mandante"),
                 ("Empate", p_emp, [], "empate"),
