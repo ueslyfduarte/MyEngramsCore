@@ -129,7 +129,6 @@ st.markdown("""
         margin: 6px 0;
     }
 
-    /* Valor dourado para alta confiança */
     .high-confidence {
         background: linear-gradient(180deg, #F0C040 0%, #D4A017 100%) !important;
         -webkit-background-clip: text !important;
@@ -257,7 +256,7 @@ st.markdown("""
         border-radius: 12px;
         padding: 14px;
         margin: 6px 0;
-        font-size: 14px;
+        font-size: 15px;
         color: #E0E0E0;
         line-height: 1.6;
     }
@@ -282,7 +281,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Subtítulos */
+    /* Títulos e subtítulos */
     h2, h3 {
         font-weight: 800 !important;
         letter-spacing: -0.5px;
@@ -599,35 +598,60 @@ if gerar:
 
     # ==================== FUNÇÕES AUXILIARES ====================
     def desenhar_campo_duplo(fA, fB, nome_casa, nome_fora):
+        """Campo de futebol realista com fundo verde e faixas de força."""
         fig = go.Figure()
+        
+        # Gramado
         fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100,
-                      line=dict(color="white", width=2), fillcolor="#0A0E17")
-        fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50,
-                      line=dict(color="white", width=2, dash="dash"))
+                      fillcolor="#1B4D1B", line=dict(color="white", width=2))
+        # Linha do meio
+        fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100,
+                      line=dict(color="white", width=2))
+        # Círculo central
+        fig.add_shape(type="circle", x0=35, y0=35, x1=65, y1=65,
+                      line=dict(color="white", width=2))
+        # Áreas
+        fig.add_shape(type="rect", x0=0, y0=20, x1=20, y1=80,
+                      line=dict(color="white", width=1.5))
+        fig.add_shape(type="rect", x0=80, y0=20, x1=100, y1=80,
+                      line=dict(color="white", width=1.5))
+        # Pequenas áreas
+        fig.add_shape(type="rect", x0=0, y0=35, x1=10, y1=65,
+                      line=dict(color="white", width=1))
+        fig.add_shape(type="rect", x0=90, y0=35, x1=100, y1=65,
+                      line=dict(color="white", width=1))
+        # Linha tracejada no meio vertical para separar os times? Não, vamos usar as faixas.
+        
+        # Faixas do Time A (esquerda)
         zonas = ['Defesa', 'Meio', 'Ataque']
         for i, (zona, fa) in enumerate(zip(zonas, fA)):
             x0 = i * 33.33
             x1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=x0, y0=50, x1=x1, y1=100,
-                          fillcolor=f"rgba(240,192,64,{fa})", line_width=0)
-            fig.add_annotation(x=(x0+x1)/2, y=75, text=f"{zona}<br>{fa*100:.0f}%",
-                               showarrow=False, font=dict(color="white", size=10))
+            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=100,
+                          fillcolor=f"rgba(240,192,64,{fa*0.5})", line_width=0)
+            fig.add_annotation(x=(x0+x1)/2, y=50, text=f"{zona}<br>{fa*100:.0f}%",
+                               showarrow=False, font=dict(color="white", size=11))
+        # Nome do time A
+        fig.add_annotation(x=15, y=105, text=f"🏠 {nome_casa}", showarrow=False,
+                           font=dict(color="#F0C040", size=14))
+        
+        # Faixas do Time B (direita) – espelhadas
         zonas_B = ['Ataque', 'Meio', 'Defesa']
         for i, (zona, fb) in enumerate(zip(zonas_B, fB)):
             x0 = i * 33.33
             x1 = (i+1) * 33.33
-            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=50,
-                          fillcolor=f"rgba(74,144,217,{fb})", line_width=0)
-            fig.add_annotation(x=(x0+x1)/2, y=25, text=f"{zona}<br>{fb*100:.0f}%",
-                               showarrow=False, font=dict(color="white", size=10))
-        fig.add_annotation(x=50, y=105, text=f"🏠 {nome_casa}", showarrow=False,
-                           font=dict(color="#F0C040", size=14))
-        fig.add_annotation(x=50, y=-5, text=f"✈️ {nome_fora}", showarrow=False,
+            fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=100,
+                          fillcolor=f"rgba(74,144,217,{fb*0.5})", line_width=0)
+            fig.add_annotation(x=(x0+x1)/2, y=50, text=f"{zona}<br>{fb*100:.0f}%",
+                               showarrow=False, font=dict(color="white", size=11))
+        # Nome do time B
+        fig.add_annotation(x=85, y=105, text=f"✈️ {nome_fora}", showarrow=False,
                            font=dict(color="#4a90d9", size=14))
+        
         fig.update_xaxes(visible=False, range=[0,100])
-        fig.update_yaxes(visible=False, range=[-10,110])
+        fig.update_yaxes(visible=False, range=[0,110])
         fig.update_layout(template='plotly_dark', paper_bgcolor='#0A0E17',
-                          height=500, margin=dict(l=20, r=20, t=40, b=40))
+                          height=450, margin=dict(l=20, r=20, t=40, b=20))
         return fig
 
     def gerar_cenarios_justificados():
@@ -672,7 +696,7 @@ if gerar:
         if prob >= 0.75:
             return f'<span class="high-confidence" style="font-size:42px;">{valor:.1%}</span>'
         else:
-            return f'<span style="font-size:42px; font-weight:900;">{valor:.1%}</span>'
+            return f'<span style="font-size:42px; font-weight:900; color:#E0E0E0;">{valor:.1%}</span>'
 
     # ==================== EXIBIÇÃO PRINCIPAL ====================
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
@@ -848,14 +872,15 @@ if gerar:
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 4: Heatmap -----
+    # ----- ABA 4: Heatmap (CAMPO REAL) -----
     with tabs[3]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">🗺️ HEATMAP TÁTICO</div>', unsafe_allow_html=True)
-        fA = [def_A/100, mei_A/100, atq_A/100]
-        fB = [atq_B/100, mei_B/100, def_B/100]
+        fA = [def_A/100, mei_A/100, atq_A/100]  # Defesa, Meio, Ataque
+        fB = [atq_B/100, mei_B/100, def_B/100]  # Ataque, Meio, Defesa (espelhado)
         fig_field = desenhar_campo_duplo(fA, fB, nome_casa, nome_fora)
         st.plotly_chart(fig_field, use_container_width=True)
+        st.markdown('<div style="font-size:13px; color:#B0B8C0; text-align:center;">As cores indicam a força nos setores: dourado para o mandante, azul para o visitante.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ----- ABA 5: Cenários -----
@@ -970,7 +995,7 @@ if gerar:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ----- ABA 8: Análise Descritiva -----
+    # ----- ABA 8: Análise Descritiva (MAIS PRECISA) -----
     with tabs[7]:
         st.markdown('<div class="card-premium">', unsafe_allow_html=True)
         st.markdown('<div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>', unsafe_allow_html=True)
@@ -1011,6 +1036,15 @@ if gerar:
         <div class="info-card">
             {nome_casa} é <strong>{perfil_A}</strong> (dominância {estilo_A:.1f}), {nome_fora} é <strong>{perfil_B}</strong> (dominância {estilo_B:.1f}). 
             {'O estilo dominante da casa pode sufocar o visitante.' if 'Dominante' in perfil_A and 'Reativo' in perfil_B else 'O visitante reativo pode explorar contra-ataques.' if 'Reativo' in perfil_B else 'Ambos os estilos podem se neutralizar.'}
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### 📊 Expectativa de Gols (λ ajustados)")
+        st.markdown(f"""
+        <div class="info-card">
+            Com base nos lambdas ajustados, a expectativa de gols é de <strong>{lambda_casa_adj+lambda_fora_adj:.2f}</strong> no total.
+            Isso resulta em Over 1.5 com <strong>{over15_adj:.1%}</strong> de chance e Over 2.5 com <strong>{over25_adj:.1%}</strong>.
+            Ambos marcarem (BTTS) tem probabilidade de <strong>{btts_adj:.1%}</strong>.
         </div>
         """, unsafe_allow_html=True)
 
