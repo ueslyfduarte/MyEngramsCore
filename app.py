@@ -586,10 +586,21 @@ if gerar:
     EC_A = max(0, min(100, EC_A))
     EC_B = max(0, min(100, EC_B))
 
+    # ========== NOVO CÁLCULO DE EMPATE ==========
+    diff_ec = abs(EC_A - EC_B)
+    LIMIAR_EMPATE = 5.0
+    BONUS_MAX = 0.06
+    P_EMP_BASE = 0.29
+    P_EMP_MIN = 0.18
+
+    if diff_ec < LIMIAR_EMPATE:
+        p_emp = P_EMP_BASE + (1 - diff_ec / LIMIAR_EMPATE) * BONUS_MAX
+    else:
+        p_emp = max(P_EMP_MIN, P_EMP_BASE - (diff_ec / 100) * 0.15)
+    # ============================================
+
     total = EC_A + EC_B
-    diff_rel = abs(EC_A-EC_B)/total if total>0 else 0
-    p_emp = max(0.18, 0.40 - diff_rel*0.3)
-    p_A = (1-p_emp)*(EC_A/total) if total>0 else 0.33
+    p_A = (1 - p_emp) * (EC_A / total) if total > 0 else 0.33
     p_B = 1 - p_A - p_emp
 
     lambda_casa_orig = (gm_casa + gs_fora) / 2
