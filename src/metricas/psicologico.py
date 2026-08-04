@@ -1,5 +1,5 @@
 """
-Métrica Psicológico (v5 — Expandido)
+Métrica Psicológico (v5 — Expandido com WhoScored)
 
 Avalia aspectos intangíveis de um time:
 - Consistência recente (estabilidade + nível + dificuldade dos adversários)
@@ -8,6 +8,8 @@ Avalia aspectos intangíveis de um time:
 - Moral (pontos nos últimos 3 jogos + saldo de gols)
 - Pressão da partida (importância do jogo baseada em prateleiras)
 - Momentum (variação de desempenho: acelerando, estável ou caindo)
+- Disciplina (faltas/cartões como fator psicológico) 🆕
+- Rating (nota média WhoScored como indicador de confiança) 🆕
 
 A nota final é a média ponderada das sub‑métricas disponíveis, escala 0–100.
 """
@@ -18,12 +20,14 @@ from typing import Optional, List, Dict
 # Pesos das sub‑métricas
 # ----------------------------------------------------------
 PESOS_SUBMETRICAS = {
-    'consistencia': 0.25,
-    'resiliencia': 0.20,
+    'consistencia': 0.20,
+    'resiliencia': 0.15,
     'confronto_direto': 0.15,
-    'moral': 0.20,
+    'moral': 0.15,
     'pressao': 0.10,
     'momentum': 0.10,
+    'disciplina': 0.10,   # 🆕
+    'rating': 0.05,        # 🆕
 }
 
 
@@ -49,10 +53,7 @@ def classificar_prateleira(pos_time: int, total_times: int = 24) -> str:
 # ----------------------------------------------------------
 def calcular_consistencia(pontos_ultimos_10: list,
                           prateleiras_ultimos_10: list = None) -> Optional[float]:
-    """
-    Nota de consistência: combina estabilidade (1 - CV), nível (média/3)
-    e dificuldade dos adversários enfrentados.
-    """
+    """Nota de consistência: combina estabilidade, nível e dificuldade."""
     if not pontos_ultimos_10 or len(pontos_ultimos_10) < 5:
         return None
 
@@ -67,7 +68,6 @@ def calcular_consistencia(pontos_ultimos_10: list,
     estabilidade = 1.0 - min(cv, 1.0)
     nivel = media / 3.0
 
-    # Fator de dificuldade (se disponível)
     if prateleiras_ultimos_10 and len(prateleiras_ultimos_10) == n:
         mult_dificuldade = {
             'elite': 1.3, 'alta': 1.15, 'media': 1.0,
@@ -86,9 +86,7 @@ def calcular_consistencia(pontos_ultimos_10: list,
 # ----------------------------------------------------------
 def calcular_resiliencia(pontos_fora: int, jogos_fora: int,
                          pontos_virada: int = 0, jogos_virada: int = 0) -> Optional[float]:
-    """
-    Resiliência: aproveitamento como visitante + capacidade de reagir a desvantagens.
-    """
+    """Resiliência: aproveitamento como visitante + reação a desvantagens."""
     if jogos_fora == 0:
         return None
 
@@ -105,13 +103,7 @@ def calcular_resiliencia(pontos_fora: int, jogos_fora: int,
 # 3. Confronto direto (com saldo de gols)
 # ----------------------------------------------------------
 def calcular_confronto_direto(historico: list) -> Optional[float]:
-    """
-    Aproveitamento contra o adversário atual, com bônus por saldo de gols.
-
-    Parâmetros:
-        historico: lista de dicts com:
-            {'resultado': 'V'/'E'/'D', 'gols_pro': int, 'gols_contra': int}
-    """
+    """Aproveitamento contra o adversário atual, com bônus por saldo de gols."""
     if not historico or len(historico) < 2:
         return None
 
@@ -129,9 +121,7 @@ def calcular_confronto_direto(historico: list) -> Optional[float]:
 # ----------------------------------------------------------
 def calcular_moral(pontos_ultimos_3: int,
                    saldo_gols_ultimos_3: int = 0) -> float:
-    """
-    Moral recente: pontos nos últimos 3 jogos (0-9) + saldo de gols.
-    """
+    """Moral recente: pontos + saldo de gols."""
     base = (pontos_ultimos_3 / 9) * 100
     bonus_saldo = min(max(saldo_gols_ultimos_3 * 2, -10), 10)
     nota = base + bonus_saldo
@@ -180,11 +170,7 @@ def calcular_pressao_partida(p_obj: float, sensibilidade: float) -> float:
 # ----------------------------------------------------------
 def calcular_momentum(pontos_ultimos_5: list,
                       pontos_5_anteriores: list = None) -> float:
-    """
-    Calcula o momentum: se o time está acelerando, estável ou caindo.
-    Compara o desempenho nos últimos 5 jogos com os 5 anteriores.
-    Retorna float entre 0 e 100 (50 = estável, >50 = acelerando, <50 = caindo).
-    """
+    """Calcula se o time está acelerando, estável ou caindo."""
     if not pontos_ultimos_5 or len(pontos_ultimos_5) < 3:
         return 50.0
 
@@ -198,6 +184,50 @@ def calcular_momentum(pontos_ultimos_5: list,
         variacao = tendencia / 6.0
 
     nota = 50 + variacao * 50
+    return max(0, min(100, nota))
+
+
+# ----------------------------------------------------------
+# 7. Disciplina (faltas/cartões) 🆕
+# ----------------------------------------------------------
+def calcular_disciplina(faltas_por_jogo: float,
+                        cartoes_por_jogo: float,
+                        media_faltas_liga: float,
+                        media_cartoes_liga: float) -> float:
+    """
+    Avalia a disciplina do time como fator psicológico.
+    Time indisciplinado = mais pressão, mais nervosismo.
+    Nota alta = time disciplinado (menos faltas/cartões).
+    """
+    if media_faltas_liga == 0 or media_cartoes_liga == 0:
+        return 50.0
+
+    # Calcular desvio em relação à média (invertido: menos = melhor)
+    desvio_faltas = (faltas_por_jogo - media_faltas_liga) / media_faltas_liga
+    desvio_cartoes = (cartoes_por_jogo - media_cartoes_liga) / media_cartoes_liga
+
+    # Inverter: acima da média = ruim
+    nota_faltas = 50 - desvio_faltas * 50
+    nota_cartoes = 50 - desvio_cartoes * 50
+
+    nota = (nota_faltas + nota_cartoes) / 2
+    return max(0, min(100, nota))
+
+
+# ----------------------------------------------------------
+# 8. Rating (nota WhoScored) 🆕
+# ----------------------------------------------------------
+def calcular_rating_nota(rating_time: float,
+                         media_rating_liga: float) -> float:
+    """
+    Converte o rating do WhoScored em nota psicológica (0-100).
+    Rating alto = time mais confiante e bem avaliado.
+    """
+    if media_rating_liga == 0:
+        return 50.0
+
+    desvio = (rating_time - media_rating_liga) / media_rating_liga
+    nota = 50 + desvio * 100
     return max(0, min(100, nota))
 
 
@@ -216,6 +246,12 @@ def calcular_psicologico(
     pressao_sensibilidade: float = 0.3,
     momentum_ultimos_5: Optional[list] = None,
     momentum_anteriores_5: Optional[list] = None,
+    faltas_por_jogo: Optional[float] = None,
+    cartoes_por_jogo: Optional[float] = None,
+    media_faltas_liga: float = 0.0,
+    media_cartoes_liga: float = 0.0,
+    rating_time: Optional[float] = None,
+    media_rating_liga: float = 0.0,
     pesos: Dict[str, float] = None
 ) -> float:
     """
@@ -234,7 +270,7 @@ def calcular_psicologico(
         c = calcular_consistencia(consistencia_pontos, prateleiras_consistencia)
         if c is not None:
             notas['consistencia'] = c
-            pesos_ativos['consistencia'] = pesos.get('consistencia', 0.25)
+            pesos_ativos['consistencia'] = pesos.get('consistencia', 0.20)
 
     # Resiliência
     if resiliencia_fora is not None:
@@ -246,7 +282,7 @@ def calcular_psicologico(
             )
         if r is not None:
             notas['resiliencia'] = r
-            pesos_ativos['resiliencia'] = pesos.get('resiliencia', 0.20)
+            pesos_ativos['resiliencia'] = pesos.get('resiliencia', 0.15)
 
     # Confronto direto
     if confronto_direto_hist is not None:
@@ -258,7 +294,7 @@ def calcular_psicologico(
     # Moral
     if moral_pontos is not None:
         notas['moral'] = calcular_moral(moral_pontos, moral_saldo_gols or 0)
-        pesos_ativos['moral'] = pesos.get('moral', 0.20)
+        pesos_ativos['moral'] = pesos.get('moral', 0.15)
 
     # Pressão
     if pressao_p_obj is not None:
@@ -269,6 +305,18 @@ def calcular_psicologico(
     if momentum_ultimos_5 is not None:
         notas['momentum'] = calcular_momentum(momentum_ultimos_5, momentum_anteriores_5)
         pesos_ativos['momentum'] = pesos.get('momentum', 0.10)
+
+    # Disciplina 🆕
+    if faltas_por_jogo is not None and cartoes_por_jogo is not None:
+        notas['disciplina'] = calcular_disciplina(
+            faltas_por_jogo, cartoes_por_jogo, media_faltas_liga, media_cartoes_liga
+        )
+        pesos_ativos['disciplina'] = pesos.get('disciplina', 0.10)
+
+    # Rating 🆕
+    if rating_time is not None:
+        notas['rating'] = calcular_rating_nota(rating_time, media_rating_liga)
+        pesos_ativos['rating'] = pesos.get('rating', 0.05)
 
     if not notas:
         return 50.0
