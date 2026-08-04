@@ -1,10 +1,10 @@
 """
-Estilo Perfil v3 (Classificação Tática Expandida)
+Estilo Perfil v4 (Classificação Tática — WhoScored)
 
-Classifica o perfil tático de um time com base em indicadores normalizados
-(0-100). Usa métricas do FBref para maior precisão.
+Classifica o perfil tático de um time com base em indicadores normalizados (0-100).
+Usa métricas do WhoScored para identificar:
 
-Perfis disponíveis:
+PERFIS MANTIDOS:
 - Dominante
 - Pressão Alta
 - Reativo / Contra-ataque
@@ -12,33 +12,47 @@ Perfis disponíveis:
 - Equilibrado
 - Posse Estéril
 - Efetivo
-- Transição Rápida (novo)
-- Bloco Baixo (novo)
+- Transição Rápida
+- Bloco Baixo
+- Pelas Pontas
+
+NOVOS PERFIS:
+- Jogo Vertical (bolas enfiadas)
+- Chutão / Jogo Direto (bolas longas + pouca posse)
 """
 
-from typing import Dict, Optional
+from typing import Dict
 from src.utils import normalizar_indicador
 
 # ----------------------------------------------------------
-# Limiares (configuráveis)
+# Limiares
 # ----------------------------------------------------------
 ALTO = 60
 BAIXO = 40
 
-# Indicadores expandidos (códigos FBref)
+# Indicadores expandidos (códigos FBref + WhoScored)
 INDICADORES_PERFIL = [
-    'Poss',      # Posse de bola (%)
-    'SoT',       # Chutes no alvo por 90min
-    'CK',        # Escanteios a favor
-    'Fls',       # Faltas cometidas
-    'CrdY',      # Cartões amarelos
-    'Tkl',       # Desarmes
-    'Press',     # Pressões tentadas (🆕)
-    'Int',       # Interceptações (🆕)
-    'PrgP',      # Passes progressivos (🆕)
-    'Crs',       # Cruzamentos (🆕)
-    'Off',       # Impedimentos (🆕)
+    'Poss',        # Posse de bola (%)
+    'SoT',         # Chutes no alvo (FBref) / Shots (WhoScored)
+    'CK',          # Escanteios (FBref)
+    'Fls',         # Faltas cometidas
+    'CrdY',        # Cartões amarelos (FBref)
+    'Tkl',         # Desarmes
+    'Press',       # Pressões tentadas (FBref)
+    'Int',         # Interceptações (FBref)
+    'PrgP',        # Passes progressivos (FBref)
+    'Crs',         # Cruzamentos (FBref + WhoScored)
+    'Off',         # Impedimentos (FBref)
+    'ThrBall',     # Bolas enfiadas (WhoScored) 🆕
+    'ShortPass',   # Passes curtos (WhoScored) 🆕
+    'LongBall',    # Bolas longas (WhoScored) 🆕
+    'AttThird',    # % Terço adversário (WhoScored) 🆕
+    'GlsCA',       # Gols de contra-ataque (WhoScored) 🆕
+    'GlsSP',       # Gols de bola parada (WhoScored) 🆕
 ]
+
+# Indicadores que são "menor é melhor"
+INDICADORES_INVERTIDOS = {'LongBall', 'Fls'}
 
 
 def normalizar_indicadores(dados_time: Dict[str, float],
@@ -47,7 +61,7 @@ def normalizar_indicadores(dados_time: Dict[str, float],
                            invertidos: set = None) -> Dict[str, float]:
     """Normaliza uma lista de indicadores em relação à média da liga."""
     if invertidos is None:
-        invertidos = set()
+        invertidos = INDICADORES_INVERTIDOS
     resultado = {}
     for cod in indicadores:
         if cod in dados_time and cod in medias_liga:
@@ -63,13 +77,6 @@ def normalizar_indicadores(dados_time: Dict[str, float],
 def classificar_perfil(indicadores_norm: Dict[str, float]) -> str:
     """
     Classifica o time com base nos indicadores normalizados (0-100).
-
-    Parâmetros:
-        indicadores_norm: dicionário com:
-            'Poss', 'SoT', 'CK', 'Fls', 'CrdY', 'Tkl', 'Press', 'Int', 'PrgP', 'Crs', 'Off'
-
-    Retorna:
-        string com o nome do perfil.
     """
     posse = indicadores_norm.get('Poss', 50.0)
     fa = indicadores_norm.get('SoT', 50.0)
@@ -82,6 +89,12 @@ def classificar_perfil(indicadores_norm: Dict[str, float]) -> str:
     prgp = indicadores_norm.get('PrgP', 50.0)
     crs = indicadores_norm.get('Crs', 50.0)
     off = indicadores_norm.get('Off', 50.0)
+    thrball = indicadores_norm.get('ThrBall', 50.0)
+    shortpass = indicadores_norm.get('ShortPass', 50.0)
+    longball = indicadores_norm.get('LongBall', 50.0)
+    attthird = indicadores_norm.get('AttThird', 50.0)
+    glsca = indicadores_norm.get('GlsCA', 50.0)
+    glssp = indicadores_norm.get('GlsSP', 50.0)
 
     # Flags básicas
     alta_posse = posse > ALTO
@@ -95,46 +108,60 @@ def classificar_perfil(indicadores_norm: Dict[str, float]) -> str:
     alto_prgp = prgp > ALTO
     alto_crs = crs > ALTO
     alto_off = off > ALTO
+    alto_thrball = thrball > ALTO
+    alto_shortpass = shortpass > ALTO
+    baixo_longball = longball < BAIXO
+    alto_attthird = attthird > ALTO
+    alto_glsca = glsca > ALTO
+    alto_glssp = glssp > ALTO
 
-    # Decisão hierárquica refinada
+    # ============ DECISÃO HIERÁRQUICA ============
 
-    # 1. Pressão Alta: posse alta + volume ofensivo + agressividade + pressão
+    # 1. Pressão Alta
     if alta_posse and alto_vol_ofensivo and alta_agressividade and alta_pressao:
         return "Pressão Alta"
 
-    # 2. Dominante: posse alta + volume ofensivo + passes progressivos
-    if alta_posse and alto_vol_ofensivo and alto_prgp:
+    # 2. Dominante
+    if alta_posse and alto_vol_ofensivo and alto_prgp and alto_attthird:
         return "Dominante"
 
-    # 3. Posse Estéril: posse alta + pouco volume ofensivo
-    if alta_posse and baixo_vol_ofensivo:
+    # 3. Jogo Vertical 🆕
+    if alto_thrball and not alto_crs:
+        return "Jogo Vertical"
+
+    # 4. Pelas Pontas
+    if alto_crs and not alto_thrball:
+        return "Pelas Pontas"
+
+    # 5. Posse Estéril
+    if alta_posse and baixo_vol_ofensivo and alto_shortpass:
         return "Posse Estéril"
 
-    # 4. Transição Rápida: posse baixa + passes progressivos altos + finalizações altas
+    # 6. Chutão / Jogo Direto 🆕
+    if baixa_posse and baixo_longball:  # nota baixa em LongBall = muitas bolas longas
+        return "Chutão / Jogo Direto"
+
+    # 7. Bloco Baixo
+    if baixa_posse and alto_inter and alto_desarme and not alto_attthird:
+        return "Bloco Baixo"
+
+    # 8. Reativo / Contra-ataque (melhorado com GlsCA)
+    if baixa_posse and (alto_desarme or alto_glsca) and fa > ALTO:
+        return "Reativo / Contra-ataque"
+
+    # 9. Transição Rápida
     if baixa_posse and alto_prgp and fa > ALTO:
         return "Transição Rápida"
 
-    # 5. Efetivo: posse baixa + finaliza altas + impedimentos (joga no limite)
-    if baixa_posse and fa > ALTO and alto_off:
-        return "Efetivo"
-
-    # 6. Bloco Baixo: posse baixa + interceptações altas + desarmes altos + pouca pressão
-    if baixa_posse and alto_inter and alto_desarme and press < BAIXO:
-        return "Bloco Baixo"
-
-    # 7. Defensivo: posse baixa + agressividade + desarmes + interceptações
+    # 10. Defensivo
     if baixa_posse and alta_agressividade and alto_desarme and alto_inter:
         return "Defensivo"
 
-    # 8. Reativo / Contra-ataque: posse baixa + desarmes altos
-    if baixa_posse and alto_desarme:
-        return "Reativo / Contra-ataque"
+    # 11. Efetivo
+    if baixa_posse and fa > ALTO and alto_off:
+        return "Efetivo"
 
-    # 9. Pelas pontas (novo): cruzamentos altos
-    if alto_crs and not alto_prgp:
-        return "Pelas Pontas"
-
-    # 10. Equilibrado
+    # 12. Equilibrado
     if (BAIXO <= posse <= ALTO) and (BAIXO <= fa <= ALTO):
         return "Equilibrado"
 
@@ -143,6 +170,10 @@ def classificar_perfil(indicadores_norm: Dict[str, float]) -> str:
         return "Defensivo"
     if alto_vol_ofensivo:
         return "Dominante" if alta_posse else "Efetivo"
+    if alto_crs:
+        return "Pelas Pontas"
+    if alto_thrball:
+        return "Jogo Vertical"
 
     return "Equilibrado"
 
@@ -151,15 +182,6 @@ def obter_perfil_time(dados_time: Dict[str, float],
                       medias_liga: Dict[str, float]) -> str:
     """
     Recebe médias por jogo do time e da liga e retorna o perfil tático.
-
-    Exemplo:
-        dados_time = {'Poss': 55.0, 'SoT': 5.2, 'CK': 6.1, 'Fls': 14.0, 
-                      'CrdY': 2.5, 'Tkl': 18.0, 'Press': 45.0, 'Int': 12.0,
-                      'PrgP': 38.0, 'Crs': 15.0, 'Off': 2.5}
-        medias_liga = {'Poss': 50.0, 'SoT': 4.1, 'CK': 5.0, 'Fls': 12.0, 
-                       'CrdY': 2.0, 'Tkl': 15.0, 'Press': 40.0, 'Int': 10.0,
-                       'PrgP': 35.0, 'Crs': 18.0, 'Off': 2.0}
-        perfil = obter_perfil_time(dados_time, medias_liga)
     """
     indicadores_norm = normalizar_indicadores(
         dados_time, medias_liga, INDICADORES_PERFIL
