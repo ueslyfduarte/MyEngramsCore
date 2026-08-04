@@ -175,8 +175,16 @@ def renderizar_resultados(dados, odds):
     EC_B = (ma_B*0.25 + fg_B*0.25 + cpp_B*0.25 + psic_B*0.25)
     EC_A = max(0, min(100, EC_A)); EC_B = max(0, min(100, EC_B))
     diff_ec = abs(EC_A - EC_B)
-    if diff_ec < 5.0: p_emp = 0.29 + (1 - diff_ec / 5.0) * 0.06
-    else: p_emp = max(0.18, 0.29 - (diff_ec / 100) * 0.15)
+
+    # ========== NOVO CÁLCULO DE EMPATE (MAIS BAIXO) ==========
+    if diff_ec < 5.0:
+        p_emp = 0.30 + (1 - diff_ec / 5.0) * 0.04
+    elif diff_ec < 20:
+        p_emp = 0.27 - (diff_ec - 5) / 15 * 0.07
+    else:
+        p_emp = max(0.14, 0.20 - (diff_ec - 20) / 80 * 0.06)
+    # =========================================================
+
     total = EC_A + EC_B
     p_A = (1 - p_emp) * (EC_A / total) if total > 0 else 0.33
     p_B = 1 - p_A - p_emp
@@ -205,7 +213,6 @@ def renderizar_resultados(dados, odds):
     prob_gol_ht_adj = 1 - math.exp(-lambda_ht_adj)
     casa_over05 = prob_team_over(lambda_casa_adj, 0); casa_over15 = prob_team_over(lambda_casa_adj, 1); casa_over25 = prob_team_over(lambda_casa_adj, 2)
     fora_over05 = prob_team_over(lambda_fora_adj, 0); fora_over15 = prob_team_over(lambda_fora_adj, 1); fora_over25 = prob_team_over(lambda_fora_adj, 2)
-
     # ==================== EXIBIÇÃO PRINCIPAL ====================
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""<div style="text-align:center; margin-bottom:30px;"><div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0;">Resultado da Análise</div><h2 style="font-weight:900; margin:8px 0; letter-spacing:-1px;"><span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">ENGRAMSCORE</span></h2></div>""", unsafe_allow_html=True)
@@ -221,6 +228,7 @@ def renderizar_resultados(dados, odds):
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análises Detalhadas</span></div>""", unsafe_allow_html=True)
     tabs = st.tabs(["📊 PILARES","🎭 ESTILO","⚔️ CONFRONTO","🗺️ HEATMAP","🎲 CENÁRIOS","🔧 AJUSTE EC","📋 MERCADOS","🌟 DESTAQUES","📝 ANÁLISE"])
+
     # ----- ABA 1: Pilares (EXPANDIDA) -----
     with tabs[0]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🔍 PILARES INDIVIDUAIS</div>', unsafe_allow_html=True)
@@ -232,7 +240,7 @@ def renderizar_resultados(dados, odds):
                      color_discrete_map={nome_casa:'#F0C040',nome_fora:'#4a90d9'},title="Comparativo de Pilares")
         fig.update_traces(textposition='outside',textfont=dict(size=14,color='white'))
         fig.update_layout(template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',transition_duration=800,hovermode='x unified')
-        st.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig,width='stretch')
         col_info1,col_info2=st.columns(2)
         with col_info1:
             st.markdown(f"""<div class="info-card"><strong>🏠 {nome_casa}</strong><br><strong>MA:</strong> {ma_A:.1f} (momentum recente)<br><strong>FG:</strong> {fg_A:.1f} (ataque/defesa/meio)<br><strong>CPP:</strong> {cpp_A:.1f} (confronto por prateleira)<br><strong>Psic:</strong> {psic_A:.1f} (consistência/moral/pressão)</div>""",unsafe_allow_html=True)
@@ -252,7 +260,7 @@ def renderizar_resultados(dados, odds):
         fig_radar.add_trace(go.Scatterpolar(r=[atq_A,def_A,mei_A],theta=['Ataque','Defesa','Meio'],fill='toself',name=nome_casa,marker_color='#F0C040',hovertemplate='%{r:.1f}<br>%{theta}'))
         fig_radar.add_trace(go.Scatterpolar(r=[atq_B,def_B,mei_B],theta=['Ataque','Defesa','Meio'],fill='toself',name=nome_fora,marker_color='#4a90d9',hovertemplate='%{r:.1f}<br>%{theta}'))
         fig_radar.update_layout(polar=dict(radialaxis=dict(range=[0,100],tickfont=dict(color='white')),angularaxis=dict(tickfont=dict(color='white'))),template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',transition_duration=800,title=f"Comparação Setorial: {nome_casa} vs {nome_fora}")
-        st.plotly_chart(fig_radar,use_container_width=True)
+        st.plotly_chart(fig_radar,width='stretch')
         st.markdown('</div>',unsafe_allow_html=True)
 
     # ----- ABA 2: Estilo (EXPANDIDA) -----
@@ -276,7 +284,7 @@ def renderizar_resultados(dados, odds):
         fig_estilo=px.bar(df_estilo,x='Indicador',y='Valor',color='Time',barmode='group',color_discrete_map={nome_casa:'#F0C040',nome_fora:'#4a90d9'},title="Comparativo de Estilo de Jogo")
         fig_estilo.update_traces(textposition='outside')
         fig_estilo.update_layout(template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',transition_duration=800)
-        st.plotly_chart(fig_estilo,use_container_width=True)
+        st.plotly_chart(fig_estilo,width='stretch')
         st.markdown("""<div class="info-card" style="margin-top:16px;"><strong>🏆 Dominante:</strong> Controla posse, finaliza muito, pressiona.<br><strong>🔥 Pressão Alta:</strong> Extremamente agressivo.<br><strong>⚡ Reativo/Contra‑ataque:</strong> Pouca posse, transições rápidas.<br><strong>🛡️ Defensivo:</strong> Prioriza não sofrer gols.<br><strong>⚖️ Equilibrado:</strong> Sem extremos.<br><strong>🅿️ Jogo Pelas Pontas:</strong> Muitos cruzamentos.<br><strong>⬆️ Jogo Vertical:</strong> Bolas enfiadas, profundidade.</div>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
@@ -297,37 +305,47 @@ def renderizar_resultados(dados, odds):
         st.markdown(f"""<div class="info-card" style="margin-top:16px;text-align:center;"><strong>{nome_casa}</strong> vence em <strong>{vant_A}/9</strong> estatísticas | <strong>{nome_fora}</strong> vence em <strong>{vant_B}/9</strong> estatísticas</div>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
-    # ----- ABA 4: Heatmap (ANIMADO) -----
+    # ----- ABA 4: Heatmap (ANIMADO CORRIGIDO) -----
     with tabs[3]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🗺️ HEATMAP TÁTICO — FLUXO DE JOGO</div>',unsafe_allow_html=True)
         fA=[def_A/100,mei_A/100,atq_A/100]; fB=[atq_B/100,mei_B/100,def_B/100]
+        fA=[max(0.05,min(0.95,f)) for f in fA]; fB=[max(0.05,min(0.95,f)) for f in fB]
         frames=[]
         for t in range(10):
-            variacao=math.sin(t*0.5)*0.1
-            fA_anim=[min(1,max(0,f+variacao)) for f in fA]
-            fB_anim=[min(1,max(0,f-variacao)) for f in fB]
-            frame_data=[]
+            variacao=math.sin(t*0.5)*0.08
+            fA_anim=[max(0.05,min(0.95,f+variacao)) for f in fA]
+            fB_anim=[max(0.05,min(0.95,f-variacao)) for f in fB]
+            shapes_list=[]
             zonas=['Defesa','Meio','Ataque']
             for i,(zona,fa,fb) in enumerate(zip(zonas,fA_anim,fB_anim)):
-                frame_data.append(dict(type='rect',x0=i*33.33,y0=50,x1=(i+1)*33.33,y1=100,fillcolor=f"rgba(240,192,64,{fa})"))
-                frame_data.append(dict(type='rect',x0=i*33.33,y0=0,x1=(i+1)*33.33,y1=50,fillcolor=f"rgba(74,144,217,{fb})"))
-            frames.append(go.Frame(data=frame_data,name=f'f{t}'))
+                shapes_list.append({'type':'rect','x0':i*33.33,'y0':50,'x1':(i+1)*33.33,'y1':100,'fillcolor':f"rgba(240,192,64,{fa})",'line':{'width':0}})
+                shapes_list.append({'type':'rect','x0':i*33.33,'y0':0,'x1':(i+1)*33.33,'y1':50,'fillcolor':f"rgba(74,144,217,{fb})",'line':{'width':0}})
+            frames.append(go.Frame(data=[],layout=go.Layout(shapes=shapes_list),name=f'f{t}'))
         fig_field=go.Figure()
         fig_field.add_shape(type="rect",x0=0,y0=0,x1=100,y1=100,fillcolor="#1B4D1B",line=dict(color="white",width=2))
         fig_field.add_shape(type="line",x0=50,y0=0,x1=50,y1=100,line=dict(color="white",width=2))
         fig_field.add_shape(type="circle",x0=35,y0=35,x1=65,y1=65,line=dict(color="white",width=2))
-        for i,(zona,fa,fb) in enumerate(zip(['Defesa','Meio','Ataque'],fA,fB)):
-            fig_field.add_shape(type="rect",x0=i*33.33,y0=50,x1=(i+1)*33.33,y1=100,fillcolor=f"rgba(240,192,64,{fa})",line_width=0)
-            fig_field.add_shape(type="rect",x0=i*33.33,y0=0,x1=(i+1)*33.33,y1=50,fillcolor=f"rgba(74,144,217,{fb})",line_width=0)
+        fig_field.add_shape(type="rect",x0=0,y0=20,x1=20,y1=80,line=dict(color="white",width=1.5))
+        fig_field.add_shape(type="rect",x0=80,y0=20,x1=100,y1=80,line=dict(color="white",width=1.5))
+        fig_field.add_shape(type="rect",x0=0,y0=35,x1=10,y1=65,line=dict(color="white",width=1))
+        fig_field.add_shape(type="rect",x0=90,y0=35,x1=100,y1=65,line=dict(color="white",width=1))
+        zonas=['Defesa','Meio','Ataque']
+        for i,(zona,fa) in enumerate(zip(zonas,fA)):
+            x0=i*33.33; x1=(i+1)*33.33
+            fig_field.add_shape(type="rect",x0=x0,y0=50,x1=x1,y1=100,fillcolor=f"rgba(240,192,64,{fa})",line_width=0)
+        zonas_B=['Ataque','Meio','Defesa']
+        for i,(zona,fb) in enumerate(zip(zonas_B,fB)):
+            x0=i*33.33; x1=(i+1)*33.33
+            fig_field.add_shape(type="rect",x0=x0,y0=0,x1=x1,y1=50,fillcolor=f"rgba(74,144,217,{fb})",line_width=0)
         for i,(zona,fa,fb) in enumerate(zip(['Defesa','Meio','Ataque'],fA,fB)):
             fig_field.add_annotation(x=i*33.33+16,y=75,text=f"{zona}<br>{fa*100:.0f}%",showarrow=False,font=dict(color="white",size=11))
             fig_field.add_annotation(x=i*33.33+16,y=25,text=f"{zona}<br>{fb*100:.0f}%",showarrow=False,font=dict(color="white",size=11))
         fig_field.add_annotation(x=15,y=110,text=f"🏠 {nome_casa}",showarrow=False,font=dict(color="#F0C040",size=14))
         fig_field.add_annotation(x=85,y=110,text=f"✈️ {nome_fora}",showarrow=False,font=dict(color="#4a90d9",size=14))
         fig_field.frames=frames
+        fig_field.update_layout(template='plotly_dark',paper_bgcolor='#0A0E17',height=500,margin=dict(l=20,r=20,t=40,b=20),updatemenus=[dict(type='buttons',showactive=False,x=0.5,y=1.05,xanchor='center',buttons=[dict(label='▶️ Iniciar',method='animate',args=[None,dict(frame=dict(duration=500,redraw=True),fromcurrent=True,mode='immediate')]),dict(label='⏸️ Pausar',method='animate',args=[[None],dict(frame=dict(duration=0,redraw=False),mode='immediate')])])])
         fig_field.update_xaxes(visible=False,range=[0,100]); fig_field.update_yaxes(visible=False,range=[-10,120])
-        fig_field.update_layout(template='plotly_dark',paper_bgcolor='#0A0E17',height=500,margin=dict(l=20,r=20,t=40,b=20),updatemenus=[dict(type='buttons',showactive=False,buttons=[dict(label='▶️ Iniciar',method='animate',args=[None,dict(frame=dict(duration=500,redraw=True),fromcurrent=True,mode='immediate')]),dict(label='⏸️ Pausar',method='animate',args=[[None],dict(frame=dict(duration=0,redraw=False),mode='immediate')])])])
-        st.plotly_chart(fig_field,use_container_width=True)
+        st.plotly_chart(fig_field,width='stretch')
         st.markdown("""<div style="font-size:13px;color:#B0B8C0;text-align:center;">🔸 Dourado = Casa | 🔵 Azul = Visitante<br>Clique em ▶️ para ver o fluxo de jogo animado</div>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
@@ -361,7 +379,7 @@ def renderizar_resultados(dados, odds):
         df_lambdas=pd.DataFrame({'Métrica':['λ Casa Original','λ Casa Ajustado','λ Fora Original','λ Fora Ajustado'],'Valor':[lambda_casa_orig,lambda_casa_adj,lambda_fora_orig,lambda_fora_adj],'Tipo':['Original','Ajustado','Original','Ajustado'],'Time':[nome_casa,nome_casa,nome_fora,nome_fora]})
         fig_lambdas=px.bar(df_lambdas,x='Métrica',y='Valor',color='Tipo',barmode='group',color_discrete_map={'Original':'#B0B8C0','Ajustado':'#F0C040'},title="Comparação dos Lambdas")
         fig_lambdas.update_layout(template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_lambdas,use_container_width=True)
+        st.plotly_chart(fig_lambdas,width='stretch')
         st.markdown('</div>',unsafe_allow_html=True)
 
     # ----- ABA 7: Mercados (EXPANDIDA) -----
@@ -384,7 +402,7 @@ def renderizar_resultados(dados, odds):
         fig_gols=px.bar(df_gols,x='Mercado',y='Probabilidade',text_auto='.1%',color='Probabilidade',color_continuous_scale=['#4A90D9','#F0C040'],title="Probabilidades de Gols")
         fig_gols.update_traces(textposition='outside',textfont=dict(color='white',size=13))
         fig_gols.update_layout(template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',coloraxis_showscale=False,showlegend=False)
-        st.plotly_chart(fig_gols,use_container_width=True)
+        st.plotly_chart(fig_gols,width='stretch')
         col_g1,col_g2,col_g3=st.columns(3)
         col_g1.metric("Over 1.5",f"{over15_adj:.1%}"); col_g2.metric("Over 2.5",f"{over25_adj:.1%}"); col_g3.metric("Over 3.5",f"{over35_adj:.1%}")
         col_g4,col_g5,col_g6=st.columns(3)
@@ -417,7 +435,7 @@ def renderizar_resultados(dados, odds):
                 linhas.append((mercado,f"{prob:.1%}",f"{odd_mod:.2f}",f"{odd_real:.2f}",f"{ev:+.1f}%",indicacao))
             else: linhas.append((mercado,f"{prob:.1%}",f"{odd_mod:.2f}","-","-","⚪"))
         df_edge=pd.DataFrame(linhas,columns=["Mercado","Prob. Modelo","Odd Justa","Odd Real","EV%","Edge"])
-        st.dataframe(df_edge,use_container_width=True,height=400)
+        st.dataframe(df_edge,width='stretch',height=400)
         st.markdown("""<small>💚 VALOR = EV% > 5% | 🟢 Bom = EV% positivo | 🔴 Sem = sem valor identificado</small>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
