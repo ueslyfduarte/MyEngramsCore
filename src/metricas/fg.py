@@ -1,15 +1,14 @@
 """
-Métrica FG - Força Geral (versão realista)
+Métrica FG - Força Geral (versão expandida — FBref + WhoScored)
 
-Avalia a força intrínseca de um time com base em estatísticas básicas da
-temporada, disponíveis na maioria das plataformas de estatísticas.
+Avalia a força intrínseca de um time com base em estatísticas da temporada.
 
-Estrutura:
-- Ataque: gols, finalizações no alvo, conversão, escanteios a favor.
+Estrutura (3 sub‑métricas mantidas):
+- Ataque: gols, finalizações no alvo, conversão, escanteios, chutes totais (🆕)
 - Defesa: gols sofridos, finalizações sofridas, total de chutes sofridos,
-          escanteios contra, desarmes (ou duelos aéreos).
+          escanteios contra, desarmes, interceptações (🆕)
 - Meio: posse, precisão de passes, passes por jogo, faltas cometidas,
-        cartões amarelos.
+        cartões amarelos, passes curtos (🆕), bolas longas (🆕 invertido)
 
 Indicadores com "menor é melhor" são invertidos durante a normalização.
 Se algum indicador não estiver disponível, é simplesmente ignorado.
@@ -28,7 +27,11 @@ from src.utils import (
 # ----------------------------------------------------------
 # Indicadores a inverter (menor é melhor)
 # ----------------------------------------------------------
-INDICADORES_INVERTIDOS = {'GS', 'FAS', 'TC', 'ECc', 'FC', 'CA'}
+INDICADORES_INVERTIDOS = {
+    'GS', 'FAS', 'TC', 'ECc',   # defesa
+    'FC', 'CA',                  # disciplina
+    'LongBall',                  # bolas longas = menos dominante 🆕
+}
 
 # ----------------------------------------------------------
 # Mapas de indicadores por sub‑métrica
@@ -38,6 +41,7 @@ INDICADORES_ATAQUE = {
     'Finalizações alvo/jogo': 'FA',
     'Conversão (%)':         'Conv',
     'Escanteios a favor/jogo': 'ECa',
+    'Chutes totais/jogo':    'Shots',  # 🆕 WhoScored
 }
 
 INDICADORES_DEFESA = {
@@ -46,6 +50,7 @@ INDICADORES_DEFESA = {
     'Total chutes sofridos/jogo':       'TC',
     'Escanteios contra/jogo':           'ECc',
     'Desarmes/jogo':                    'Des',
+    'Interceptações/jogo':              'Int',  # 🆕 FBref/WhoScored
 }
 
 INDICADORES_MEIO = {
@@ -54,6 +59,8 @@ INDICADORES_MEIO = {
     'Passes/jogo':            'PP',
     'Faltas cometidas/jogo':  'FC',
     'Cartões amarelos/jogo':  'CA',
+    'Passes curtos/jogo':     'ShortPass',  # 🆕 WhoScored
+    'Bolas longas/jogo':      'LongBall',   # 🆕 WhoScored (invertido)
 }
 
 
@@ -80,11 +87,7 @@ def _calcular_submetrica(dados_time: Dict[str, float],
                          n_jogos: int,
                          mapa_indicadores: Dict[str, str],
                          alpha: float = ALPHA_PADRAO) -> Optional[float]:
-    """
-    Calcula a nota de uma sub‑métrica (Ataque, Defesa ou Meio)
-    agregando seus indicadores disponíveis.
-    Retorna None se nenhum indicador estiver disponível.
-    """
+    """Calcula a nota de uma sub‑métrica agregando seus indicadores disponíveis."""
     valores = []
     for chave, codigo in mapa_indicadores.items():
         valor_time = dados_time.get(codigo)
@@ -110,8 +113,7 @@ def calcular_fg(dados_time: Dict[str, float],
 
     Parâmetros:
         dados_time: dicionário com as médias por jogo do time.
-                    Ex: {'GM': 1.8, 'FA': 5.2, 'Posse': 53.0, ...}
-        medias_liga: dicionário com as médias por jogo da liga (mesmas chaves).
+        medias_liga: dicionário com as médias por jogo da liga.
         n_jogos: número de partidas já disputadas pelo time.
         incluir_*: flags para incluir cada sub‑métrica.
         alpha: peso do prior bayesiano.
