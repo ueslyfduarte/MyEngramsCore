@@ -5,7 +5,6 @@ Permite colar múltiplas tabelas para extrair o máximo de indicadores.
 """
 
 import streamlit as st
-import pandas as pd
 import re
 
 
@@ -17,15 +16,35 @@ def detectar_formato(texto):
     if not texto or len(texto) < 50:
         return None
     
-    # FBref: colunas como Gls, Ast, SoT, Poss, Tkl
     if any(padrao in texto for padrao in ['Gls', 'Ast', 'SoT', 'Poss', 'Tkl', 'CrdY']):
         return 'fbref'
     
-    # WhoScored: colunas como Rating, Chutes pj, Disciplina, Posse%
     if any(padrao in texto for padrao in ['Rating', 'Chutes pj', 'Disciplina', 'Posse%']):
         return 'whoscored'
     
     return None
+
+
+def extrair_valor(partes, cabecalho, padroes):
+    """Extrai valor numérico de uma linha baseado em padrões de coluna."""
+    for padrao in padroes:
+        for i, col in enumerate(cabecalho):
+            if padrao.lower() in col.lower() and i < len(partes):
+                try:
+                    return float(partes[i])
+                except (ValueError, IndexError):
+                    continue
+    return 0.0
+
+
+def media_liga(padroes, cabecalho, dados):
+    """Calcula a média da liga para um conjunto de padrões."""
+    valores = []
+    for nome, stats in dados.items():
+        val = stats.get(padroes[0], 0)
+        if val > 0:
+            valores.append(val)
+    return sum(valores) / len(valores) if valores else 0.0
 
 
 def extrair_fbref(texto):
@@ -39,40 +58,32 @@ def extrair_fbref(texto):
         if len(partes) >= 3:
             nome_time = partes[0].strip()
             if nome_time and nome_time not in ['Squad', '']:
-                dados_times[nome_time] = partes
+                dados_times[nome_time] = {
+                    'GM': extrair_valor(partes, cabecalho, ['Gls', 'Goals']),
+                    'FA': extrair_valor(partes, cabecalho, ['SoT']),
+                    'ECa': extrair_valor(partes, cabecalho, ['CK']),
+                    'CK': extrair_valor(partes, cabecalho, ['CK']),
+                    'Poss': extrair_valor(partes, cabecalho, ['Poss']),
+                    'GS': extrair_valor(partes, cabecalho, ['GA', 'Goals Against']),
+                    'FAS': extrair_valor(partes, cabecalho, ['SoTA']),
+                    'Tkl': extrair_valor(partes, cabecalho, ['Tkl']),
+                    'Fls': extrair_valor(partes, cabecalho, ['Fls']),
+                    'CrdY': extrair_valor(partes, cabecalho, ['CrdY']),
+                    'Int': extrair_valor(partes, cabecalho, ['Int']),
+                    'Sh': extrair_valor(partes, cabecalho, ['Sh']),
+                }
     
     if not dados_times:
-        return None, None, None
+        return None, None
     
-    # Função para extrair valor numérico
-    def extrair_valor(partes, cabecalho, padroes):
-        for padrao in padroes:
-            for i, col in enumerate(cabecalho):
-                if padrao.lower() in col.lower() and i < len(partes):
-                    try:
-                        return float(partes[i])
-                    except:
-                        continue
-        return 0.0
-    
-    # Função para calcular média da liga
-    def media_liga(padroes, cabecalho, dados):
-        valores = []
-        for nome, partes in dados.items():
-            val = extrair_valor(partes, cabecalho, padroes)
-            if val > 0:
-                valores.append(val)
-        return sum(valores) / len(valores) if valores else 0.0
-    
-    # Calcular médias da liga
     medias_liga = {
-        'GM': media_liga(['Gls', 'Goals'], cabecalho, dados_times),
-        'FA': media_liga(['SoT'], cabecalho, dados_times),
-        'ECa': media_liga(['CK'], cabecalho, dados_times),
-        'Posse': media_liga(['Poss'], cabecalho, dados_times),
-        'GS': media_liga(['GA', 'Goals Against'], cabecalho, dados_times),
-        'FAS': media_liga(['SoTA'], cabecalho, dados_times),
-        'ECc': media_liga(['CK'], cabecalho, dados_times),
+        'GM': media_liga(['GM'], cabecalho, dados_times),
+        'FA': media_liga(['FA'], cabecalho, dados_times),
+        'ECa': media_liga(['ECa'], cabecalho, dados_times),
+        'Poss': media_liga(['Poss'], cabecalho, dados_times),
+        'GS': media_liga(['GS'], cabecalho, dados_times),
+        'FAS': media_liga(['FAS'], cabecalho, dados_times),
+        'ECc': media_liga(['ECa'], cabecalho, dados_times),
         'Des': media_liga(['Tkl'], cabecalho, dados_times),
         'FC': media_liga(['Fls'], cabecalho, dados_times),
         'CA': media_liga(['CrdY'], cabecalho, dados_times),
@@ -80,47 +91,35 @@ def extrair_fbref(texto):
         'TC': media_liga(['Sh'], cabecalho, dados_times),
     }
     
-    return dados_times, cabecalho, medias_liga
+    return dados_times, medias_liga
 
 
 def extrair_whoscored(texto):
-    """
-    Extrai dados de uma tabela do WhoScored.
-    Aceita múltiplos formatos de tabela.
-    """
-    linhas = texto.strip().split('\n')
-    
-    # Detectar qual tipo de tabela do WhoScored
-    if 'Rating' in linhas[0] and 'Chutes pj' in linhas[0]:
-        return extrair_whoscored_geral(linhas)
-    elif 'Cruzamentos pj' in linhas[0] or 'Bolas Enfiadas pj' in linhas[0]:
-        return extrair_whoscored_posicional(linhas)
+    """Extrai dados de uma tabela do WhoScored (detecta o tipo automaticamente)."""
+    if 'Rating' in texto and 'Chutes pj' in texto:
+        return extrair_whoscored_geral(texto)
+    elif 'Cruzamentos pj' in texto or 'Bolas Enfiadas pj' in texto:
+        return extrair_whoscored_posicional(texto)
     elif 'Contra-ataque' in texto or 'Bola Parada' in texto:
-        return extrair_whoscored_situacional(linhas)
+        return extrair_whoscored_situacional(texto)
     elif 'Terço' in texto:
-        return extrair_whoscored_territorial(linhas)
-    
+        return extrair_whoscored_territorial(texto)
     return None, None
 
 
-def extrair_whoscored_geral(linhas):
-    """Extrai dados da tabela geral do WhoScored (Gols, Chutes, Posse, Rating)."""
+def extrair_whoscored_geral(texto):
+    """Extrai dados da tabela geral do WhoScored."""
+    linhas = texto.strip().split('\n')
     dados_times = {}
-    medias_liga = {
-        'GM': 0, 'Shots': 0, 'Poss': 0, 'Cmp%': 0, 'FC': 0, 'Rating': 0
-    }
+    medias = {'GM': 0, 'Shots': 0, 'Poss': 0, 'Cmp%': 0, 'FC': 0, 'Rating': 0}
     count = 0
     
     for linha in linhas[1:]:
-        # Formato: "1. Palmeiras	38	13.7	412	50.9	85.1	12.2	6.74"
         partes = linha.split('\t')
         if len(partes) < 5:
             continue
         
-        # Extrair nome do time (remover número e ponto)
-        nome_time = partes[0].strip()
-        nome_time = re.sub(r'^\d+\.\s*', '', nome_time)
-        
+        nome_time = re.sub(r'^\d+\.\s*', '', partes[0].strip())
         if not nome_time:
             continue
         
@@ -133,33 +132,30 @@ def extrair_whoscored_geral(linhas):
             rating = float(partes[-1]) if len(partes) > 6 else 0
             
             dados_times[nome_time] = {
-                'GM': gols,
-                'Shots': chutes,
-                'Poss': posse,
-                'Cmp%': acerto_passe,
-                'FC': disciplina,
-                'Rating': rating,
+                'GM': gols, 'Shots': chutes, 'Poss': posse,
+                'Cmp%': acerto_passe, 'FC': disciplina, 'Rating': rating,
             }
             
-            medias_liga['GM'] += gols
-            medias_liga['Shots'] += chutes
-            medias_liga['Poss'] += posse
-            medias_liga['Cmp%'] += acerto_passe
-            medias_liga['FC'] += disciplina
-            medias_liga['Rating'] += rating
+            medias['GM'] += gols
+            medias['Shots'] += chutes
+            medias['Poss'] += posse
+            medias['Cmp%'] += acerto_passe
+            medias['FC'] += disciplina
+            medias['Rating'] += rating
             count += 1
         except (ValueError, IndexError):
             continue
     
     if count > 0:
-        for key in medias_liga:
-            medias_liga[key] /= count
+        for key in medias:
+            medias[key] /= count
     
-    return dados_times, medias_liga
+    return dados_times, medias
 
 
-def extrair_whoscored_posicional(linhas):
-    """Extrai dados posicionais (Cruzamentos, Bolas Enfiadas, Passes)."""
+def extrair_whoscored_posicional(texto):
+    """Extrai dados posicionais do WhoScored."""
+    linhas = texto.strip().split('\n')
     dados_times = {}
     
     for linha in linhas[1:]:
@@ -172,26 +168,21 @@ def extrair_whoscored_posicional(linhas):
             continue
         
         try:
-            crs = float(partes[1]) if len(partes) > 1 else 0
-            thrball = float(partes[2]) if len(partes) > 2 else 0
-            longball = float(partes[3]) if len(partes) > 3 else 0
-            shortpass = float(partes[4]) if len(partes) > 4 else 0
-            
             if nome_time not in dados_times:
                 dados_times[nome_time] = {}
-            
-            dados_times[nome_time]['Crs'] = crs
-            dados_times[nome_time]['ThrBall'] = thrball
-            dados_times[nome_time]['LongBall'] = longball
-            dados_times[nome_time]['ShortPass'] = shortpass
+            dados_times[nome_time]['Crs'] = float(partes[1]) if len(partes) > 1 else 0
+            dados_times[nome_time]['ThrBall'] = float(partes[2]) if len(partes) > 2 else 0
+            dados_times[nome_time]['LongBall'] = float(partes[3]) if len(partes) > 3 else 0
+            dados_times[nome_time]['ShortPass'] = float(partes[4]) if len(partes) > 4 else 0
         except (ValueError, IndexError):
             continue
     
     return dados_times, None
 
 
-def extrair_whoscored_situacional(linhas):
-    """Extrai dados situacionais (gols de contra-ataque, bola parada, pênalti)."""
+def extrair_whoscored_situacional(texto):
+    """Extrai dados situacionais do WhoScored."""
+    linhas = texto.strip().split('\n')
     dados_times = {}
     
     for linha in linhas[1:]:
@@ -204,27 +195,21 @@ def extrair_whoscored_situacional(linhas):
             continue
         
         try:
-            # Índices: 1=Bola Rolando, 2=Contra-ataque, 3=Bola Parada, 4=Pênalti
-            gls_br = float(partes[1]) if len(partes) > 1 else 0
-            gls_ca = float(partes[2]) if len(partes) > 2 else 0
-            gls_sp = float(partes[3]) if len(partes) > 3 else 0
-            gls_pk = float(partes[4]) if len(partes) > 4 else 0
-            
             if nome_time not in dados_times:
                 dados_times[nome_time] = {}
-            
-            dados_times[nome_time]['GlsBR'] = gls_br
-            dados_times[nome_time]['GlsCA'] = gls_ca
-            dados_times[nome_time]['GlsSP'] = gls_sp
-            dados_times[nome_time]['GlsPK'] = gls_pk
+            dados_times[nome_time]['GlsBR'] = float(partes[1]) if len(partes) > 1 else 0
+            dados_times[nome_time]['GlsCA'] = float(partes[2]) if len(partes) > 2 else 0
+            dados_times[nome_time]['GlsSP'] = float(partes[3]) if len(partes) > 3 else 0
+            dados_times[nome_time]['GlsPK'] = float(partes[4]) if len(partes) > 4 else 0
         except (ValueError, IndexError):
             continue
     
     return dados_times, None
 
 
-def extrair_whoscored_territorial(linhas):
-    """Extrai dados territoriais (% em cada terço)."""
+def extrair_whoscored_territorial(texto):
+    """Extrai dados territoriais do WhoScored."""
+    linhas = texto.strip().split('\n')
     dados_times = {}
     
     for linha in linhas[1:]:
@@ -237,16 +222,11 @@ def extrair_whoscored_territorial(linhas):
             continue
         
         try:
-            own_third = float(partes[1].replace('%', '')) if len(partes) > 1 else 0
-            mid_third = float(partes[2].replace('%', '')) if len(partes) > 2 else 0
-            att_third = float(partes[3].replace('%', '')) if len(partes) > 3 else 0
-            
             if nome_time not in dados_times:
                 dados_times[nome_time] = {}
-            
-            dados_times[nome_time]['OwnThird'] = own_third
-            dados_times[nome_time]['MidThird'] = mid_third
-            dados_times[nome_time]['AttThird'] = att_third
+            dados_times[nome_time]['OwnThird'] = float(partes[1].replace('%', '')) if len(partes) > 1 else 0
+            dados_times[nome_time]['MidThird'] = float(partes[2].replace('%', '')) if len(partes) > 2 else 0
+            dados_times[nome_time]['AttThird'] = float(partes[3].replace('%', '')) if len(partes) > 3 else 0
         except (ValueError, IndexError):
             continue
     
@@ -262,21 +242,17 @@ def mesclar_dados(dados_existentes, novos_dados):
         if time not in dados_existentes:
             dados_existentes[time] = {}
         for key, value in stats.items():
-            if key not in dados_existentes[time]:
+            if key not in dados_existentes[time] or dados_existentes[time][key] == 0:
                 dados_existentes[time][key] = value
     
     return dados_existentes
 
 
 def renderizar_modo_hibrido():
-    """
-    Renderiza o modo de entrada híbrido (FBref + WhoScored).
-    Retorna um dicionário com os dados extraídos ou None.
-    """
+    """Renderiza o modo de entrada híbrido (FBref + WhoScored)."""
     st.markdown("### 📋 Cole as tabelas (FBref ou WhoScored)")
     st.markdown("*Cole uma ou mais tabelas. O sistema detecta automaticamente a fonte.*")
 
-    # Área de colagem principal
     texto_colado = st.text_area(
         "Cole aqui (pode colar várias vezes)",
         height=200,
@@ -284,7 +260,6 @@ def renderizar_modo_hibrido():
         help="Cole a tabela inteira (Ctrl+A no site, Ctrl+V aqui)."
     )
 
-    # Inicializar sessão para acumular dados
     if "dados_acumulados" not in st.session_state:
         st.session_state.dados_acumulados = {}
     if "medias_liga" not in st.session_state:
@@ -297,9 +272,9 @@ def renderizar_modo_hibrido():
         
         if formato == 'fbref':
             st.success("✅ Detectado: FBref")
-            dados_times, cabecalho, medias_liga = extrair_fbref(texto_colado)
+            dados_times, medias_liga = extrair_fbref(texto_colado)
             if dados_times:
-                st.session_state.medias_liga = medias_liga
+                st.session_state.medias_liga.update(medias_liga or {})
                 st.session_state.dados_acumulados = mesclar_dados(
                     st.session_state.dados_acumulados, dados_times
                 )
@@ -317,18 +292,15 @@ def renderizar_modo_hibrido():
                 )
                 st.session_state.times_disponiveis = list(st.session_state.dados_acumulados.keys())
                 st.success(f"✅ {len(dados_times)} times extraídos do WhoScored")
-        
         else:
             st.warning("⚠️ Formato não reconhecido. Tente colar a tabela inteira do site.")
 
-    # Limpar dados
     if st.button("🗑️ Limpar dados acumulados"):
         st.session_state.dados_acumulados = {}
         st.session_state.medias_liga = {}
         st.session_state.times_disponiveis = []
         st.rerun()
 
-    # Selecionar times
     if st.session_state.times_disponiveis:
         st.markdown("---")
         st.markdown(f"### 📊 {len(st.session_state.times_disponiveis)} times disponíveis")
@@ -339,14 +311,13 @@ def renderizar_modo_hibrido():
         with col_t2:
             nome_fora = st.selectbox("✈️ Time Visitante", st.session_state.times_disponiveis, key="hib_fora")
 
-        # Exibir médias da liga
         if st.session_state.medias_liga:
             st.markdown("### 📊 Médias da Liga (calculadas)")
             col_m1, col_m2, col_m3 = st.columns(3)
             ml = st.session_state.medias_liga
             with col_m1:
                 if ml.get('GM'): st.metric("Gols/jogo", f"{ml['GM']:.2f}")
-                if ml.get('Posse'): st.metric("Posse", f"{ml['Posse']:.1f}%")
+                if ml.get('Poss'): st.metric("Posse", f"{ml['Poss']:.1f}%")
             with col_m2:
                 if ml.get('FA'): st.metric("Finalizações alvo/j", f"{ml['FA']:.2f}")
                 if ml.get('Rating'): st.metric("Rating médio", f"{ml['Rating']:.2f}")
@@ -354,7 +325,6 @@ def renderizar_modo_hibrido():
                 if ml.get('FC'): st.metric("Faltas/j", f"{ml['FC']:.1f}")
                 if ml.get('CA'): st.metric("Cartões/j", f"{ml['CA']:.1f}")
 
-        # Dados complementares
         st.markdown("### 📝 Dados Complementares")
         col_extra1, col_extra2 = st.columns(2)
         with col_extra1:
@@ -372,7 +342,6 @@ def renderizar_modo_hibrido():
             pts_cpp_fora = st.number_input("Pontos CPP Fora", 0, 30, 4, key="hib_cpp_fora")
             jogos_cpp_fora = st.number_input("Jogos CPP Fora", 0, 10, 2, key="hib_jcpp_fora")
 
-        # Montar dicionário de retorno
         dados_casa = st.session_state.dados_acumulados.get(nome_casa, {})
         dados_fora = st.session_state.dados_acumulados.get(nome_fora, {})
         ml = st.session_state.medias_liga
@@ -384,21 +353,21 @@ def renderizar_modo_hibrido():
             "gm_casa": dados_casa.get('GM', 0),
             "fa_casa": dados_casa.get('FA', dados_casa.get('Shots', 0)),
             "eca_casa": dados_casa.get('ECa', dados_casa.get('CK', 0)),
-            "posse_casa": dados_casa.get('Posse', dados_casa.get('Poss', 50)),
+            "posse_casa": dados_casa.get('Poss', 50),
             "gs_casa": dados_casa.get('GS', 0),
             "fas_casa": dados_casa.get('FAS', 0),
-            "des_casa": dados_casa.get('Des', dados_casa.get('Tkl', 0)),
+            "des_casa": dados_casa.get('Tkl', 0),
             "fc_casa": dados_casa.get('FC', dados_casa.get('Fls', 0)),
-            "ca_casa": dados_casa.get('CA', dados_casa.get('CrdY', 0)),
+            "ca_casa": dados_casa.get('CrdY', 0),
             "gm_fora": dados_fora.get('GM', 0),
             "fa_fora": dados_fora.get('FA', dados_fora.get('Shots', 0)),
             "eca_fora": dados_fora.get('ECa', dados_fora.get('CK', 0)),
-            "posse_fora": dados_fora.get('Posse', dados_fora.get('Poss', 50)),
+            "posse_fora": dados_fora.get('Poss', 50),
             "gs_fora": dados_fora.get('GS', 0),
             "fas_fora": dados_fora.get('FAS', 0),
-            "des_fora": dados_fora.get('Des', dados_fora.get('Tkl', 0)),
+            "des_fora": dados_fora.get('Tkl', 0),
             "fc_fora": dados_fora.get('FC', dados_fora.get('Fls', 0)),
-            "ca_fora": dados_fora.get('CA', dados_fora.get('CrdY', 0)),
+            "ca_fora": dados_fora.get('CrdY', 0),
             "res_casa": res_casa, "cons_casa": cons_casa, "moral_casa": moral_casa,
             "pos_casa": pos_casa, "pts_cpp_casa": pts_cpp_casa, "jogos_cpp_casa": jogos_cpp_casa,
             "res_fora": res_fora, "cons_fora": cons_fora, "moral_fora": moral_fora,
@@ -407,7 +376,6 @@ def renderizar_modo_hibrido():
             "medias_liga": ml,
             "dados_A": dados_casa,
             "dados_B": dados_fora,
-            # Dados extras WhoScored para estilo e perfil
             "crs_casa": dados_casa.get('Crs', 0),
             "thrball_casa": dados_casa.get('ThrBall', 0),
             "shortpass_casa": dados_casa.get('ShortPass', 0),
