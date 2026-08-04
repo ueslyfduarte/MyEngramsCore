@@ -1,13 +1,13 @@
 """
-Métrica FG v2 — Força Geral (versão automática com FBref)
+Métrica FG v2 — Força Geral (versão automática — FBref + WhoScored)
 
-Avalia a força intrínseca de um time com base em estatísticas do FBref.
+Avalia a força intrínseca de um time com base em estatísticas expandidas.
 
 Estrutura (4 sub‑métricas):
-- Ataque: gols, xG, finalizações no alvo, chutes totais, escanteios.
-- Defesa: gols sofridos, xG contra, finalizações sofridas, interceptações, desarmes.
-- Meio: posse, passes progressivos, precisão de passes, faltas, cartões.
-- Intensidade: pressões, pressões bem‑sucedidas, bolas recuperadas, desarmes+interceptações.
+- Ataque: gols, xG, finalizações no alvo, chutes totais, escanteios, conversão
+- Defesa: gols sofridos, xG contra, finalizações sofridas, interceptações, desarmes
+- Meio: posse, passes progressivos, precisão de passes, passes curtos, bolas longas, faltas, cartões
+- Intensidade: pressões, pressões bem‑sucedidas, bolas recuperadas, desarmes+interceptações
 
 Indicadores com "menor é melhor" são invertidos durante a normalização.
 Se algum indicador não estiver disponível, é simplesmente ignorado.
@@ -29,6 +29,7 @@ from src.utils import (
 INDICADORES_INVERTIDOS = {
     'GS', 'xGA', 'FAS', 'TC', 'ECc',   # defesa
     'FC', 'CA', 'Err',                   # disciplina / erros
+    'LongBall',                          # bolas longas = menos dominante 🆕
 }
 
 # ----------------------------------------------------------
@@ -48,8 +49,9 @@ INDICADORES_ATAQUE = {
     'Gols/jogo':                'GM',
     'xG/jogo':                  'xG',
     'Finalizações alvo/jogo':   'FA',
-    'Chutes totais/jogo':       'Sh',
+    'Chutes totais/jogo':       'Shots',
     'Escanteios a favor/jogo':  'ECa',
+    'Conversão (%)':            'Conv',
 }
 
 INDICADORES_DEFESA = {
@@ -64,6 +66,8 @@ INDICADORES_MEIO = {
     'Posse de bola (%)':          'Posse',
     'Passes progressivos/jogo':   'PrgP',
     'Precisão passes (%)':        'Cmp%',
+    'Passes curtos/jogo':         'ShortPass',   # 🆕
+    'Bolas longas/jogo':          'LongBall',    # 🆕 (invertido)
     'Faltas cometidas/jogo':      'FC',
     'Cartões amarelos/jogo':      'CA',
 }
@@ -127,13 +131,11 @@ def calcular_fg_v2(dados_time: Dict[str, float],
 
     Parâmetros:
         dados_time: dicionário com as médias por jogo do time.
-                    Ex: {'GM': 1.8, 'xG': 1.6, 'PrgP': 45.2, ...}
-        medias_liga: dicionário com as médias por jogo da liga (mesmas chaves).
+        medias_liga: dicionário com as médias por jogo da liga.
         n_jogos: número de partidas já disputadas pelo time.
         incluir_*: flags para incluir cada sub‑métrica.
         alpha: peso do prior bayesiano.
         pesos: dicionário opcional com pesos das sub‑métricas.
-               Padrão: {'ataque': 0.25, 'defesa': 0.25, 'meio': 0.25, 'intensidade': 0.25}
 
     Retorna:
         float entre 0 e 100 representando a força geral.
@@ -175,14 +177,11 @@ def calcular_fg_v2(dados_time: Dict[str, float],
     if not sub_notas:
         return PRIOR_PADRAO
 
-    # Média ponderada pelas sub‑métricas disponíveis
     soma_pesos = sum(pesos_ativos)
     if soma_pesos == 0:
         return PRIOR_PADRAO
 
-    # Normalizar pesos
     pesos_norm = [p / soma_pesos for p in pesos_ativos]
-
     return sum(n * p for n, p in zip(sub_notas, pesos_norm))
 
 
@@ -205,6 +204,6 @@ def calcular_fg(dados_time: Dict[str, float],
         incluir_ataque=incluir_ataque,
         incluir_defesa=incluir_defesa,
         incluir_meio=incluir_meio,
-        incluir_intensidade=False,  # desativado para compatibilidade
+        incluir_intensidade=False,
         alpha=alpha
     )
