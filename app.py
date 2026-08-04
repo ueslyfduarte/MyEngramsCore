@@ -22,8 +22,7 @@ def carregar_modulo(nome_arquivo, nome_modulo):
 
 css = carregar_modulo("css.py", "css")
 sidebar = carregar_modulo("sidebar.py", "sidebar")
-entrada_fbref = carregar_modulo("entrada_fbref.py", "entrada_fbref")
-entrada_manual = carregar_modulo("entrada_manual.py", "entrada_manual")
+entrada_hibrida = carregar_modulo("entrada_hibrida.py", "entrada_hibrida")
 odds = carregar_modulo("odds.py", "odds")
 resultados = carregar_modulo("resultados.py", "resultados")
 
@@ -34,17 +33,23 @@ sidebar.renderizar_sidebar()
 if "jogo_selecionado" in st.session_state:
     jogo = st.session_state["jogo_selecionado"]
     st.markdown(f"<h2>{jogo['casa']} vs {jogo['fora']}</h2>", unsafe_allow_html=True)
+    st.info("📊 Análise do dia carregada.")
     if st.button("🔄 Nova análise"):
         del st.session_state["jogo_selecionado"]
         st.rerun()
 else:
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    modo = st.radio("Modo:", ["📋 Colar do FBref", "✏️ Manual"], horizontal=True)
-    dados = entrada_fbref.renderizar_modo_fbref() if modo == "📋 Colar do FBref" else entrada_manual.renderizar_modo_manual()
+    st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Dados do Confronto</span></div>""", unsafe_allow_html=True)
+
+    dados = entrada_hibrida.renderizar_modo_hibrido()
     odds_data = odds.renderizar_odds()
-    if dados:
+
+    if dados is not None:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True):
+        col_btn = st.columns([1, 2, 1])
+        with col_btn[1]:
+            gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
+        if gerar:
             resultados.renderizar_resultados(dados, odds_data)
 
 css.renderizar_rodape()
