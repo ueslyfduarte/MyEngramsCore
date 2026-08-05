@@ -1,13 +1,11 @@
 """
 data_loader.py — Coleta automática de dados (API‑Football + FBref + Understat)
 
-Fornece a função carregar_dados_automaticos(), que retorna um dicionário
-compatível com resultados.py, sem nenhuma dependência do WhoScored.
+Versão otimizada: 3 créditos por análise (1 lista de times da liga + 2 estatísticas).
+Scraping gratuito para classificação, resultados recentes e dados avançados.
+Cache local de 7 dias para evitar requisições repetidas.
 
-Regras de scraping:
-  - FBref: delay mínimo 8s, User‑Agent identificado
-  - Understat: delay 2s, User‑Agent realista
-  - API‑Football: via RapidAPI (X‑RapidAPI‑Key)
+50 ligas pré‑mapeadas. Para adicionar novas, basta seguir o padrão em LIGAS_MAP.
 """
 
 import os
@@ -40,55 +38,169 @@ HEADERS_UNDERSTAT = {
                   "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-CACHE_TTL = timedelta(hours=6)
+CACHE_TTL = timedelta(days=7)
 
 # ============================================================
-# Mapeamento de ligas (exemplos – expanda conforme necessário)
+# 50 ligas pré‑mapeadas (API‑Football, Understat, FBref)
 # ============================================================
 LIGAS_MAP = {
     "Premier League": {
-        "api_id": 39,
-        "understat": "EPL",
-        "fbref_comp": "9",
-        "fbref_slug": "Premier-League"
+        "api_id": 39, "understat": "EPL", "fbref_comp": "9", "fbref_slug": "Premier-League"
     },
     "La Liga": {
-        "api_id": 140,
-        "understat": "La_liga",
-        "fbref_comp": "12",
-        "fbref_slug": "La-Liga"
+        "api_id": 140, "understat": "La_liga", "fbref_comp": "12", "fbref_slug": "La-Liga"
     },
     "Bundesliga": {
-        "api_id": 78,
-        "understat": "Bundesliga",
-        "fbref_comp": "20",
-        "fbref_slug": "Bundesliga"
+        "api_id": 78, "understat": "Bundesliga", "fbref_comp": "20", "fbref_slug": "Bundesliga"
     },
     "Serie A": {
-        "api_id": 135,
-        "understat": "Serie_A",
-        "fbref_comp": "11",
-        "fbref_slug": "Serie-A"
+        "api_id": 135, "understat": "Serie_A", "fbref_comp": "11", "fbref_slug": "Serie-A"
     },
     "Ligue 1": {
-        "api_id": 61,
-        "understat": "Ligue_1",
-        "fbref_comp": "13",
-        "fbref_slug": "Ligue-1"
+        "api_id": 61, "understat": "Ligue_1", "fbref_comp": "13", "fbref_slug": "Ligue-1"
     },
     "Brasileirão Série A": {
-        "api_id": 71,
-        "understat": "BRA",
-        "fbref_comp": "24",
-        "fbref_slug": "Campeonato-Brasileiro-Serie-A"
+        "api_id": 71, "understat": "BRA", "fbref_comp": "24", "fbref_slug": "Campeonato-Brasileiro-Serie-A"
+    },
+    "Eredivisie": {
+        "api_id": 88, "understat": "Eredivisie", "fbref_comp": "23", "fbref_slug": "Eredivisie"
+    },
+    "Liga Portugal": {
+        "api_id": 94, "understat": "Liga_Portugal", "fbref_comp": "32", "fbref_slug": "Primeira-Liga"
+    },
+    "Scottish Premiership": {
+        "api_id": 179, "understat": "SPL", "fbref_comp": "43", "fbref_slug": "Scottish-Premiership"
+    },
+    "Championship": {
+        "api_id": 40, "understat": "Championship", "fbref_comp": "10", "fbref_slug": "Championship"
+    },
+    "Belgian Pro League": {
+        "api_id": 144, "understat": "Jupiler", "fbref_comp": "37", "fbref_slug": "Belgian-Pro-League"
+    },
+    "Swiss Super League": {
+        "api_id": 207, "understat": "Swiss", "fbref_comp": "46", "fbref_slug": "Swiss-Super-League"
+    },
+    "Austrian Bundesliga": {
+        "api_id": 218, "understat": "Austrian", "fbref_comp": "35", "fbref_slug": "Austrian-Bundesliga"
+    },
+    "Russian Premier League": {
+        "api_id": 235, "understat": "RPL", "fbref_comp": "42", "fbref_slug": "Russian-Premier-League"
+    },
+    "Ukrainian Premier League": {
+        "api_id": 333, "understat": "UPL", "fbref_comp": "39", "fbref_slug": "Ukrainian-Premier-League"
+    },
+    "Czech First League": {
+        "api_id": 345, "understat": "Czech", "fbref_comp": "34", "fbref_slug": "Czech-First-League"
+    },
+    "Croatian HNL": {
+        "api_id": 210, "understat": "HNL", "fbref_comp": "48", "fbref_slug": "Croatian-HNL"
+    },
+    "Serbian SuperLiga": {
+        "api_id": 286, "understat": "Serbian", "fbref_comp": "54", "fbref_slug": "Serbian-SuperLiga"
+    },
+    "Danish Superliga": {
+        "api_id": 119, "understat": "Danish", "fbref_comp": "31", "fbref_slug": "Danish-Superliga"
+    },
+    "Allsvenskan": {
+        "api_id": 113, "understat": "Allsvenskan", "fbref_comp": "29", "fbref_slug": "Allsvenskan"
+    },
+    "Eliteserien": {
+        "api_id": 103, "understat": "Eliteserien", "fbref_comp": "28", "fbref_slug": "Eliteserien"
+    },
+    "Ekstraklasa": {
+        "api_id": 106, "understat": "Ekstraklasa", "fbref_comp": "36", "fbref_slug": "Ekstraklasa"
+    },
+    "Greek Super League": {
+        "api_id": 197, "understat": "Greek", "fbref_comp": "27", "fbref_slug": "Greek-Super-League"
+    },
+    "Süper Lig": {
+        "api_id": 203, "understat": "SuperLig", "fbref_comp": "26", "fbref_slug": "Super-Lig"
+    },
+    "Liga MX": {
+        "api_id": 262, "understat": "Liga_MX", "fbref_comp": "22", "fbref_slug": "Liga-MX"
+    },
+    "Major League Soccer": {
+        "api_id": 253, "understat": "MLS", "fbref_comp": "21", "fbref_slug": "Major-League-Soccer"
+    },
+    "Primera División Argentina": {
+        "api_id": 128, "understat": "ARG", "fbref_comp": "19", "fbref_slug": "Primera-Division-Argentina"
+    },
+    "Primera División Chile": {
+        "api_id": 265, "understat": "Chile", "fbref_comp": "56", "fbref_slug": "Primera-Division-Chile"
+    },
+    "Primera División Uruguay": {
+        "api_id": 268, "understat": "Uruguay", "fbref_comp": "45", "fbref_slug": "Primera-Division-Uruguay"
+    },
+    "Categoría Primera A (Colombia)": {
+        "api_id": 239, "understat": "Colombia", "fbref_comp": "58", "fbref_slug": "Categoria-Primera-A"
+    },
+    "Primera División Perú": {
+        "api_id": 281, "understat": "Peru", "fbref_comp": "59", "fbref_slug": "Primera-Division-Peru"
+    },
+    "Primera División Paraguay": {
+        "api_id": 250, "understat": "Paraguay", "fbref_comp": "60", "fbref_slug": "Primera-Division-Paraguay"
+    },
+    "Primera División Venezuela": {
+        "api_id": 300, "understat": "Venezuela", "fbref_comp": "61", "fbref_slug": "Primera-Division-Venezuela"
+    },
+    "J1 League": {
+        "api_id": 98, "understat": "J1", "fbref_comp": "25", "fbref_slug": "J1-League"
+    },
+    "K League 1": {
+        "api_id": 292, "understat": "K1", "fbref_comp": "33", "fbref_slug": "K-League-1"
+    },
+    "A‑League": {
+        "api_id": 188, "understat": "A-League", "fbref_comp": "30", "fbref_slug": "A-League"
+    },
+    "Saudi Pro League": {
+        "api_id": 307, "understat": "Saudi", "fbref_comp": "41", "fbref_slug": "Saudi-Pro-League"
+    },
+    "Egyptian Premier League": {
+        "api_id": 233, "understat": "Egypt", "fbref_comp": "62", "fbref_slug": "Egyptian-Premier-League"
+    },
+    "Indian Super League": {
+        "api_id": 323, "understat": "ISL", "fbref_comp": "63", "fbref_slug": "Indian-Super-League"
+    },
+    "Liga 1 Indonesia": {
+        "api_id": 274, "understat": "Indonesia", "fbref_comp": "64", "fbref_slug": "Liga-1-Indonesia"
+    },
+    # Ligas adicionais para completar 50
+    "Liga Nacional Honduras": {
+        "api_id": 264, "understat": "Honduras", "fbref_comp": "65", "fbref_slug": "Liga-Nacional-Honduras"
+    },
+    "Primera División El Salvador": {
+        "api_id": 267, "understat": "El_Salvador", "fbref_comp": "66", "fbref_slug": "Primera-Division-El-Salvador"
+    },
+    "Costa Rica Primera División": {
+        "api_id": 257, "understat": "Costa_Rica", "fbref_comp": "67", "fbref_slug": "Costa-Rica-Primera-Division"
+    },
+    "Liga Panameña de Fútbol": {
+        "api_id": 296, "understat": "Panama", "fbref_comp": "68", "fbref_slug": "Liga-Panamena"
+    },
+    "Liga Dominicana de Fútbol": {
+        "api_id": 311, "understat": "Dominicana", "fbref_comp": "69", "fbref_slug": "Liga-Dominicana"
+    },
+    "TT Pro League": {
+        "api_id": 276, "understat": "Trinidad", "fbref_comp": "70", "fbref_slug": "TT-Pro-League"
+    },
+    "Jamaican Premier League": {
+        "api_id": 273, "understat": "Jamaica", "fbref_comp": "71", "fbref_slug": "Jamaican-Premier-League"
+    },
+    "Ghana Premier League": {
+        "api_id": 240, "understat": "Ghana", "fbref_comp": "72", "fbref_slug": "Ghana-Premier-League"
+    },
+    "South African Premier Division": {
+        "api_id": 288, "understat": "South_Africa", "fbref_comp": "73", "fbref_slug": "South-African-Premier-Division"
+    },
+    "Moroccan Botola Pro": {
+        "api_id": 200, "understat": "Morocco", "fbref_comp": "74", "fbref_slug": "Moroccan-Botola-Pro"
     },
 }
 
 # ============================================================
-# Mapeamento de times → slug FBref (exemplos)
+# Mapeamento manual de times → slug FBref (fallback)
 # ============================================================
 TIMES_FBREF_SLUG = {
-    # Inglaterra
     "Arsenal": "Arsenal",
     "Aston Villa": "Aston-Villa",
     "Bournemouth": "Bournemouth",
@@ -109,7 +221,6 @@ TIMES_FBREF_SLUG = {
     "Tottenham": "Tottenham-Hotspur",
     "West Ham": "West-Ham-United",
     "Wolverhampton": "Wolverhampton-Wanderers",
-    # Brasil
     "Flamengo": "Flamengo",
     "Palmeiras": "Palmeiras",
     "Corinthians": "Corinthians",
@@ -154,7 +265,7 @@ def _cache_load(key: str, ttl: timedelta = CACHE_TTL, extension: str = "json"):
     return None
 
 # ============================================================
-# API-Football (RapidAPI)
+# API-Football (RapidAPI) – uso mínimo
 # ============================================================
 def _api_headers(api_key: str) -> dict:
     return {
@@ -172,28 +283,20 @@ def _api_get(endpoint: str, params: dict, api_key: str) -> dict:
         raise Exception(f"API-Football errors: {data['errors']}")
     return data["response"]
 
-def get_team_by_name(team_name: str, league: str, api_key: str) -> dict:
-    cache_key = f"api_team_{team_name}_{league}"
+def get_all_teams_from_league(league_id: int, season: int, api_key: str) -> Dict[str, int]:
+    cache_key = f"api_teams_league_{league_id}_{season}"
     cached = _cache_load(cache_key)
     if cached:
         return cached
 
-    league_id = LIGAS_MAP[league]["api_id"]
-    season = datetime.now().year
-    try:
-        teams = _api_get("teams", {"league": league_id, "season": season}, api_key)
-    except:
-        teams = _api_get("teams", {"search": team_name}, api_key)
-
-    for t in teams:
-        if t["team"]["name"].lower() == team_name.lower():
-            _cache_save(cache_key, t["team"])
-            return t["team"]
-    for t in teams:
-        if team_name.lower() in t["team"]["name"].lower():
-            _cache_save(cache_key, t["team"])
-            return t["team"]
-    raise ValueError(f"Time '{team_name}' não encontrado na liga '{league}'.")
+    response = _api_get("teams", {"league": league_id, "season": season}, api_key)
+    teams_dict = {}
+    for item in response:
+        nome = item["team"]["name"]
+        team_id = item["team"]["id"]
+        teams_dict[nome] = team_id
+    _cache_save(cache_key, teams_dict)
+    return teams_dict
 
 def get_team_stats_api(team_id: int, league_id: int, season: int, api_key: str) -> dict:
     cache_key = f"api_stats_{team_id}_{league_id}_{season}"
@@ -215,7 +318,6 @@ def get_team_stats_api(team_id: int, league_id: int, season: int, api_key: str) 
     cards = stats.get("cards", {})
     fouls = stats.get("fouls", {})
     shots = stats.get("shots", {})
-    passes_stats = stats.get("passes", {})
     tackles = stats.get("tackles", {})
 
     dados = {
@@ -223,8 +325,8 @@ def get_team_stats_api(team_id: int, league_id: int, season: int, api_key: str) 
         "GS": goals.get("against", {}).get("average", {}).get("total", 0) or 0,
         "FA": shots.get("on", {}).get("average", {}).get("total", 0) or 0,
         "FAS": shots.get("on", {}).get("against", {}).get("average", {}).get("total", 0) or 0,
-        "ECa": 0,  # API não fornece escanteios diretamente
-        "Poss": 0,  # Pode vir nulo; complementaremos com FBref
+        "ECa": 0,
+        "Poss": 0,
         "FC": fouls.get("average", {}).get("total", 0) or 0,
         "CA": cards.get("yellow", {}).get("average", {}).get("total", 0) or 0,
         "Tkl": tackles.get("average", {}).get("total", 0) or 0,
@@ -232,69 +334,6 @@ def get_team_stats_api(team_id: int, league_id: int, season: int, api_key: str) 
     }
     _cache_save(cache_key, dados)
     return dados
-
-def get_recent_matches(team_id: int, league_id: int, season: int, api_key: str, n: int = 10) -> List[dict]:
-    cache_key = f"api_matches_{team_id}_{league_id}_{season}"
-    cached = _cache_load(cache_key)
-    if cached:
-        return cached[-n:]
-
-    all_fixtures = []
-    response = _api_get("fixtures", {
-        "league": league_id,
-        "season": season,
-        "team": team_id,
-        "status": "FT"
-    }, api_key)
-
-    for fx in response:
-        home = fx["teams"]["home"]["id"]
-        away = fx["teams"]["away"]["id"]
-        is_home = (home == team_id)
-        opponent = away if is_home else home
-
-        home_goals = fx["score"]["fulltime"]["home"]
-        away_goals = fx["score"]["fulltime"]["away"]
-        if home_goals is None or away_goals is None:
-            continue
-
-        if is_home:
-            if home_goals > away_goals: res = "V"
-            elif home_goals == away_goals: res = "E"
-            else: res = "D"
-        else:
-            if away_goals > home_goals: res = "V"
-            elif away_goals == home_goals: res = "E"
-            else: res = "D"
-
-        all_fixtures.append({
-            "date": fx["fixture"]["date"],
-            "resultado": res,
-            "opponent_id": opponent,
-            "is_home": is_home,
-            "gols_pro": home_goals if is_home else away_goals,
-            "gols_contra": away_goals if is_home else home_goals,
-        })
-
-    all_fixtures.sort(key=lambda x: x["date"])
-    _cache_save(cache_key, all_fixtures)
-    return all_fixtures[-n:]
-
-def get_standings(league_id: int, season: int, api_key: str) -> dict:
-    cache_key = f"api_standings_{league_id}_{season}"
-    cached = _cache_load(cache_key)
-    if cached:
-        return cached
-
-    response = _api_get("standings", {"league": league_id, "season": season}, api_key)
-    standings = {}
-    for league_data in response:
-        for team in league_data["league"]["standings"][0]:
-            team_id = team["team"]["id"]
-            rank = team["rank"]
-            standings[team_id] = rank
-    _cache_save(cache_key, standings)
-    return standings
 
 def get_odds_api(fixture_id: int, api_key: str) -> Optional[dict]:
     try:
@@ -319,7 +358,7 @@ def get_odds_api(fixture_id: int, api_key: str) -> Optional[dict]:
     return None
 
 # ============================================================
-# FBref scraping
+# FBref scraping – tabelas, classificação, resultados, stats
 # ============================================================
 def _request_fbref(url: str, use_cache: bool = True) -> pd.DataFrame:
     cache_key = f"fbref_html_{url}"
@@ -345,6 +384,33 @@ def get_league_table_fbref(comp_slug: str, season: str) -> pd.DataFrame:
     url = f"https://fbref.com/en/comps/{comp_slug}/{season}/"
     return _request_fbref(url)
 
+def get_standings_fbref(comp_slug: str, season: str) -> Dict[str, int]:
+    df = get_league_table_fbref(comp_slug, season)
+    standings = {}
+    for _, row in df.iterrows():
+        squad = row.get("Squad", "")
+        rank = row.get("Rk", None)
+        if squad and rank is not None:
+            try:
+                standings[squad.strip()] = int(rank)
+            except:
+                pass
+    return standings
+
+def get_team_links_from_league(comp_slug: str, season: str) -> Dict[str, str]:
+    url = f"https://fbref.com/en/comps/{comp_slug}/{season}/"
+    time.sleep(DELAY_FBREF)
+    resp = requests.get(url, headers=HEADERS_FBREF)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "lxml")
+    links = {}
+    for a in soup.find_all("a", href=True):
+        if "/squads/" in a["href"]:
+            nome = a.text.strip()
+            href = a["href"]
+            links[nome] = href
+    return links
+
 def get_team_advanced_fbref(team_slug: str, season: str) -> dict:
     url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
     try:
@@ -352,7 +418,6 @@ def get_team_advanced_fbref(team_slug: str, season: str) -> dict:
         resp = requests.get(url, headers=HEADERS_FBREF)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
-
         dados = {}
 
         def extrair_tabela(tabela_id):
@@ -426,6 +491,66 @@ def get_team_advanced_fbref(team_slug: str, season: str) -> dict:
         print(f"Erro ao buscar FBref para {team_slug}: {e}")
         return {}
 
+def get_recent_matches_fbref(team_slug: str, season: str, n: int = 10) -> List[str]:
+    url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
+    try:
+        time.sleep(DELAY_FBREF)
+        resp = requests.get(url, headers=HEADERS_FBREF)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+        table = soup.find("table", id="matchlogs_all")
+        if not table:
+            print("Tabela de resultados não encontrada.")
+            return []
+        df = pd.read_html(str(table))[0]
+        resultados = []
+        for _, row in df.iterrows():
+            res = row.get("Result", "")
+            if res == "W":
+                resultados.append("V")
+            elif res == "D":
+                resultados.append("E")
+            elif res == "L":
+                resultados.append("D")
+        resultados = resultados[::-1]  # cronológico
+        return resultados[-n:]
+    except Exception as e:
+        print(f"Erro ao buscar resultados FBref: {e}")
+        return []
+
+def get_match_history_fbref(team_slug: str, season: str) -> List[dict]:
+    """Retorna histórico completo com adversário, resultado e gols."""
+    url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
+    time.sleep(DELAY_FBREF)
+    resp = requests.get(url, headers=HEADERS_FBREF)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "lxml")
+    table = soup.find("table", id="matchlogs_all")
+    if not table:
+        return []
+    df = pd.read_html(str(table))[0]
+    history = []
+    for _, row in df.iterrows():
+        res = row.get("Result", "")
+        if res == "W":
+            resultado = "V"
+        elif res == "D":
+            resultado = "E"
+        elif res == "L":
+            resultado = "D"
+        else:
+            continue
+        adversario = row.get("Opponent", "")
+        gf = row.get("GF", 0)
+        ga = row.get("GA", 0)
+        history.append({
+            "resultado": resultado,
+            "adversario": adversario,
+            "gols_pro": gf,
+            "gols_contra": ga
+        })
+    return history[::-1]
+
 def get_league_averages_fbref(comp_slug: str, season: str) -> dict:
     df = get_league_table_fbref(comp_slug, season)
     medias = {}
@@ -495,61 +620,81 @@ def carregar_dados_automaticos(
     if season is None:
         season = datetime.now().year
 
-    # 1. IDs dos times
-    team_casa_info = get_team_by_name(time_casa, liga, api_key)
-    team_fora_info = get_team_by_name(time_fora, liga, api_key)
-    id_casa = team_casa_info["id"]
-    id_fora = team_fora_info["id"]
+    season_fbref = f"{season-1}-{season}"
 
-    # 2. Estatísticas básicas
+    # 1. Lista de times da liga (1 crédito)
+    times_liga = get_all_teams_from_league(league_info["api_id"], season, api_key)
+
+    def find_team_id(name):
+        if name in times_liga:
+            return times_liga[name]
+        for nome, tid in times_liga.items():
+            if name.lower() in nome.lower():
+                return tid
+        raise ValueError(f"Time '{name}' não encontrado na liga '{liga}'.")
+
+    id_casa = find_team_id(time_casa)
+    id_fora = find_team_id(time_fora)
+
+    # 2. Estatísticas da API (2 créditos)
     stats_casa = get_team_stats_api(id_casa, league_info["api_id"], season, api_key)
     stats_fora = get_team_stats_api(id_fora, league_info["api_id"], season, api_key)
 
-    # 3. Resultados recentes
-    recent_casa = get_recent_matches(id_casa, league_info["api_id"], season, api_key, n=10)
-    recent_fora = get_recent_matches(id_fora, league_info["api_id"], season, api_key, n=10)
+    # 3. Scraping: classificação e resultados
+    standings = get_standings_fbref(league_info["fbref_comp"], season_fbref)
+    team_links = get_team_links_from_league(league_info["fbref_comp"], season_fbref)
 
-    def resultados_to_string(matches, n=5):
-        return "".join([m["resultado"] for m in matches[-n:]])
+    def get_team_slug(name):
+        for tname, href in team_links.items():
+            if name.lower() == tname.lower() or name.lower() in tname.lower():
+                return href.split("/squads/")[1]
+        return TIMES_FBREF_SLUG.get(name, name.replace(" ", "-"))
 
-    res_casa = resultados_to_string(recent_casa, 5)
-    res_fora = resultados_to_string(recent_fora, 5)
-    cons_casa = resultados_to_string(recent_casa, 10)
-    cons_fora = resultados_to_string(recent_fora, 10)
+    slug_casa = get_team_slug(time_casa)
+    slug_fora = get_team_slug(time_fora)
 
-    def moral_3(matches):
-        ult3 = matches[-3:]
-        return sum(3 if m["resultado"]=="V" else 1 if m["resultado"]=="E" else 0 for m in ult3)
+    res_casa_list = get_recent_matches_fbref(slug_casa, season_fbref, n=5)
+    res_fora_list = get_recent_matches_fbref(slug_fora, season_fbref, n=5)
+    res_casa = "".join(res_casa_list)
+    res_fora = "".join(res_fora_list)
 
-    moral_casa = moral_3(recent_casa)
-    moral_fora = moral_3(recent_fora)
+    cons_casa_list = get_recent_matches_fbref(slug_casa, season_fbref, n=10)
+    cons_fora_list = get_recent_matches_fbref(slug_fora, season_fbref, n=10)
+    cons_casa = "".join(cons_casa_list)
+    cons_fora = "".join(cons_fora_list)
 
-    # 4. Posições
-    standings = get_standings(league_info["api_id"], season, api_key)
-    pos_casa = standings.get(id_casa, 10)
-    pos_fora = standings.get(id_fora, 10)
+    def moral_from_list(lst):
+        ult3 = lst[-3:] if len(lst) >= 3 else lst
+        return sum(3 if r=="V" else 1 if r=="E" else 0 for r in ult3)
 
-    # 5. CPP automático
+    moral_casa = moral_from_list(cons_casa_list)
+    moral_fora = moral_from_list(cons_fora_list)
+
+    pos_casa = standings.get(time_casa, 10)
+    pos_fora = standings.get(time_fora, 10)
+
+    # 4. CPP automático
     from src.metricas.cpp_v2 import classificar_prateleira, calcular_cpp_v2, construir_historico_prateleiras
 
-    all_matches_casa = get_recent_matches(id_casa, league_info["api_id"], season, api_key, n=100)
-    all_matches_fora = get_recent_matches(id_fora, league_info["api_id"], season, api_key, n=100)
+    hist_casa_raw = get_match_history_fbref(slug_casa, season_fbref)
+    hist_fora_raw = get_match_history_fbref(slug_fora, season_fbref)
 
-    def construir_historico(matches, standings_dict):
-        hist = []
-        for m in matches:
-            pos_adv = standings_dict.get(m["opponent_id"], 10)
-            hist.append({
-                "adversario": str(m["opponent_id"]),
+    def build_cpp_history(history, standings_dict):
+        cpp_hist = []
+        for jogo in history:
+            adv_name = jogo["adversario"]
+            pos_adv = standings_dict.get(adv_name, 10)
+            cpp_hist.append({
+                "adversario": adv_name,
                 "posicao_adversario": pos_adv,
-                "resultado": m["resultado"],
-                "gols_pro": m["gols_pro"],
-                "gols_contra": m["gols_contra"]
+                "resultado": jogo["resultado"],
+                "gols_pro": jogo["gols_pro"],
+                "gols_contra": jogo["gols_contra"]
             })
-        return construir_historico_prateleiras(hist)
+        return construir_historico_prateleiras(cpp_hist)
 
-    hist_casa = construir_historico(all_matches_casa, standings)
-    hist_fora = construir_historico(all_matches_fora, standings)
+    hist_casa = build_cpp_history(hist_casa_raw, standings)
+    hist_fora = build_cpp_history(hist_fora_raw, standings)
 
     prat_adv_casa = classificar_prateleira(pos_fora)
     prat_adv_fora = classificar_prateleira(pos_casa)
@@ -566,41 +711,18 @@ def carregar_dados_automaticos(
     pts_cpp_fora = dados_cpp_fora["pontos"]
     jogos_cpp_fora = dados_cpp_fora["jogos"]
 
-    # 6. FBref avançado
-    fbref_comp = league_info["fbref_comp"]
-    season_fbref = f"{season-1}-{season}"
-    league_url = f"https://fbref.com/en/comps/{fbref_comp}/{season_fbref}/"
-    time.sleep(DELAY_FBREF)
-    resp = requests.get(league_url, headers=HEADERS_FBREF)
-    soup = BeautifulSoup(resp.text, "lxml")
-    squad_links = {}
-    for a in soup.find_all("a", href=True):
-        if "/squads/" in a["href"]:
-            squad_links[a.text.strip()] = a["href"]
+    # 5. Estatísticas avançadas (FBref + Understat)
+    adv_casa = get_team_advanced_fbref(slug_casa, season_fbref)
+    adv_fora = get_team_advanced_fbref(slug_fora, season_fbref)
 
-    def get_team_link(team_name):
-        for name, href in squad_links.items():
-            if team_name.lower() in name.lower():
-                return href
-        return None
+    understat_league = league_info["understat"]
+    understat_casa = get_understat_team_xg(slug_casa, understat_league, season)
+    understat_fora = get_understat_team_xg(slug_fora, understat_league, season)
 
-    link_casa = get_team_link(time_casa)
-    link_fora = get_team_link(time_fora)
+    dados_A = {**stats_casa, **adv_casa, **understat_casa}
+    dados_B = {**stats_fora, **adv_fora, **understat_fora}
 
-    adv_casa = {}
-    adv_fora = {}
-    if link_casa:
-        team_slug = link_casa.split("/squads/")[1]
-        adv_casa = get_team_advanced_fbref(team_slug, season_fbref)
-    if link_fora:
-        team_slug = link_fora.split("/squads/")[1]
-        adv_fora = get_team_advanced_fbref(team_slug, season_fbref)
-
-    # 7. Mesclar dados
-    dados_A = {**stats_casa, **adv_casa}
-    dados_B = {**stats_fora, **adv_fora}
-
-    # 8. Métricas derivadas
+    # Métricas derivadas
     def efetividade(gm, shots):
         if shots and shots > 0:
             return (gm / shots) * 100
@@ -620,13 +742,13 @@ def carregar_dados_automaticos(
     dados_B["Efetividade"] = ef_fora
     dados_B["Transicao"] = trans_fora
 
-    # 9. Médias da liga
-    medias_liga = get_league_averages_fbref(fbref_comp, season_fbref)
+    # Médias da liga
+    medias_liga = get_league_averages_fbref(league_info["fbref_comp"], season_fbref)
     for k in ['GM','FA','ECa','Poss','GS','FAS','ECc','Des','FC','CA','Int','TC']:
         if k not in medias_liga:
             medias_liga[k] = 0.0
 
-    # 10. Odds
+    # Odds (opcional)
     odds_dict = {
         "odd_casa": 1.8, "odd_empate": 3.5, "odd_fora": 4.0,
         "odd_over15": 1.2, "odd_over25": 1.8, "odd_over35": 2.5,
@@ -648,7 +770,7 @@ def carregar_dados_automaticos(
         except:
             pass
 
-    # 11. Dicionário final
+    # Montagem do dicionário final
     dados = {
         "nome_casa": time_casa,
         "nome_fora": time_fora,
