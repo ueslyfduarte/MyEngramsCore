@@ -13,6 +13,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+
+
 # ============================================================
 # Configurações gerais
 # ============================================================
@@ -23,6 +25,8 @@ DELAY_UNDERSTAT = 2
 HEADERS_FBREF = {"User-Agent": "EngramScoreBot/1.0 (analytics@engramscore.com)"}
 HEADERS_UNDERSTAT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 CACHE_TTL = timedelta(days=7)
+
+
 
 # ============================================================
 # 50 ligas mapeadas
@@ -79,6 +83,8 @@ LIGAS_MAP = {
     "South African Premier Division": {"api_id": 288, "understat": "South_Africa", "fbref_comp": "73", "fbref_slug": "South-African-Premier-Division"},
     "Moroccan Botola Pro": {"api_id": 200, "understat": "Morocco", "fbref_comp": "74", "fbref_slug": "Moroccan-Botola-Pro"},
 }
+
+
 # ============================================================
 # Mapeamento manual de times → slug FBref (fallback)
 # ============================================================
@@ -108,6 +114,7 @@ TIMES_FBREF_SLUG = {
     "Corinthians": "Corinthians",
     "São Paulo": "Sao-Paulo",
 }
+
 
 # ============================================================
 # Cache local
@@ -145,6 +152,7 @@ def _cache_load(key: str, ttl: timedelta = CACHE_TTL, extension: str = "json"):
     elif extension == "csv":
         return pd.read_csv(path)
     return None
+
 
 # ============================================================
 # API-Football (RapidAPI) – uso mínimo
@@ -262,7 +270,7 @@ def get_home_away_pct(team_id: int, league_id: int, season: int, api_key: str) -
     home_pct = (home_pts / (3 * home_j) * 100) if home_j > 0 else 50.0
     away_pct = (away_pts / (3 * away_j) * 100) if away_j > 0 else 50.0
     return home_pct, away_pct
-    # ============================================================
+# ============================================================
 # FBref scraping – tabelas, classificação, resultados, stats
 # ============================================================
 def _request_fbref(url: str, use_cache: bool = True) -> pd.DataFrame:
@@ -504,7 +512,8 @@ def get_understat_team_xg(team_slug: str, league: str, season: int) -> dict:
                 _cache_save(cache_key, dados)
                 return dados
     return {}
-    # ============================================================
+
+# ============================================================
 # Função principal
 # ============================================================
 def carregar_dados_automaticos(
@@ -520,7 +529,6 @@ def carregar_dados_automaticos(
 
     league_info = LIGAS_MAP[liga]
     if season is None:
-        # Fallback automático de temporada
         current_season = datetime.now().year
         try:
             _ = get_all_teams_from_league(league_info["api_id"], current_season, api_key)
@@ -659,34 +667,7 @@ def carregar_dados_automaticos(
     for k in ['GM','FA','ECa','Poss','GS','FAS','ECc','Des','FC','CA','Int','TC']:
         if k not in medias_liga:
             medias_liga[k] = 0.0
-def get_match_period_stats_fbref(match_url: str) -> Optional[pd.DataFrame]:
-    """
-    Faz scraping da página de uma partida no FBref e retorna estatísticas por período.
-    Exemplo de URL: 'https://fbref.com/en/matches/abc123/2023-2024/TeamA-TeamB'
-    """
-    try:
-        time.sleep(DELAY_FBREF)
-        resp = requests.get(match_url, headers=HEADERS_FBREF)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
-        
-        # Procurar tabelas que parecem ter dados por intervalo
-        tables = soup.find_all("table")
-        for table in tables:
-            try:
-                df = pd.read_html(str(table))[0]
-                cols = [str(c) for c in df.columns]
-                # Verifica se há colunas como '1-15', '16-30'... ou 'Statistic'
-                if any('1-15' in c or '16-30' in c or 'Statistic' in c for c in cols):
-                    if isinstance(df.columns, pd.MultiIndex):
-                        df.columns = [' '.join(col).strip() for col in df.columns.values]
-                    return df
-            except:
-                continue
-        return None
-    except Exception as e:
-        print(f"Erro no scraping da partida: {e}")
-        return None
+
     # Odds (opcional)
     odds_dict = {
         "odd_casa": 1.8, "odd_empate": 3.5, "odd_fora": 4.0,
@@ -774,3 +755,28 @@ def get_match_period_stats_fbref(match_url: str) -> Optional[pd.DataFrame]:
     }
 
     return dados
+    def get_match_period_stats_fbref(match_url: str) -> Optional[pd.DataFrame]:
+    """
+    Faz scraping da página de uma partida no FBref e retorna estatísticas por período.
+    Exemplo de URL: 'https://fbref.com/en/matches/abc123/2023-2024/TeamA-TeamB'
+    """
+    try:
+        time.sleep(DELAY_FBREF)
+        resp = requests.get(match_url, headers=HEADERS_FBREF)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+        tables = soup.find_all("table")
+        for table in tables:
+            try:
+                df = pd.read_html(str(table))[0]
+                cols = [str(c) for c in df.columns]
+                if any('1-15' in c or '16-30' in c or 'Statistic' in c for c in cols):
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = [' '.join(col).strip() for col in df.columns.values]
+                    return df
+            except:
+                continue
+        return None
+    except Exception as e:
+        print(f"Erro no scraping da partida: {e}")
+        return None
