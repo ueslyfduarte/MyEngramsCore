@@ -9,6 +9,7 @@ Sistema de análise esportiva com três modos de entrada:
 import sys
 import importlib.util
 from pathlib import Path
+from datetime import datetime
 
 import streamlit as st
 
@@ -50,10 +51,11 @@ resultados = carregar_modulo("resultados.py", "resultados")
 
 # Carregar o novo data_loader (automático)
 try:
-    from src.data_loader import carregar_dados_automaticos
+    from src.data_loader import carregar_dados_automaticos, LIGAS_MAP
     AUTO_DISPONIVEL = True
 except ImportError:
     AUTO_DISPONIVEL = False
+    LIGAS_MAP = {}
 
 # Renderizar interface fixa
 css.carregar_css()
@@ -79,49 +81,79 @@ if modo == "Automático (dados reais)":
         st.markdown("### 🤖 Análise Automática")
         st.markdown("*Os dados serão obtidos de API‑Football, FBref e Understat.*")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            time_casa = st.text_input("Time da casa", value="Flamengo", key="auto_casa")
-        with col2:
-            time_fora = st.text_input("Time visitante", value="Palmeiras", key="auto_fora")
+        # Inicializar estado da sessão
+        if "times_carregados" not in st.session_state:
+            st.session_state.times_carregados = False
+            st.session_state.lista_times = []
+            st.session_state.liga_selecionada = ""
 
-        liga = st.selectbox(
-            "Liga",
-            list(data_loader.LIGAS_MAP.keys()) if hasattr(data_loader, 'LIGAS_MAP') else ["Premier League"],
-            key="auto_liga"
-        )
+        # Seleção da liga (sem ação automática)
+        lista_ligas = list(LIGAS_MAP.keys()) if LIGAS_MAP else ["Premier League"]
+        col_liga, col_btn = st.columns([3, 1])
+        with col_liga:
+            liga = st.selectbox("Liga", lista_ligas, key="auto_liga")
+        with col_btn:
+            st.write("")  # espaço
+            carregar_times_btn = st.button("📋 Carregar Times", use_container_width=True)
 
-        api_key = st.secrets.get("API_FOOTBALL_KEY", None)
-        if not api_key:
-            st.warning("⚠️ Chave da API‑Football não encontrada em `.streamlit/secrets.toml`.")
-
-        if st.button("🔍 Buscar dados", type="primary"):
+        # Se o botão foi pressionado OU se a liga mudou em relação à armazenada
+        if carregar_times_btn or (liga != st.session_state.liga_selecionada and st.session_state.times_carregados == False):
+            api_key = st.secrets.get("API_FOOTBALL_KEY", None)
             if not api_key:
                 st.error("Configure a chave API_FOOTBALL_KEY nos secrets do Streamlit.")
             else:
-                with st.spinner("Coletando dados das fontes oficiais..."):
+                with st.spinner("Buscando times da liga..."):
                     try:
-                        dados = carregar_dados_automaticos(
-                            time_casa=time_casa,
-                            time_fora=time_fora,
-                            liga=liga,
-                            api_key=api_key
-                        )
-                        st.success("✅ Dados coletados com sucesso!")
-                        # As odds já vêm embutidas no dicionário 'dados'
-                        odds_data = {
-                            "odd_casa": dados.get("odd_casa"),
-                            "odd_empate": dados.get("odd_empate"),
-                            "odd_fora": dados.get("odd_fora"),
-                            "odd_over15": dados.get("odd_over15"),
-                            "odd_over25": dados.get("odd_over25"),
-                            "odd_over35": dados.get("odd_over35"),
-                            "odd_btts_sim": dados.get("odd_btts_sim"),
-                            "odd_btts_nao": dados.get("odd_btts_nao"),
-                            "odd_ht": dados.get("odd_ht"),
-                        }
+                        from src.data_loader import get_all_teams_from_league
+                        info = LIGAS_MAP[liga]
+                        season = datetime.now().year
+                        times_dict = get_all_teams_from_league(info["api_id"], season, api_key)
+                        st.session_state.lista_times = sorted(list(times_dict.keys()))
+                        st.session_state.times_carregados = True
+                        st.session_state.liga_selecionada = liga
                     except Exception as e:
-                        st.error(f"❌ Falha na coleta: {e}")
+                        st.error(f"❌ Erro ao carregar times: {e}")
+                        st.session_state.times_carregados = False
+
+        # Exibir as selectboxes somente se a lista estiver pronta
+        if st.session_state.times_carregados:
+            col1, col2 = st.columns(2)
+            with col1:
+                time_casa = st.selectbox("🏠 Time da casa", st.session_state.lista_times, key="auto_casa")
+            with col2:
+                time_fora = st.selectbox("✈️ Time visitante", st.session_state.lista_times, key="auto_fora")
+
+            api_key = st.secrets.get("API_FOOTBALL_KEY", None)
+            if st.button("🔍 Buscar dados", type="primary"):
+                if not api_key:
+                    st.error("Configure a chave API_FOOTBALL_KEY nos secrets do Streamlit.")
+                elif time_casa == time_fora:
+                    st.error("Escolha times diferentes para a análise.")
+                else:
+                    with st.spinner("Coletando dados das fontes oficiais..."):
+                        try:
+                            dados = carregar_dados_automaticos(
+                                time_casa=time_casa,
+                                time_fora=time_fora,
+                                liga=liga,
+                                api_key=api_key
+                            )
+                            st.success("✅ Dados coletados com sucesso!")
+                            odds_data = {
+                                "odd_casa": dados.get("odd_casa"),
+                                "odd_empate": dados.get("odd_empate"),
+                                "odd_fora": dados.get("odd_fora"),
+                                "odd_over15": dados.get("odd_over15"),
+                                "odd_over25": dados.get("odd_over25"),
+                                "odd_over35": dados.get("odd_over35"),
+                                "odd_btts_sim": dados.get("odd_btts_sim"),
+                                "odd_btts_nao": dados.get("odd_btts_nao"),
+                                "odd_ht": dados.get("odd_ht"),
+                            }
+                        except Exception as e:
+                            st.error(f"❌ Falha na coleta: {e}")
+        else:
+            st.info("👆 Clique em **Carregar Times** para obter a lista de clubes da liga selecionada.")
 
 # --- MODO HÍBRIDO (original) ---
 elif modo == "Híbrido (colar tabelas)":
