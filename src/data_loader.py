@@ -1,22 +1,14 @@
 """
 data_loader.py — Coleta automática de dados (API‑Football + FBref + Understat)
-
-Versão otimizada: 3 créditos por análise (1 lista de times da liga + 2 estatísticas).
-Scraping gratuito para classificação, resultados recentes e dados avançados.
-Cache local de 7 dias para evitar requisições repetidas.
-
-50 ligas pré‑mapeadas. Para adicionar novas, basta seguir o padrão em LIGAS_MAP.
+Versão otimizada: 3 créditos por análise. Fallback para temporada anterior.
+Aproveitamento casa/fora incluso. Cache de 7 dias.
+50 ligas pré‑mapeadas.
 """
 
-import os
-import json
-import time
-import re
-import hashlib
+import os, json, time, re, hashlib
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
-
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
@@ -26,173 +18,66 @@ from bs4 import BeautifulSoup
 # ============================================================
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
-
 DELAY_FBREF = 8
 DELAY_UNDERSTAT = 2
-
-HEADERS_FBREF = {
-    "User-Agent": "EngramScoreBot/1.0 (analytics@engramscore.com)"
-}
-HEADERS_UNDERSTAT = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
-
+HEADERS_FBREF = {"User-Agent": "EngramScoreBot/1.0 (analytics@engramscore.com)"}
+HEADERS_UNDERSTAT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 CACHE_TTL = timedelta(days=7)
+
 # ============================================================
-# 50 ligas pré‑mapeadas (API‑Football, Understat, FBref)
+# 50 ligas mapeadas
 # ============================================================
 LIGAS_MAP = {
-    "Premier League": {
-        "api_id": 39, "understat": "EPL", "fbref_comp": "9", "fbref_slug": "Premier-League"
-    },
-    "La Liga": {
-        "api_id": 140, "understat": "La_liga", "fbref_comp": "12", "fbref_slug": "La-Liga"
-    },
-    "Bundesliga": {
-        "api_id": 78, "understat": "Bundesliga", "fbref_comp": "20", "fbref_slug": "Bundesliga"
-    },
-    "Serie A": {
-        "api_id": 135, "understat": "Serie_A", "fbref_comp": "11", "fbref_slug": "Serie-A"
-    },
-    "Ligue 1": {
-        "api_id": 61, "understat": "Ligue_1", "fbref_comp": "13", "fbref_slug": "Ligue-1"
-    },
-    "Brasileirão Série A": {
-        "api_id": 71, "understat": "BRA", "fbref_comp": "24", "fbref_slug": "Campeonato-Brasileiro-Serie-A"
-    },
-    "Eredivisie": {
-        "api_id": 88, "understat": "Eredivisie", "fbref_comp": "23", "fbref_slug": "Eredivisie"
-    },
-    "Liga Portugal": {
-        "api_id": 94, "understat": "Liga_Portugal", "fbref_comp": "32", "fbref_slug": "Primeira-Liga"
-    },
-    "Scottish Premiership": {
-        "api_id": 179, "understat": "SPL", "fbref_comp": "43", "fbref_slug": "Scottish-Premiership"
-    },
-    "Championship": {
-        "api_id": 40, "understat": "Championship", "fbref_comp": "10", "fbref_slug": "Championship"
-    },
-    "Belgian Pro League": {
-        "api_id": 144, "understat": "Jupiler", "fbref_comp": "37", "fbref_slug": "Belgian-Pro-League"
-    },
-    "Swiss Super League": {
-        "api_id": 207, "understat": "Swiss", "fbref_comp": "46", "fbref_slug": "Swiss-Super-League"
-    },
-    "Austrian Bundesliga": {
-        "api_id": 218, "understat": "Austrian", "fbref_comp": "35", "fbref_slug": "Austrian-Bundesliga"
-    },
-    "Russian Premier League": {
-        "api_id": 235, "understat": "RPL", "fbref_comp": "42", "fbref_slug": "Russian-Premier-League"
-    },
-    "Ukrainian Premier League": {
-        "api_id": 333, "understat": "UPL", "fbref_comp": "39", "fbref_slug": "Ukrainian-Premier-League"
-    },
-    "Czech First League": {
-        "api_id": 345, "understat": "Czech", "fbref_comp": "34", "fbref_slug": "Czech-First-League"
-    },
-    "Croatian HNL": {
-        "api_id": 210, "understat": "HNL", "fbref_comp": "48", "fbref_slug": "Croatian-HNL"
-    },
-    "Serbian SuperLiga": {
-        "api_id": 286, "understat": "Serbian", "fbref_comp": "54", "fbref_slug": "Serbian-SuperLiga"
-    },
-    "Danish Superliga": {
-        "api_id": 119, "understat": "Danish", "fbref_comp": "31", "fbref_slug": "Danish-Superliga"
-    },
-    "Allsvenskan": {
-        "api_id": 113, "understat": "Allsvenskan", "fbref_comp": "29", "fbref_slug": "Allsvenskan"
-    },
-    "Eliteserien": {
-        "api_id": 103, "understat": "Eliteserien", "fbref_comp": "28", "fbref_slug": "Eliteserien"
-    },
-    "Ekstraklasa": {
-        "api_id": 106, "understat": "Ekstraklasa", "fbref_comp": "36", "fbref_slug": "Ekstraklasa"
-    },
-    "Greek Super League": {
-        "api_id": 197, "understat": "Greek", "fbref_comp": "27", "fbref_slug": "Greek-Super-League"
-    },
-    "Süper Lig": {
-        "api_id": 203, "understat": "SuperLig", "fbref_comp": "26", "fbref_slug": "Super-Lig"
-    },
-    "Liga MX": {
-        "api_id": 262, "understat": "Liga_MX", "fbref_comp": "22", "fbref_slug": "Liga-MX"
-    },
-    "Major League Soccer": {
-        "api_id": 253, "understat": "MLS", "fbref_comp": "21", "fbref_slug": "Major-League-Soccer"
-    },
-    "Primera División Argentina": {
-        "api_id": 128, "understat": "ARG", "fbref_comp": "19", "fbref_slug": "Primera-Division-Argentina"
-    },
-    "Primera División Chile": {
-        "api_id": 265, "understat": "Chile", "fbref_comp": "56", "fbref_slug": "Primera-Division-Chile"
-    },
-    "Primera División Uruguay": {
-        "api_id": 268, "understat": "Uruguay", "fbref_comp": "45", "fbref_slug": "Primera-Division-Uruguay"
-    },
-    "Categoría Primera A (Colombia)": {
-        "api_id": 239, "understat": "Colombia", "fbref_comp": "58", "fbref_slug": "Categoria-Primera-A"
-    },
-    "Primera División Perú": {
-        "api_id": 281, "understat": "Peru", "fbref_comp": "59", "fbref_slug": "Primera-Division-Peru"
-    },
-    "Primera División Paraguay": {
-        "api_id": 250, "understat": "Paraguay", "fbref_comp": "60", "fbref_slug": "Primera-Division-Paraguay"
-    },
-    "Primera División Venezuela": {
-        "api_id": 300, "understat": "Venezuela", "fbref_comp": "61", "fbref_slug": "Primera-Division-Venezuela"
-    },
-    "J1 League": {
-        "api_id": 98, "understat": "J1", "fbref_comp": "25", "fbref_slug": "J1-League"
-    },
-    "K League 1": {
-        "api_id": 292, "understat": "K1", "fbref_comp": "33", "fbref_slug": "K-League-1"
-    },
-    "A‑League": {
-        "api_id": 188, "understat": "A-League", "fbref_comp": "30", "fbref_slug": "A-League"
-    },
-    "Saudi Pro League": {
-        "api_id": 307, "understat": "Saudi", "fbref_comp": "41", "fbref_slug": "Saudi-Pro-League"
-    },
-    "Egyptian Premier League": {
-        "api_id": 233, "understat": "Egypt", "fbref_comp": "62", "fbref_slug": "Egyptian-Premier-League"
-    },
-    "Indian Super League": {
-        "api_id": 323, "understat": "ISL", "fbref_comp": "63", "fbref_slug": "Indian-Super-League"
-    },
-    "Liga 1 Indonesia": {
-        "api_id": 274, "understat": "Indonesia", "fbref_comp": "64", "fbref_slug": "Liga-1-Indonesia"
-    },
-    "Liga Nacional Honduras": {
-        "api_id": 264, "understat": "Honduras", "fbref_comp": "65", "fbref_slug": "Liga-Nacional-Honduras"
-    },
-    "Primera División El Salvador": {
-        "api_id": 267, "understat": "El_Salvador", "fbref_comp": "66", "fbref_slug": "Primera-Division-El-Salvador"
-    },
-    "Costa Rica Primera División": {
-        "api_id": 257, "understat": "Costa_Rica", "fbref_comp": "67", "fbref_slug": "Costa-Rica-Primera-Division"
-    },
-    "Liga Panameña de Fútbol": {
-        "api_id": 296, "understat": "Panama", "fbref_comp": "68", "fbref_slug": "Liga-Panamena"
-    },
-    "Liga Dominicana de Fútbol": {
-        "api_id": 311, "understat": "Dominicana", "fbref_comp": "69", "fbref_slug": "Liga-Dominicana"
-    },
-    "TT Pro League": {
-        "api_id": 276, "understat": "Trinidad", "fbref_comp": "70", "fbref_slug": "TT-Pro-League"
-    },
-    "Jamaican Premier League": {
-        "api_id": 273, "understat": "Jamaica", "fbref_comp": "71", "fbref_slug": "Jamaican-Premier-League"
-    },
-    "Ghana Premier League": {
-        "api_id": 240, "understat": "Ghana", "fbref_comp": "72", "fbref_slug": "Ghana-Premier-League"
-    },
-    "South African Premier Division": {
-        "api_id": 288, "understat": "South_Africa", "fbref_comp": "73", "fbref_slug": "South-African-Premier-Division"
-    },
-    "Moroccan Botola Pro": {
-        "api_id": 200, "understat": "Morocco", "fbref_comp": "74", "fbref_slug": "Moroccan-Botola-Pro"
-    },
+    "Premier League": {"api_id": 39, "understat": "EPL", "fbref_comp": "9", "fbref_slug": "Premier-League"},
+    "La Liga": {"api_id": 140, "understat": "La_liga", "fbref_comp": "12", "fbref_slug": "La-Liga"},
+    "Bundesliga": {"api_id": 78, "understat": "Bundesliga", "fbref_comp": "20", "fbref_slug": "Bundesliga"},
+    "Serie A": {"api_id": 135, "understat": "Serie_A", "fbref_comp": "11", "fbref_slug": "Serie-A"},
+    "Ligue 1": {"api_id": 61, "understat": "Ligue_1", "fbref_comp": "13", "fbref_slug": "Ligue-1"},
+    "Brasileirão Série A": {"api_id": 71, "understat": "BRA", "fbref_comp": "24", "fbref_slug": "Campeonato-Brasileiro-Serie-A"},
+    "Eredivisie": {"api_id": 88, "understat": "Eredivisie", "fbref_comp": "23", "fbref_slug": "Eredivisie"},
+    "Liga Portugal": {"api_id": 94, "understat": "Liga_Portugal", "fbref_comp": "32", "fbref_slug": "Primeira-Liga"},
+    "Scottish Premiership": {"api_id": 179, "understat": "SPL", "fbref_comp": "43", "fbref_slug": "Scottish-Premiership"},
+    "Championship": {"api_id": 40, "understat": "Championship", "fbref_comp": "10", "fbref_slug": "Championship"},
+    "Belgian Pro League": {"api_id": 144, "understat": "Jupiler", "fbref_comp": "37", "fbref_slug": "Belgian-Pro-League"},
+    "Swiss Super League": {"api_id": 207, "understat": "Swiss", "fbref_comp": "46", "fbref_slug": "Swiss-Super-League"},
+    "Austrian Bundesliga": {"api_id": 218, "understat": "Austrian", "fbref_comp": "35", "fbref_slug": "Austrian-Bundesliga"},
+    "Russian Premier League": {"api_id": 235, "understat": "RPL", "fbref_comp": "42", "fbref_slug": "Russian-Premier-League"},
+    "Ukrainian Premier League": {"api_id": 333, "understat": "UPL", "fbref_comp": "39", "fbref_slug": "Ukrainian-Premier-League"},
+    "Czech First League": {"api_id": 345, "understat": "Czech", "fbref_comp": "34", "fbref_slug": "Czech-First-League"},
+    "Croatian HNL": {"api_id": 210, "understat": "HNL", "fbref_comp": "48", "fbref_slug": "Croatian-HNL"},
+    "Serbian SuperLiga": {"api_id": 286, "understat": "Serbian", "fbref_comp": "54", "fbref_slug": "Serbian-SuperLiga"},
+    "Danish Superliga": {"api_id": 119, "understat": "Danish", "fbref_comp": "31", "fbref_slug": "Danish-Superliga"},
+    "Allsvenskan": {"api_id": 113, "understat": "Allsvenskan", "fbref_comp": "29", "fbref_slug": "Allsvenskan"},
+    "Eliteserien": {"api_id": 103, "understat": "Eliteserien", "fbref_comp": "28", "fbref_slug": "Eliteserien"},
+    "Ekstraklasa": {"api_id": 106, "understat": "Ekstraklasa", "fbref_comp": "36", "fbref_slug": "Ekstraklasa"},
+    "Greek Super League": {"api_id": 197, "understat": "Greek", "fbref_comp": "27", "fbref_slug": "Greek-Super-League"},
+    "Süper Lig": {"api_id": 203, "understat": "SuperLig", "fbref_comp": "26", "fbref_slug": "Super-Lig"},
+    "Liga MX": {"api_id": 262, "understat": "Liga_MX", "fbref_comp": "22", "fbref_slug": "Liga-MX"},
+    "Major League Soccer": {"api_id": 253, "understat": "MLS", "fbref_comp": "21", "fbref_slug": "Major-League-Soccer"},
+    "Primera División Argentina": {"api_id": 128, "understat": "ARG", "fbref_comp": "19", "fbref_slug": "Primera-Division-Argentina"},
+    "Primera División Chile": {"api_id": 265, "understat": "Chile", "fbref_comp": "56", "fbref_slug": "Primera-Division-Chile"},
+    "Primera División Uruguay": {"api_id": 268, "understat": "Uruguay", "fbref_comp": "45", "fbref_slug": "Primera-Division-Uruguay"},
+    "Categoría Primera A (Colombia)": {"api_id": 239, "understat": "Colombia", "fbref_comp": "58", "fbref_slug": "Categoria-Primera-A"},
+    "Primera División Perú": {"api_id": 281, "understat": "Peru", "fbref_comp": "59", "fbref_slug": "Primera-Division-Peru"},
+    "Primera División Paraguay": {"api_id": 250, "understat": "Paraguay", "fbref_comp": "60", "fbref_slug": "Primera-Division-Paraguay"},
+    "Primera División Venezuela": {"api_id": 300, "understat": "Venezuela", "fbref_comp": "61", "fbref_slug": "Primera-Division-Venezuela"},
+    "J1 League": {"api_id": 98, "understat": "J1", "fbref_comp": "25", "fbref_slug": "J1-League"},
+    "K League 1": {"api_id": 292, "understat": "K1", "fbref_comp": "33", "fbref_slug": "K-League-1"},
+    "A‑League": {"api_id": 188, "understat": "A-League", "fbref_comp": "30", "fbref_slug": "A-League"},
+    "Saudi Pro League": {"api_id": 307, "understat": "Saudi", "fbref_comp": "41", "fbref_slug": "Saudi-Pro-League"},
+    "Egyptian Premier League": {"api_id": 233, "understat": "Egypt", "fbref_comp": "62", "fbref_slug": "Egyptian-Premier-League"},
+    "Indian Super League": {"api_id": 323, "understat": "ISL", "fbref_comp": "63", "fbref_slug": "Indian-Super-League"},
+    "Liga 1 Indonesia": {"api_id": 274, "understat": "Indonesia", "fbref_comp": "64", "fbref_slug": "Liga-1-Indonesia"},
+    "Liga Nacional Honduras": {"api_id": 264, "understat": "Honduras", "fbref_comp": "65", "fbref_slug": "Liga-Nacional-Honduras"},
+    "Primera División El Salvador": {"api_id": 267, "understat": "El_Salvador", "fbref_comp": "66", "fbref_slug": "Primera-Division-El-Salvador"},
+    "Costa Rica Primera División": {"api_id": 257, "understat": "Costa_Rica", "fbref_comp": "67", "fbref_slug": "Costa-Rica-Primera-Division"},
+    "Liga Panameña de Fútbol": {"api_id": 296, "understat": "Panama", "fbref_comp": "68", "fbref_slug": "Liga-Panamena"},
+    "Liga Dominicana de Fútbol": {"api_id": 311, "understat": "Dominicana", "fbref_comp": "69", "fbref_slug": "Liga-Dominicana"},
+    "TT Pro League": {"api_id": 276, "understat": "Trinidad", "fbref_comp": "70", "fbref_slug": "TT-Pro-League"},
+    "Jamaican Premier League": {"api_id": 273, "understat": "Jamaica", "fbref_comp": "71", "fbref_slug": "Jamaican-Premier-League"},
+    "Ghana Premier League": {"api_id": 240, "understat": "Ghana", "fbref_comp": "72", "fbref_slug": "Ghana-Premier-League"},
+    "South African Premier Division": {"api_id": 288, "understat": "South_Africa", "fbref_comp": "73", "fbref_slug": "South-African-Premier-Division"},
+    "Moroccan Botola Pro": {"api_id": 200, "understat": "Morocco", "fbref_comp": "74", "fbref_slug": "Moroccan-Botola-Pro"},
 }
 # ============================================================
 # Mapeamento manual de times → slug FBref (fallback)
@@ -223,6 +108,7 @@ TIMES_FBREF_SLUG = {
     "Corinthians": "Corinthians",
     "São Paulo": "Sao-Paulo",
 }
+
 # ============================================================
 # Cache local
 # ============================================================
@@ -259,7 +145,8 @@ def _cache_load(key: str, ttl: timedelta = CACHE_TTL, extension: str = "json"):
     elif extension == "csv":
         return pd.read_csv(path)
     return None
-    # ============================================================
+
+# ============================================================
 # API-Football (RapidAPI) – uso mínimo
 # ============================================================
 def _api_headers(api_key: str) -> dict:
@@ -283,7 +170,6 @@ def get_all_teams_from_league(league_id: int, season: int, api_key: str) -> Dict
     cached = _cache_load(cache_key)
     if cached:
         return cached
-
     response = _api_get("teams", {"league": league_id, "season": season}, api_key)
     teams_dict = {}
     for item in response:
@@ -298,23 +184,19 @@ def get_team_stats_api(team_id: int, league_id: int, season: int, api_key: str) 
     cached = _cache_load(cache_key)
     if cached:
         return cached
-
     response = _api_get("teams/statistics", {
         "league": league_id,
         "season": season,
         "team": team_id
     }, api_key)
-
     stats = response
     fixtures = stats.get("fixtures", {})
     played = fixtures.get("played", {}).get("total", 0) or 0
-
     goals = stats.get("goals", {})
     cards = stats.get("cards", {})
     fouls = stats.get("fouls", {})
     shots = stats.get("shots", {})
     tackles = stats.get("tackles", {})
-
     dados = {
         "GM": goals.get("for", {}).get("average", {}).get("total", 0) or 0,
         "GS": goals.get("against", {}).get("average", {}).get("total", 0) or 0,
@@ -351,6 +233,35 @@ def get_odds_api(fixture_id: int, api_key: str) -> Optional[dict]:
     except:
         pass
     return None
+
+def get_home_away_pct(team_id: int, league_id: int, season: int, api_key: str) -> Tuple[float, float]:
+    """Retorna (aproveitamento_casa, aproveitamento_fora) em % (0-100)."""
+    fixtures = _api_get("fixtures", {
+        "league": league_id,
+        "season": season,
+        "team": team_id,
+        "status": "FT"
+    }, api_key)
+    home_pts = away_pts = home_j = away_j = 0
+    for fx in fixtures:
+        if fx["score"]["fulltime"]["home"] is None:
+            continue
+        is_home = fx["teams"]["home"]["id"] == team_id
+        if is_home:
+            home_j += 1
+            if fx["score"]["fulltime"]["home"] > fx["score"]["fulltime"]["away"]:
+                home_pts += 3
+            elif fx["score"]["fulltime"]["home"] == fx["score"]["fulltime"]["away"]:
+                home_pts += 1
+        else:
+            away_j += 1
+            if fx["score"]["fulltime"]["away"] > fx["score"]["fulltime"]["home"]:
+                away_pts += 3
+            elif fx["score"]["fulltime"]["away"] == fx["score"]["fulltime"]["home"]:
+                away_pts += 1
+    home_pct = (home_pts / (3 * home_j) * 100) if home_j > 0 else 50.0
+    away_pct = (away_pts / (3 * away_j) * 100) if away_j > 0 else 50.0
+    return home_pct, away_pct
     # ============================================================
 # FBref scraping – tabelas, classificação, resultados, stats
 # ============================================================
@@ -360,7 +271,6 @@ def _request_fbref(url: str, use_cache: bool = True) -> pd.DataFrame:
         cached = _cache_load(cache_key, extension="csv")
         if cached is not None:
             return cached
-
     time.sleep(DELAY_FBREF)
     resp = requests.get(url, headers=HEADERS_FBREF)
     if resp.status_code == 429:
@@ -484,8 +394,7 @@ def get_team_advanced_fbref(team_slug: str, season: str) -> dict:
     except Exception as e:
         print(f"Erro ao buscar FBref para {team_slug}: {e}")
         return {}
-
-def get_recent_matches_fbref(team_slug: str, season: str, n: int = 10) -> List[str]:
+        def get_recent_matches_fbref(team_slug: str, season: str, n: int = 10) -> List[str]:
     url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
     try:
         time.sleep(DELAY_FBREF)
@@ -564,7 +473,8 @@ def get_league_averages_fbref(comp_slug: str, season: str) -> dict:
     else:
         medias['TC'] = 0.0
     return medias
-    # ============================================================
+
+# ============================================================
 # Understat scraping
 # ============================================================
 def get_understat_team_xg(team_slug: str, league: str, season: int) -> dict:
@@ -610,7 +520,13 @@ def carregar_dados_automaticos(
 
     league_info = LIGAS_MAP[liga]
     if season is None:
-        season = datetime.now().year
+        # Fallback automático de temporada
+        current_season = datetime.now().year
+        try:
+            _ = get_all_teams_from_league(league_info["api_id"], current_season, api_key)
+            season = current_season
+        except:
+            season = current_season - 1
 
     season_fbref = f"{season-1}-{season}"
 
@@ -632,7 +548,11 @@ def carregar_dados_automaticos(
     stats_casa = get_team_stats_api(id_casa, league_info["api_id"], season, api_key)
     stats_fora = get_team_stats_api(id_fora, league_info["api_id"], season, api_key)
 
-    # 3. Scraping: classificação e resultados
+    # 3. Aproveitamento casa/fora
+    aprov_casa_casa, aprov_fora_casa = get_home_away_pct(id_casa, league_info["api_id"], season, api_key)
+    aprov_casa_fora, aprov_fora_fora = get_home_away_pct(id_fora, league_info["api_id"], season, api_key)
+
+    # 4. Scraping: classificação e resultados
     standings = get_standings_fbref(league_info["fbref_comp"], season_fbref)
     team_links = get_team_links_from_league(league_info["fbref_comp"], season_fbref)
 
@@ -665,7 +585,7 @@ def carregar_dados_automaticos(
     pos_casa = standings.get(time_casa, 10)
     pos_fora = standings.get(time_fora, 10)
 
-    # 4. CPP automático
+    # 5. CPP automático
     from src.metricas.cpp_v2 import classificar_prateleira, calcular_cpp_v2, construir_historico_prateleiras
 
     hist_casa_raw = get_match_history_fbref(slug_casa, season_fbref)
@@ -703,7 +623,7 @@ def carregar_dados_automaticos(
     pts_cpp_fora = dados_cpp_fora["pontos"]
     jogos_cpp_fora = dados_cpp_fora["jogos"]
 
-    # 5. Estatísticas avançadas (FBref + Understat)
+    # 6. Estatísticas avançadas (FBref + Understat)
     adv_casa = get_team_advanced_fbref(slug_casa, season_fbref)
     adv_fora = get_team_advanced_fbref(slug_fora, season_fbref)
 
@@ -813,6 +733,8 @@ def carregar_dados_automaticos(
         "shortpass_fora": dados_B.get("ShortPass", 0),
         "longball_fora": dados_B.get("LongPass", 0),
         "attthird_fora": dados_B.get("AttThird", 50),
+        "aprov_casa_casa": aprov_casa_casa,
+        "aprov_fora_fora": aprov_fora_fora,
         "odd_casa": odds_dict["odd_casa"],
         "odd_empate": odds_dict["odd_empate"],
         "odd_fora": odds_dict["odd_fora"],
