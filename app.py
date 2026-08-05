@@ -1,11 +1,21 @@
+"""
+app.py — EngramScore
+Sistema de análise esportiva com três modos de entrada:
+- Manual (digitação)
+- Híbrido (colagem de tabelas FBref/WhoScored)
+- Automático (API‑Football + FBref + Understat)
+"""
+
 import sys
 import importlib.util
 from pathlib import Path
+
 import streamlit as st
 
 # ✅ PRIMEIRA CHAMADA STREAMLIT
 st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 
+# Configuração de caminhos
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
 INTERFACE_DIR = SRC_DIR / "Interface"
@@ -30,19 +40,143 @@ def carregar_modulo(nome_arquivo, nome_modulo):
         st.stop()
 
 
-# Carregar módulos
+# Carregar módulos da interface
 css = carregar_modulo("css.py", "css")
 sidebar = carregar_modulo("sidebar.py", "sidebar")
 entrada_hibrida = carregar_modulo("entrada_hibrida.py", "entrada_hibrida")
+entrada_manual = carregar_modulo("entrada_manual.py", "entrada_manual")
 odds = carregar_modulo("odds.py", "odds")
 resultados = carregar_modulo("resultados.py", "resultados")
 
-# Renderizar interface
+# Carregar o novo data_loader (automático)
+try:
+    from src.data_loader import carregar_dados_automaticos
+    AUTO_DISPONIVEL = True
+except ImportError:
+    AUTO_DISPONIVEL = False
+
+# Renderizar interface fixa
 css.carregar_css()
 css.renderizar_header()
 sidebar.renderizar_sidebar()
 
-# Área principal
+# ============================================================
+# Seleção do modo de entrada
+# ============================================================
+modo = st.sidebar.radio(
+    "Modo de entrada",
+    ["Manual", "Híbrido (colar tabelas)", "Automático (dados reais)"]
+)
+
+dados = None
+odds_data = None
+
+# --- MODO AUTOMÁTICO ---
+if modo == "Automático (dados reais)":
+    if not AUTO_DISPONIVEL:
+        st.error("❌ Módulo data_loader não encontrado. Verifique se src/data_loader.py existe.")
+    else:
+        st.markdown("### 🤖 Análise Automática")
+        st.markdown("*Os dados serão obtidos de API‑Football, FBref e Understat.*")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            time_casa = st.text_input("Time da casa", value="Flamengo", key="auto_casa")
+        with col2:
+            time_fora = st.text_input("Time visitante", value="Palmeiras", key="auto_fora")
+
+        liga = st.selectbox(
+            "Liga",
+            list(data_loader.LIGAS_MAP.keys()) if hasattr(data_loader, 'LIGAS_MAP') else ["Premier League"],
+            key="auto_liga"
+        )
+
+        api_key = st.secrets.get("API_FOOTBALL_KEY", None)
+        if not api_key:
+            st.warning("⚠️ Chave da API‑Football não encontrada em `.streamlit/secrets.toml`.")
+
+        if st.button("🔍 Buscar dados", type="primary"):
+            if not api_key:
+                st.error("Configure a chave API_FOOTBALL_KEY nos secrets do Streamlit.")
+            else:
+                with st.spinner("Coletando dados das fontes oficiais..."):
+                    try:
+                        dados = carregar_dados_automaticos(
+                            time_casa=time_casa,
+                            time_fora=time_fora,
+                            liga=liga,
+                            api_key=api_key
+                        )
+                        st.success("✅ Dados coletados com sucesso!")
+                        # As odds já vêm embutidas no dicionário 'dados'
+                        odds_data = {
+                            "odd_casa": dados.get("odd_casa"),
+                            "odd_empate": dados.get("odd_empate"),
+                            "odd_fora": dados.get("odd_fora"),
+                            "odd_over15": dados.get("odd_over15"),
+                            "odd_over25": dados.get("odd_over25"),
+                            "odd_over35": dados.get("odd_over35"),
+                            "odd_btts_sim": dados.get("odd_btts_sim"),
+                            "odd_btts_nao": dados.get("odd_btts_nao"),
+                            "odd_ht": dados.get("odd_ht"),
+                        }
+                    except Exception as e:
+                        st.error(f"❌ Falha na coleta: {e}")
+
+# --- MODO HÍBRIDO (original) ---
+elif modo == "Híbrido (colar tabelas)":
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        """<div style="text-align:center; margin-bottom:20px;">
+        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">
+        Dados do Confronto (Híbrido)
+        </span></div>""",
+        unsafe_allow_html=True
+    )
+    dados = entrada_hibrida.renderizar_modo_hibrido()
+    odds_data = odds.renderizar_odds()
+
+# --- MODO MANUAL ---
+else:
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        """<div style="text-align:center; margin-bottom:20px;">
+        <span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">
+        Dados do Confronto (Manual)
+        </span></div>""",
+        unsafe_allow_html=True
+    )
+    dados = entrada_manual.renderizar_modo_manual()
+    odds_data = odds.renderizar_odds()
+
+# ============================================================
+# Botão de gerar análise (modos Manual e Híbrido)
+# ============================================================
+if dados is not None:
+    # Se for modo automático, as odds já estão em odds_data
+    if odds_data is None:
+        # fallback: se por algum motivo não temos odds, pega valores padrão
+        odds_data = {
+            "odd_casa": 1.8, "odd_empate": 3.5, "odd_fora": 4.0,
+            "odd_over15": 1.2, "odd_over25": 1.8, "odd_over35": 2.5,
+            "odd_btts_sim": 1.8, "odd_btts_nao": 1.9, "odd_ht": 1.5
+        }
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_btn = st.columns([1, 2, 1])
+    with col_btn[1]:
+        gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
+
+    if gerar:
+        try:
+            resultados.renderizar_resultados(dados, odds_data)
+        except Exception as e:
+            st.error(f"❌ Erro ao gerar resultados: {e}")
+            st.error("Verifique se todos os dados foram preenchidos corretamente.")
+
+# ============================================================
+# Se houver jogo selecionado na sidebar (análises prontas)
+# ============================================================
 if "jogo_selecionado" in st.session_state:
     jogo = st.session_state["jogo_selecionado"]
     st.markdown(f"<h2>{jogo['casa']} vs {jogo['fora']}</h2>", unsafe_allow_html=True)
@@ -50,23 +184,5 @@ if "jogo_selecionado" in st.session_state:
     if st.button("🔄 Nova análise"):
         del st.session_state["jogo_selecionado"]
         st.rerun()
-else:
-    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Dados do Confronto</span></div>""", unsafe_allow_html=True)
-
-    dados = entrada_hibrida.renderizar_modo_hibrido()
-    odds_data = odds.renderizar_odds()
-
-    if dados is not None:
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_btn = st.columns([1, 2, 1])
-        with col_btn[1]:
-            gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
-        if gerar:
-            try:
-                resultados.renderizar_resultados(dados, odds_data)
-            except Exception as e:
-                st.error(f"❌ Erro ao gerar resultados: {e}")
-                st.error("Verifique se todos os dados foram preenchidos corretamente.")
 
 css.renderizar_rodape()
