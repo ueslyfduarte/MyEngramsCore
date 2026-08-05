@@ -14,7 +14,7 @@ import time
 import re
 import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -39,7 +39,6 @@ HEADERS_UNDERSTAT = {
 }
 
 CACHE_TTL = timedelta(days=7)
-
 # ============================================================
 # 50 ligas pré‑mapeadas (API‑Football, Understat, FBref)
 # ============================================================
@@ -164,7 +163,6 @@ LIGAS_MAP = {
     "Liga 1 Indonesia": {
         "api_id": 274, "understat": "Indonesia", "fbref_comp": "64", "fbref_slug": "Liga-1-Indonesia"
     },
-    # Ligas adicionais para completar 50
     "Liga Nacional Honduras": {
         "api_id": 264, "understat": "Honduras", "fbref_comp": "65", "fbref_slug": "Liga-Nacional-Honduras"
     },
@@ -196,7 +194,6 @@ LIGAS_MAP = {
         "api_id": 200, "understat": "Morocco", "fbref_comp": "74", "fbref_slug": "Moroccan-Botola-Pro"
     },
 }
-
 # ============================================================
 # Mapeamento manual de times → slug FBref (fallback)
 # ============================================================
@@ -226,7 +223,6 @@ TIMES_FBREF_SLUG = {
     "Corinthians": "Corinthians",
     "São Paulo": "Sao-Paulo",
 }
-
 # ============================================================
 # Cache local
 # ============================================================
@@ -263,8 +259,7 @@ def _cache_load(key: str, ttl: timedelta = CACHE_TTL, extension: str = "json"):
     elif extension == "csv":
         return pd.read_csv(path)
     return None
-
-# ============================================================
+    # ============================================================
 # API-Football (RapidAPI) – uso mínimo
 # ============================================================
 def _api_headers(api_key: str) -> dict:
@@ -356,8 +351,7 @@ def get_odds_api(fixture_id: int, api_key: str) -> Optional[dict]:
     except:
         pass
     return None
-
-# ============================================================
+    # ============================================================
 # FBref scraping – tabelas, classificação, resultados, stats
 # ============================================================
 def _request_fbref(url: str, use_cache: bool = True) -> pd.DataFrame:
@@ -570,8 +564,7 @@ def get_league_averages_fbref(comp_slug: str, season: str) -> dict:
     else:
         medias['TC'] = 0.0
     return medias
-
-# ============================================================
+    # ============================================================
 # Understat scraping
 # ============================================================
 def get_understat_team_xg(team_slug: str, league: str, season: int) -> dict:
@@ -601,8 +594,7 @@ def get_understat_team_xg(team_slug: str, league: str, season: int) -> dict:
                 _cache_save(cache_key, dados)
                 return dados
     return {}
-
-# ============================================================
+    # ============================================================
 # Função principal
 # ============================================================
 def carregar_dados_automaticos(
