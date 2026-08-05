@@ -659,7 +659,34 @@ def carregar_dados_automaticos(
     for k in ['GM','FA','ECa','Poss','GS','FAS','ECc','Des','FC','CA','Int','TC']:
         if k not in medias_liga:
             medias_liga[k] = 0.0
-
+def get_match_period_stats_fbref(match_url: str) -> Optional[pd.DataFrame]:
+    """
+    Faz scraping da página de uma partida no FBref e retorna estatísticas por período.
+    Exemplo de URL: 'https://fbref.com/en/matches/abc123/2023-2024/TeamA-TeamB'
+    """
+    try:
+        time.sleep(DELAY_FBREF)
+        resp = requests.get(match_url, headers=HEADERS_FBREF)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+        
+        # Procurar tabelas que parecem ter dados por intervalo
+        tables = soup.find_all("table")
+        for table in tables:
+            try:
+                df = pd.read_html(str(table))[0]
+                cols = [str(c) for c in df.columns]
+                # Verifica se há colunas como '1-15', '16-30'... ou 'Statistic'
+                if any('1-15' in c or '16-30' in c or 'Statistic' in c for c in cols):
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = [' '.join(col).strip() for col in df.columns.values]
+                    return df
+            except:
+                continue
+        return None
+    except Exception as e:
+        print(f"Erro no scraping da partida: {e}")
+        return None
     # Odds (opcional)
     odds_dict = {
         "odd_casa": 1.8, "odd_empate": 3.5, "odd_fora": 4.0,
