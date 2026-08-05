@@ -1,12 +1,14 @@
 """
 app.py — EngramScore
-Sistema de análise esportiva com três modos de entrada.
+Sistema de análise esportiva com três modos de entrada,
+salvamento persistente de análises e análise pós-jogo via scraping.
 """
 
 import sys
 import importlib.util
 from pathlib import Path
 from datetime import datetime
+import json
 
 import streamlit as st
 
@@ -19,7 +21,7 @@ INTERFACE_DIR = SRC_DIR / "Interface"
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(SRC_DIR))
 
-
+# --- Função para carregar módulos dinamicamente ---
 def carregar_modulo(nome_arquivo, nome_modulo):
     caminho = INTERFACE_DIR / nome_arquivo
     if not caminho.exists():
@@ -34,10 +36,8 @@ def carregar_modulo(nome_arquivo, nome_modulo):
         st.error(f"❌ Erro ao carregar {nome_arquivo}: {e}")
         st.stop()
 
-
 # Módulos de interface
 css = carregar_modulo("css.py", "css")
-# sidebar = carregar_modulo("sidebar.py", "sidebar")   # desativado
 entrada_hibrida = carregar_modulo("entrada_hibrida.py", "entrada_hibrida")
 entrada_manual = carregar_modulo("entrada_manual.py", "entrada_manual")
 odds = carregar_modulo("odds.py", "odds")
@@ -54,13 +54,53 @@ except ImportError:
 # Interface fixa
 css.carregar_css()
 css.renderizar_header()
-# sidebar.renderizar_sidebar()   # removido
 
-# Seleção do modo
-modo = st.sidebar.radio(
-    "Modo de entrada",
-    ["Manual", "Híbrido (colar tabelas)", "Automático (dados reais)"]
-)
+# ============================================================
+# Sistema de Jogos Salvos (persistente)
+# ============================================================
+ARQUIVO_SALVOS = Path("data/jogos_salvos.json")
+ARQUIVO_SALVOS.parent.mkdir(exist_ok=True)
+
+def carregar_salvos():
+    if ARQUIVO_SALVOS.exists():
+        with open(ARQUIVO_SALVOS, "r") as f:
+            return json.load(f)
+    return []
+
+def salvar_jogo(dados):
+    salvos = carregar_salvos()
+    # Evitar duplicatas (mesmo time casa e fora)
+    if not any(j["casa"] == dados["nome_casa"] and j["fora"] == dados["nome_fora"] for j in salvos):
+        salvos.append({
+            "casa": dados["nome_casa"],
+            "fora": dados["nome_fora"],
+            "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "dados": dados  # Armazena todos os dados para recarregar
+        })
+        with open(ARQUIVO_SALVOS, "w") as f:
+            json.dump(salvos, f, default=str)
+        return True
+    return False
+
+# ============================================================
+# Barra Lateral (Jogos Salvos + Modo)
+# ============================================================
+with st.sidebar:
+    st.markdown("## 💾 Jogos Salvos")
+    salvos = carregar_salvos()
+    if salvos:
+        for i, jogo in enumerate(salvos):
+            if st.button(f"📊 {jogo['casa']} x {jogo['fora']} ({jogo['data']})", key=f"salvo_{i}"):
+                st.session_state["jogo_selecionado"] = jogo
+                st.rerun()
+    else:
+        st.info("Nenhum jogo salvo ainda. Gere uma análise e clique em 'Salvar Análise'.")
+
+    st.markdown("---")
+    modo = st.radio(
+        "Modo de entrada",
+        ["Manual", "Híbrido (colar tabelas)", "Automático (dados reais)"]
+    )
 
 dados = None
 odds_data = None
@@ -73,7 +113,6 @@ if modo == "Automático (dados reais)":
         st.markdown("### 🤖 Análise Automática")
         st.markdown("*Os dados serão obtidos de API‑Football, FBref e Understat.*")
 
-        # Estado da sessão
         if "times_carregados" not in st.session_state:
             st.session_state.times_carregados = False
             st.session_state.lista_times = []
@@ -169,8 +208,26 @@ else:
     )
     dados = entrada_manual.renderizar_modo_manual()
     odds_data = odds.renderizar_odds()
+    # ============================================================
+# Exibição de Análise (jogo selecionado ou novo)
+# ============================================================
+if "jogo_selecionado" in st.session_state:
+    jogo = st.session_state["jogo_selecionado"]
+    dados = jogo.get("dados")
+    odds_data = {
+        "odd_casa": dados.get("odd_casa", 1.8),
+        "odd_empate": dados.get("odd_empate", 3.5),
+        "odd_fora": dados.get("odd_fora", 4.0),
+        "odd_over15": dados.get("odd_over15", 1.2),
+        "odd_over25": dados.get("odd_over25", 1.8),
+        "odd_over35": dados.get("odd_over35", 2.5),
+        "odd_btts_sim": dados.get("odd_btts_sim", 1.8),
+        "odd_btts_nao": dados.get("odd_btts_nao", 1.9),
+        "odd_ht": dados.get("odd_ht", 1.5),
+    }
+    st.markdown(f"## 📊 Análise Salva: {jogo['casa']} vs {jogo['fora']}")
+    st.info(f"Análise realizada em {jogo['data']}")
 
-# --- GERAR ANÁLISE ---
 if dados is not None:
     if odds_data is None:
         odds_data = {
@@ -179,10 +236,17 @@ if dados is not None:
             "odd_btts_sim": 1.8, "odd_btts_nao": 1.9, "odd_ht": 1.5
         }
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    col_btn = st.columns([1, 2, 1])
-    with col_btn[1]:
+    # Botão para salvar (aparece ao lado do botão de gerar)
+    col_btn1, col_btn2 = st.columns([1, 1])
+    with col_btn1:
         gerar = st.button("⚡ GERAR ENGRAMSCORE", type="primary", use_container_width=True)
+    with col_btn2:
+        if st.button("💾 Salvar Análise", use_container_width=True):
+            if salvar_jogo(dados):
+                st.success("Análise salva com sucesso!")
+                st.rerun()
+            else:
+                st.warning("Esta análise já está salva.")
 
     if gerar:
         try:
@@ -190,13 +254,10 @@ if dados is not None:
         except Exception as e:
             st.error(f"❌ Erro ao gerar resultados: {e}")
 
-# Se houver jogo selecionado (da sidebar antiga)
-if "jogo_selecionado" in st.session_state:
-    jogo = st.session_state["jogo_selecionado"]
-    st.markdown(f"<h2>{jogo['casa']} vs {jogo['fora']}</h2>", unsafe_allow_html=True)
-    st.info("📊 Análise do dia carregada.")
-    if st.button("🔄 Nova análise"):
+# Limpar seleção
+if st.sidebar.button("🔄 Nova análise"):
+    if "jogo_selecionado" in st.session_state:
         del st.session_state["jogo_selecionado"]
-        st.rerun()
+    st.rerun()
 
 css.renderizar_rodape()
