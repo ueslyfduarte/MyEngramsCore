@@ -1,9 +1,6 @@
 """
 app.py — EngramScore
-Sistema de análise esportiva com três modos de entrada:
-- Manual (digitação)
-- Híbrido (colagem de tabelas FBref/WhoScored)
-- Automático (API‑Football + FBref + Understat)
+Sistema de análise esportiva com três modos de entrada.
 """
 
 import sys
@@ -13,10 +10,8 @@ from datetime import datetime
 
 import streamlit as st
 
-# ✅ PRIMEIRA CHAMADA STREAMLIT
 st.set_page_config(page_title="EngramScore ⚽", page_icon="⚽", layout="wide")
 
-# Configuração de caminhos
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
 INTERFACE_DIR = SRC_DIR / "Interface"
@@ -26,7 +21,6 @@ sys.path.insert(0, str(SRC_DIR))
 
 
 def carregar_modulo(nome_arquivo, nome_modulo):
-    """Carrega um módulo Python a partir do caminho absoluto."""
     caminho = INTERFACE_DIR / nome_arquivo
     if not caminho.exists():
         st.error(f"❌ Arquivo não encontrado: {caminho}")
@@ -41,15 +35,15 @@ def carregar_modulo(nome_arquivo, nome_modulo):
         st.stop()
 
 
-# Carregar módulos da interface
+# Módulos de interface
 css = carregar_modulo("css.py", "css")
-sidebar = carregar_modulo("sidebar.py", "sidebar")
+# sidebar = carregar_modulo("sidebar.py", "sidebar")   # desativado
 entrada_hibrida = carregar_modulo("entrada_hibrida.py", "entrada_hibrida")
 entrada_manual = carregar_modulo("entrada_manual.py", "entrada_manual")
 odds = carregar_modulo("odds.py", "odds")
 resultados = carregar_modulo("resultados.py", "resultados")
 
-# Carregar o novo data_loader (automático)
+# Data loader automático
 try:
     from src.data_loader import carregar_dados_automaticos, LIGAS_MAP
     AUTO_DISPONIVEL = True
@@ -57,14 +51,12 @@ except ImportError:
     AUTO_DISPONIVEL = False
     LIGAS_MAP = {}
 
-# Renderizar interface fixa
+# Interface fixa
 css.carregar_css()
 css.renderizar_header()
-sidebar.renderizar_sidebar()
+# sidebar.renderizar_sidebar()   # removido
 
-# ============================================================
-# Seleção do modo de entrada
-# ============================================================
+# Seleção do modo
 modo = st.sidebar.radio(
     "Modo de entrada",
     ["Manual", "Híbrido (colar tabelas)", "Automático (dados reais)"]
@@ -81,22 +73,20 @@ if modo == "Automático (dados reais)":
         st.markdown("### 🤖 Análise Automática")
         st.markdown("*Os dados serão obtidos de API‑Football, FBref e Understat.*")
 
-        # Inicializar estado da sessão
+        # Estado da sessão
         if "times_carregados" not in st.session_state:
             st.session_state.times_carregados = False
             st.session_state.lista_times = []
             st.session_state.liga_selecionada = ""
 
-        # Seleção da liga (sem ação automática)
         lista_ligas = list(LIGAS_MAP.keys()) if LIGAS_MAP else ["Premier League"]
         col_liga, col_btn = st.columns([3, 1])
         with col_liga:
             liga = st.selectbox("Liga", lista_ligas, key="auto_liga")
         with col_btn:
-            st.write("")  # espaço
+            st.write("")
             carregar_times_btn = st.button("📋 Carregar Times", use_container_width=True)
 
-        # Se o botão foi pressionado OU se a liga mudou em relação à armazenada
         if carregar_times_btn or (liga != st.session_state.liga_selecionada and st.session_state.times_carregados == False):
             api_key = st.secrets.get("API_FOOTBALL_KEY", None)
             if not api_key:
@@ -115,7 +105,6 @@ if modo == "Automático (dados reais)":
                         st.error(f"❌ Erro ao carregar times: {e}")
                         st.session_state.times_carregados = False
 
-        # Exibir as selectboxes somente se a lista estiver pronta
         if st.session_state.times_carregados:
             col1, col2 = st.columns(2)
             with col1:
@@ -155,7 +144,7 @@ if modo == "Automático (dados reais)":
         else:
             st.info("👆 Clique em **Carregar Times** para obter a lista de clubes da liga selecionada.")
 
-# --- MODO HÍBRIDO (original) ---
+# --- MODO HÍBRIDO ---
 elif modo == "Híbrido (colar tabelas)":
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown(
@@ -181,13 +170,9 @@ else:
     dados = entrada_manual.renderizar_modo_manual()
     odds_data = odds.renderizar_odds()
 
-# ============================================================
-# Botão de gerar análise (modos Manual e Híbrido)
-# ============================================================
+# --- GERAR ANÁLISE ---
 if dados is not None:
-    # Se for modo automático, as odds já estão em odds_data
     if odds_data is None:
-        # fallback: se por algum motivo não temos odds, pega valores padrão
         odds_data = {
             "odd_casa": 1.8, "odd_empate": 3.5, "odd_fora": 4.0,
             "odd_over15": 1.2, "odd_over25": 1.8, "odd_over35": 2.5,
@@ -204,11 +189,8 @@ if dados is not None:
             resultados.renderizar_resultados(dados, odds_data)
         except Exception as e:
             st.error(f"❌ Erro ao gerar resultados: {e}")
-            st.error("Verifique se todos os dados foram preenchidos corretamente.")
 
-# ============================================================
-# Se houver jogo selecionado na sidebar (análises prontas)
-# ============================================================
+# Se houver jogo selecionado (da sidebar antiga)
 if "jogo_selecionado" in st.session_state:
     jogo = st.session_state["jogo_selecionado"]
     st.markdown(f"<h2>{jogo['casa']} vs {jogo['fora']}</h2>", unsafe_allow_html=True)
