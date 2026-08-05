@@ -238,7 +238,7 @@ def renderizar_resultados(dados, odds):
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análises Detalhadas</span></div>""", unsafe_allow_html=True)
-    tabs = st.tabs(["📊 PILARES","🎭 ESTILO","⚔️ CONFRONTO","🗺️ HEATMAP","🎲 CENÁRIOS","🔧 AJUSTE EC","📋 MERCADOS","🌟 DESTAQUES","📝 ANÁLISE","🧠 MICRO MÉTRICAS"])
+    tabs = st.tabs(["📊 PILARES","🎭 ESTILO","⚔️ CONFRONTO","🗺️ HEATMAP","🎲 CENÁRIOS","🔧 AJUSTE EC","📋 MERCADOS","🌟 DESTAQUES","📝 ANÁLISE","🧠 MICRO MÉTRICAS","🕯️ CANDLESTICK"])
     # ----- ABA 1: Pilares (EXPANDIDA) -----
     with tabs[0]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🔍 PILARES INDIVIDUAIS</div>', unsafe_allow_html=True)
