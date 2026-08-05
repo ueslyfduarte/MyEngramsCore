@@ -1,6 +1,6 @@
 """
 Resultados — EngramScore
-Exibição dos resultados: EngramScore, abas, gráficos, heatmap, cenários, micro métricas.
+Exibição dos resultados: EngramScore, abas, gráficos, heatmap, cenários, micro métricas, candlestick.
 """
 
 import streamlit as st
@@ -145,7 +145,6 @@ def renderizar_resultados(dados, odds):
     odd_over15 = odds["odd_over15"]; odd_over25 = odds["odd_over25"]; odd_over35 = odds["odd_over35"]
     odd_btts_sim = odds["odd_btts_sim"]; odd_btts_nao = odds["odd_btts_nao"]; odd_ht = odds["odd_ht"]
 
-    # Aproveitamento casa/fora (novo)
     aprov_casa_casa = dados.get("aprov_casa_casa", 50.0)
     aprov_fora_fora = dados.get("aprov_fora_fora", 50.0)
 
@@ -175,7 +174,6 @@ def renderizar_resultados(dados, odds):
     psic_A = calcular_psicologico(consistencia_pontos=seq_cons_casa if len(seq_cons_casa)>=5 else None, moral_pontos=moral_casa, pressao_p_obj=p_obj_A, pressao_sensibilidade=0.3)
     psic_B = calcular_psicologico(consistencia_pontos=seq_cons_fora if len(seq_cons_fora)>=5 else None, moral_pontos=moral_fora, pressao_p_obj=p_obj_B, pressao_sensibilidade=0.3)
 
-    # Bônus dinâmico casa/visitante
     bonus_casa = max(0, (aprov_casa_casa - aprov_fora_fora) / 10)
     bonus_fora = max(0, (aprov_fora_fora - aprov_casa_casa) / 10)
     if aprov_fora_fora > 60:
@@ -186,14 +184,12 @@ def renderizar_resultados(dados, odds):
     EC_A = max(0, min(100, EC_A)); EC_B = max(0, min(100, EC_B))
     diff_ec = abs(EC_A - EC_B)
 
-    # ========== NOVO CÁLCULO DE EMPATE (MAIS BAIXO) ==========
     if diff_ec < 5.0:
         p_emp = 0.30 + (1 - diff_ec / 5.0) * 0.04
     elif diff_ec < 20:
         p_emp = 0.27 - (diff_ec - 5) / 15 * 0.07
     else:
         p_emp = max(0.14, 0.20 - (diff_ec - 20) / 80 * 0.06)
-    # =========================================================
 
     total = EC_A + EC_B
     p_A = (1 - p_emp) * (EC_A / total) if total > 0 else 0.33
@@ -224,7 +220,6 @@ def renderizar_resultados(dados, odds):
     casa_over05 = prob_team_over(lambda_casa_adj, 0); casa_over15 = prob_team_over(lambda_casa_adj, 1); casa_over25 = prob_team_over(lambda_casa_adj, 2)
     fora_over05 = prob_team_over(lambda_fora_adj, 0); fora_over15 = prob_team_over(lambda_fora_adj, 1); fora_over25 = prob_team_over(lambda_fora_adj, 2)
 
-    # ==================== EXIBIÇÃO PRINCIPAL ====================
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""<div style="text-align:center; margin-bottom:30px;"><div style="font-size:13px; text-transform:uppercase; letter-spacing:4px; color:#B0B8C0;">Resultado da Análise</div><h2 style="font-weight:900; margin:8px 0; letter-spacing:-1px;"><span style="background:linear-gradient(180deg, #F0C040 0%, #D4A017 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">ENGRAMSCORE</span></h2></div>""", unsafe_allow_html=True)
     col_ec1, col_ec2 = st.columns(2)
@@ -239,7 +234,7 @@ def renderizar_resultados(dados, odds):
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown("""<div style="text-align:center; margin-bottom:20px;"><span style="font-size:13px; text-transform:uppercase; letter-spacing:3px; color:#B0B8C0;">Análises Detalhadas</span></div>""", unsafe_allow_html=True)
     tabs = st.tabs(["📊 PILARES","🎭 ESTILO","⚔️ CONFRONTO","🗺️ HEATMAP","🎲 CENÁRIOS","🔧 AJUSTE EC","📋 MERCADOS","🌟 DESTAQUES","📝 ANÁLISE","🧠 MICRO MÉTRICAS","🕯️ CANDLESTICK"])
-    # ----- ABA 1: Pilares (EXPANDIDA) -----
+    # ----- ABA 1: Pilares -----
     with tabs[0]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🔍 PILARES INDIVIDUAIS</div>', unsafe_allow_html=True)
         pilares_nomes = ['Momento Atual','Força Geral','Confronto','Psicológico']
@@ -273,7 +268,7 @@ def renderizar_resultados(dados, odds):
         st.plotly_chart(fig_radar,width='stretch')
         st.markdown('</div>',unsafe_allow_html=True)
 
-    # ----- ABA 2: Estilo (EXPANDIDA) -----
+    # ----- ABA 2: Estilo -----
     with tabs[1]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🎭 PERFIS TÁTICOS</div>',unsafe_allow_html=True)
         col_perf1,col_perf2=st.columns(2)
@@ -298,7 +293,7 @@ def renderizar_resultados(dados, odds):
         st.markdown("""<div class="info-card" style="margin-top:16px;"><strong>🏆 Dominante:</strong> Controla posse, finaliza muito, pressiona.<br><strong>🔥 Pressão Alta:</strong> Extremamente agressivo.<br><strong>⚡ Reativo/Contra‑ataque:</strong> Pouca posse, transições rápidas.<br><strong>🛡️ Defensivo:</strong> Prioriza não sofrer gols.<br><strong>⚖️ Equilibrado:</strong> Sem extremos.<br><strong>🅿️ Jogo Pelas Pontas:</strong> Muitos cruzamentos.<br><strong>⬆️ Jogo Vertical:</strong> Bolas enfiadas, profundidade.</div>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
-    # ----- ABA 3: Confronto (EXPANDIDA) -----
+    # ----- ABA 3: Confronto -----
     with tabs[2]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">⚔️ CONFRONTO POR ESTATÍSTICA</div>',unsafe_allow_html=True)
         stats_completas=[('Gols Marcados',gm_casa,gm_fora,'maior','⚽'),('Finalizações Alvo',fa_casa,fa_fora,'maior','🎯'),('Posse (%)',posse_casa,posse_fora,'maior','🏐'),('Gols Sofridos',gs_casa,gs_fora,'menor','🥅'),('Finalizações Sofridas',fas_casa,fas_fora,'menor','🛡️'),('Faltas Cometidas',fc_casa,fc_fora,'menor','🟨'),('Cartões Amarelos',ca_casa,ca_fora,'menor','🟨'),('Desarmes',des_casa,des_fora,'maior','💪'),('Escanteios',eca_casa,eca_fora,'maior','🏳️')]
@@ -315,7 +310,7 @@ def renderizar_resultados(dados, odds):
         st.markdown(f"""<div class="info-card" style="margin-top:16px;text-align:center;"><strong>{nome_casa}</strong> vence em <strong>{vant_A}/9</strong> estatísticas | <strong>{nome_fora}</strong> vence em <strong>{vant_B}/9</strong> estatísticas</div>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
-    # ----- ABA 4: Heatmap (ANIMADO CORRIGIDO) -----
+    # ----- ABA 4: Heatmap -----
     with tabs[3]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🗺️ HEATMAP TÁTICO — FLUXO DE JOGO</div>',unsafe_allow_html=True)
         fA=[def_A/100,mei_A/100,atq_A/100]; fB=[atq_B/100,mei_B/100,def_B/100]
@@ -358,8 +353,7 @@ def renderizar_resultados(dados, odds):
         st.plotly_chart(fig_field,width='stretch')
         st.markdown("""<div style="font-size:13px;color:#B0B8C0;text-align:center;">🔸 Dourado = Casa | 🔵 Azul = Visitante<br>Clique em ▶️ para ver o fluxo de jogo animado</div>""",unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
-
-    # ----- ABA 5: Cenários (EXPANDIDA) -----
+        # ----- ABA 5: Cenários -----
     with tabs[4]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🎲 CINCO CENÁRIOS MAIS PROVÁVEIS</div>',unsafe_allow_html=True)
         cenarios=gerar_cenarios_justificados(results_adj,nome_casa,nome_fora,gm_casa,gm_fora,gs_casa,gs_fora,EC_A,EC_B,lambda_casa_adj,lambda_fora_adj)
@@ -373,7 +367,8 @@ def renderizar_resultados(dados, odds):
         col_res2.metric("Empate",f"{p_emp:.1%}")
         col_res3.metric(f"Vitória {nome_fora}",f"{p_B:.1%}",delta=f"EC: {EC_B:.1f}")
         st.markdown('</div>',unsafe_allow_html=True)
-        # ----- ABA 6: Ajuste EC (EXPANDIDA) -----
+
+    # ----- ABA 6: Ajuste EC -----
     with tabs[5]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">🔧 AJUSTE ENGRAMSCORE NOS GOLS ESPERADOS</div>',unsafe_allow_html=True)
         st.markdown(f"""<div style="text-align:center;margin:16px 0;"><span style="font-size:14px;color:#B0B8C0;">Fator de Ajuste (diferença dos ECs):</span><span style="font-size:28px;font-weight:900;color:#F0C040;margin-left:8px;">{fator_ajuste:+.2f}</span></div>""",unsafe_allow_html=True)
@@ -391,7 +386,7 @@ def renderizar_resultados(dados, odds):
         st.plotly_chart(fig_lambdas,width='stretch')
         st.markdown('</div>',unsafe_allow_html=True)
 
-    # ----- ABA 7: Mercados (EXPANDIDA) -----
+    # ----- ABA 7: Mercados -----
     with tabs[6]:
         st.markdown('<div class="card-premium"><div class="card-header-premium">📊 PROBABILIDADES 1X2</div>',unsafe_allow_html=True)
         col_p1,col_p2,col_p3=st.columns(3)
@@ -440,4 +435,199 @@ def renderizar_resultados(dados, odds):
         for mercado,prob in probs_modelo.items():
             odd_mod=1/prob if prob>0 else 999; odd_real=odds_reais.get(mercado)
             if odd_real and odd_real>1.0:
-                ev=(prob*odd_real-1)*100; indicacao="💚 VALOR" if ev>5 else "🟢 Bom" if ev>
+                ev=(prob*odd_real-1)*100; indicacao="💚 VALOR" if ev>5 else "🟢 Bom" if ev>0 else "🔴 Sem"
+                linhas.append((mercado,f"{prob:.1%}",f"{odd_mod:.2f}",f"{odd_real:.2f}",f"{ev:+.1f}%",indicacao))
+            else: linhas.append((mercado,f"{prob:.1%}",f"{odd_mod:.2f}","-","-","⚪"))
+        df_edge=pd.DataFrame(linhas,columns=["Mercado","Prob. Modelo","Odd Justa","Odd Real","EV%","Edge"])
+        st.dataframe(df_edge,width='stretch',height=400)
+        st.markdown("""<small>💚 VALOR = EV% > 5% | 🟢 Bom = EV% positivo | 🔴 Sem = sem valor identificado</small>""",unsafe_allow_html=True)
+        st.markdown('</div>',unsafe_allow_html=True)
+        # ----- ABA 8: Destaques -----
+    with tabs[7]:
+        st.markdown('<div class="card-premium"><div class="card-header-premium">🌟 DESTAQUES E DIFERENCIAIS</div>',unsafe_allow_html=True)
+        st.markdown("**📊 Probabilidades Acima de 65%**")
+        destaques=[]
+        if p_A>0.65: destaques.append((f"Vitória {nome_casa}",p_A,"1X2"))
+        if p_emp>0.65: destaques.append(("Empate",p_emp,"1X2"))
+        if p_B>0.65: destaques.append((f"Vitória {nome_fora}",p_B,"1X2"))
+        for nome,prob in [("Over 1.5",over15_adj),("Over 2.5",over25_adj),("Over 3.5",over35_adj),("BTTS Sim",btts_adj),("Gol 1º Tempo",prob_gol_ht_adj)]:
+            if prob>0.65: destaques.append((nome,prob,"Gols"))
+        if destaques:
+            for nome,prob,cat in destaques:
+                icone="🏆" if cat=="1X2" else "⚽"
+                st.markdown(f"""<div style="background:rgba(240,192,64,0.08);border:1px solid rgba(240,192,64,0.3);border-radius:10px;padding:14px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;"><span style="color:#F0C040;font-weight:700;">{icone} {nome}</span><span style="font-size:24px;font-weight:900;background:linear-gradient(180deg,#F0C040 0%,#D4A017 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{prob:.1%}</span></div>""",unsafe_allow_html=True)
+        else: st.markdown('<div style="color:#B0B8C0;text-align:center;">Nenhuma probabilidade acima de 65%.</div>',unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("**🎯 Diferenciais Táticos**")
+        dif_posse=posse_casa-posse_fora; dif_chutes=fa_casa-fa_fora; dif_desarme=des_casa-des_fora
+        if abs(dif_posse)>5:
+            time_dom=nome_casa if dif_posse>0 else nome_fora
+            st.markdown(f"🟡 **Posse de bola**: {time_dom} deve dominar a posse ({abs(dif_posse):.1f}% a mais)")
+        if abs(dif_chutes)>2:
+            time_chutes=nome_casa if dif_chutes>0 else nome_fora
+            st.markdown(f"🎯 **Finalizações**: {time_chutes} finaliza mais ({abs(dif_chutes):.1f} por jogo)")
+        if abs(dif_desarme)>3:
+            time_des=nome_casa if dif_desarme>0 else nome_fora
+            st.markdown(f"💪 **Desarmes**: {time_des} desarma mais ({abs(dif_desarme):.1f} por jogo)")
+        if dados.get('rating_casa',0)>0:
+            dif_rating=dados.get('rating_casa',6.5)-dados.get('rating_fora',6.5)
+            if abs(dif_rating)>0.2:
+                time_rating=nome_casa if dif_rating>0 else nome_fora
+                st.markdown(f"⭐ **Rating WhoScored**: {time_rating} melhor avaliado (dif: {abs(dif_rating):.2f})")
+        if dados.get('glsca_casa',0)>0 or dados.get('glsca_fora',0)>0:
+            st.markdown(f"⚡ **Contra-ataque**: {nome_casa} {dados.get('glsca_casa',0):.0f} gols | {nome_fora} {dados.get('glsca_fora',0):.0f} gols")
+        st.markdown('</div>',unsafe_allow_html=True)
+
+    # ----- ABA 9: Análise Descritiva -----
+    with tabs[8]:
+        st.markdown('<div class="card-premium"><div class="card-header-premium">📝 ANÁLISE DESCRITIVA COMPLETA</div>',unsafe_allow_html=True)
+        st.markdown("### 🔍 Pilares Individuais")
+        st.markdown(f"""<div class="info-card"><strong>Momento Atual:</strong> {nome_casa} {ma_A:.1f} × {nome_fora} {ma_B:.1f}. {'Casa em melhor fase.' if ma_A>ma_B else 'Visitante em melhor momento.' if ma_B>ma_A else 'Momentos semelhantes.'}<br><strong>Força Geral:</strong> {nome_casa} {fg_A:.1f} × {nome_fora} {fg_B:.1f}. {'Casa mais forte.' if fg_A>fg_B else 'Visitante mais forte.' if fg_B>fg_A else 'Força equilibrada.'}<br><strong>Confronto:</strong> {nome_casa} {cpp_A:.1f} × {nome_fora} {cpp_B:.1f}.<br><strong>Psicológico:</strong> {nome_casa} {psic_A:.1f} × {nome_fora} {psic_B:.1f}.</div>""",unsafe_allow_html=True)
+        st.markdown("### ⚔️ Diferenciais por Pilar")
+        dif_ma=ma_A-ma_B; dif_fg=fg_A-fg_B; dif_cpp=cpp_A-cpp_B; dif_psic=psic_A-psic_B
+        vantagens_A=[]; vantagens_B=[]
+        if dif_ma>0: vantagens_A.append("Momento Atual")
+        elif dif_ma<0: vantagens_B.append("Momento Atual")
+        if dif_fg>0: vantagens_A.append("Força Geral")
+        elif dif_fg<0: vantagens_B.append("Força Geral")
+        if dif_cpp>0: vantagens_A.append("Confronto")
+        elif dif_cpp<0: vantagens_B.append("Confronto")
+        if dif_psic>0: vantagens_A.append("Psicológico")
+        elif dif_psic<0: vantagens_B.append("Psicológico")
+        if vantagens_A: st.markdown(f"<div class='info-card'><strong>{nome_casa}</strong> leva vantagem em: {', '.join(vantagens_A)}.</div>",unsafe_allow_html=True)
+        if vantagens_B: st.markdown(f"<div class='info-card'><strong>{nome_fora}</strong> leva vantagem em: {', '.join(vantagens_B)}.</div>",unsafe_allow_html=True)
+        if not vantagens_A and not vantagens_B: st.markdown("<div class='info-card'>Equilíbrio total nos pilares.</div>",unsafe_allow_html=True)
+        st.markdown("### ⚡ EngramScore")
+        st.markdown(f"""<div class="info-card">{nome_casa} <strong>{EC_A:.1f}</strong> vs {nome_fora} <strong>{EC_B:.1f}</strong>. {'Vantagem clara para o mandante.' if EC_A>EC_B+5 else 'Visitante é o favorito.' if EC_B>EC_A+5 else 'Confronto extremamente equilibrado.'}</div>""",unsafe_allow_html=True)
+        st.markdown("### 🎯 Desempenho Setorial")
+        st.markdown(f"""<div class="info-card"><strong>Ataque:</strong> {nome_casa} {atq_A:.1f} × {nome_fora} {atq_B:.1f}.<br><strong>Defesa:</strong> {nome_casa} {def_A:.1f} × {nome_fora} {def_B:.1f}.<br><strong>Meio:</strong> {nome_casa} {mei_A:.1f} × {nome_fora} {mei_B:.1f}.</div>""",unsafe_allow_html=True)
+        st.markdown(f"""<div class="info-card">{nome_casa} é <strong>{perfil_A}</strong>, {nome_fora} é <strong>{perfil_B}</strong>.</div>""",unsafe_allow_html=True)
+        if dados.get('rating_casa',0)>0:
+            st.markdown("### ⭐ Rating WhoScored")
+            st.markdown(f"""<div class="info-card">{nome_casa}: <strong>{dados.get('rating_casa',6.5):.2f}</strong> | {nome_fora}: <strong>{dados.get('rating_fora',6.5):.2f}</strong></div>""",unsafe_allow_html=True)
+        st.markdown("### 📊 Expectativa de Gols")
+        st.markdown(f"""<div class="info-card">Total esperado: <strong>{lambda_casa_adj+lambda_fora_adj:.2f}</strong> gols.<br>Over 1.5: <strong>{over15_adj:.1%}</strong> | Over 2.5: <strong>{over25_adj:.1%}</strong> | Over 3.5: <strong>{over35_adj:.1%}</strong><br>BTTS: <strong>{btts_adj:.1%}</strong> | Gol 1ºT: <strong>{prob_gol_ht_adj:.1%}</strong></div>""",unsafe_allow_html=True)
+        cen=gerar_cenarios_justificados(results_adj,nome_casa,nome_fora,gm_casa,gm_fora,gs_casa,gs_fora,EC_A,EC_B,lambda_casa_adj,lambda_fora_adj)
+        st.markdown(f"""<div class="info-card"><strong>Cenário mais provável:</strong> {cen[0][0]} ({cen[0][1]:.1%})</div>""",unsafe_allow_html=True)
+        st.markdown("### 📌 Recomendação Final")
+        resultados_list=[(f"Vitória do {nome_casa}",p_A,vantagens_A,"mandante"),("Empate",p_emp,[],"empate"),(f"Vitória do {nome_fora}",p_B,vantagens_B,"visitante")]
+        resultado_final=max(resultados_list,key=lambda x:x[1])
+        nome_res,prob_res,vantagens_res,tipo_res=resultado_final
+        if tipo_res=="empate":
+            justificativa="O equilíbrio nos pilares indica uma partida disputada."
+            if diff_ec<5: justificativa+=" A diferença de EngramScore é mínima."
+            cor_borda="#F0C040"
+        else:
+            if vantagens_res: justificativa=f"Vantagens nos pilares {', '.join(vantagens_res)} dão a superioridade."
+            elif tipo_res=="mandante": justificativa="Fator casa e ligeira superioridade no EngramScore inclinam a balança."
+            else: justificativa="Visitante apresenta EngramScore superior, justificando o favoritismo."
+            cor_borda="#00E676" if tipo_res=="mandante" else "#4A90D9"
+        st.markdown(f"""<div class="info-card" style="border-color:{cor_borda};"><strong>{nome_res}</strong> é o resultado mais provável, com <strong>{prob_res:.1%}</strong> de chance.<br>{justificativa}</div>""",unsafe_allow_html=True)
+        if tipo_res!="empate" and p_emp>0.25: st.markdown(f"""<div class="info-card" style="border-color:#F0C040;margin-top:8px;">⚠️ O empate também merece atenção, com <strong>{p_emp:.1%}</strong> de probabilidade.</div>""",unsafe_allow_html=True)
+        st.markdown('</div>',unsafe_allow_html=True)
+
+    # ----- ABA 10: Micro Métricas -----
+    with tabs[9]:
+        st.markdown('<div class="card-premium"><div class="card-header-premium">🧠 MICRO MÉTRICAS — DETALHAMENTO DOS PILARES</div>', unsafe_allow_html=True)
+        col_m1, col_m2 = st.columns(2)
+
+        with col_m1:
+            st.markdown(f"**🏠 {nome_casa}**")
+            st.markdown(f"**Momento Atual (MA):** {ma_A:.1f}")
+            st.markdown(f"**Força Geral (FG):** {fg_A:.1f}")
+            st.markdown(f"  - Ataque: GM={dados_A.get('GM',0):.2f}, xG={dados_A.get('xG',0):.2f}, SoT={dados_A.get('SoT',0):.2f}")
+            st.markdown(f"  - Defesa: GS={dados_A.get('GS',0):.2f}, xGA={dados_A.get('xGA',0):.2f}, Tkl={dados_A.get('Tkl',0):.2f}")
+            st.markdown(f"  - Meio: Poss={dados_A.get('Poss',0):.1f}%, PrgP={dados_A.get('PrgP',0):.1f}")
+            st.markdown(f"  - Intensidade: Press={dados_A.get('Press',0):.1f}, Tkl+Int={dados_A.get('Tkl',0)+dados_A.get('Int',0):.1f}")
+            st.markdown(f"**Confronto por Prateleira (CPP):** {cpp_A:.1f}")
+            st.markdown(f"  - Prateleira adversário: {dados.get('prat_casa','N/A')}")
+            st.markdown(f"  - Pontos: {dados.get('pts_cpp_casa',0)} pts em {dados.get('jogos_cpp_casa',0)} jogos")
+            st.markdown(f"**Psicológico:** {psic_A:.1f}")
+            st.markdown(f"  - Consistência: {psic_A:.1f}")
+            st.markdown(f"  - Moral: {moral_casa} pts (últ. 3)")
+            st.markdown(f"  - Pressão: {p_obj_A:.1f}")
+
+        with col_m2:
+            st.markdown(f"**✈️ {nome_fora}**")
+            st.markdown(f"**Momento Atual (MA):** {ma_B:.1f}")
+            st.markdown(f"**Força Geral (FG):** {fg_B:.1f}")
+            st.markdown(f"  - Ataque: GM={dados_B.get('GM',0):.2f}, xG={dados_B.get('xG',0):.2f}, SoT={dados_B.get('SoT',0):.2f}")
+            st.markdown(f"  - Defesa: GS={dados_B.get('GS',0):.2f}, xGA={dados_B.get('xGA',0):.2f}, Tkl={dados_B.get('Tkl',0):.2f}")
+            st.markdown(f"  - Meio: Poss={dados_B.get('Poss',0):.1f}%, PrgP={dados_B.get('PrgP',0):.1f}")
+            st.markdown(f"  - Intensidade: Press={dados_B.get('Press',0):.1f}, Tkl+Int={dados_B.get('Tkl',0)+dados_B.get('Int',0):.1f}")
+            st.markdown(f"**Confronto por Prateleira (CPP):** {cpp_B:.1f}")
+            st.markdown(f"  - Prateleira adversário: {dados.get('prat_fora','N/A')}")
+            st.markdown(f"  - Pontos: {dados.get('pts_cpp_fora',0)} pts em {dados.get('jogos_cpp_fora',0)} jogos")
+            st.markdown(f"**Psicológico:** {psic_B:.1f}")
+            st.markdown(f"  - Consistência: {psic_B:.1f}")
+            st.markdown(f"  - Moral: {moral_fora} pts (últ. 3)")
+            st.markdown(f"  - Pressão: {p_obj_B:.1f}")
+
+        st.markdown("---")
+        st.markdown("**🏟️ Fator Local**")
+        st.markdown(f"""
+        - Aproveitamento {nome_casa} em casa: {aprov_casa_casa:.1f}%
+        - Aproveitamento {nome_fora} fora: {aprov_fora_fora:.1f}%
+        - Bônus casa aplicado: {bonus_casa:.1f}
+        - Bônus visitante aplicado: {bonus_fora:.1f}
+        """)
+        st.markdown('</div>',unsafe_allow_html=True)
+        # ----- ABA 11: Candlestick -----
+    with tabs[10]:
+        st.markdown('<div class="card-premium"><div class="card-header-premium">🕯️ ANÁLISE POR PERÍODO (CANDLESTICK)</div>', unsafe_allow_html=True)
+        st.markdown("*Cole a URL de uma partida no FBref para visualizar estatísticas por intervalo de tempo.*")
+        match_url = st.text_input("URL da partida no FBref", key="candle_url")
+        
+        if match_url:
+            if st.button("🔍 Extrair dados do jogo"):
+                with st.spinner("Extraindo dados do FBref..."):
+                    try:
+                        from src.data_loader import get_match_period_stats_fbref
+                        df_period = get_match_period_stats_fbref(match_url)
+                        
+                        if df_period is None or df_period.empty:
+                            st.error("Não foi possível encontrar estatísticas por período. Verifique a URL e se o jogo já possui dados disponíveis.")
+                        else:
+                            metricas = df_period.iloc[:, 0].tolist()
+                            metrica = st.selectbox("Selecione a métrica", metricas)
+                            
+                            row = df_period[df_period.iloc[:, 0] == metrica].iloc[0]
+                            intervalos = [col for col in df_period.columns if '-' in col or '+' in col]
+                            valores = []
+                            for interv in intervalos:
+                                try:
+                                    val = float(row[interv])
+                                except:
+                                    val = 0.0
+                                valores.append(val)
+                            
+                            fig = go.Figure()
+                            for i, interv in enumerate(intervalos):
+                                if i == 0:
+                                    open_val = 0
+                                else:
+                                    open_val = valores[i-1]
+                                close_val = valores[i]
+                                high_val = max(open_val, close_val)
+                                low_val = min(open_val, close_val)
+                                fig.add_trace(go.Candlestick(
+                                    x=[interv],
+                                    open=[open_val],
+                                    high=[high_val],
+                                    low=[low_val],
+                                    close=[close_val],
+                                    name=interv
+                                ))
+                            fig.update_layout(
+                                title=f"{metrica} por intervalo de tempo",
+                                xaxis_title="Intervalo",
+                                yaxis_title=metrica,
+                                template='plotly_dark',
+                                showlegend=False
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Erro ao processar dados: {e}")
+        else:
+            st.info("Exemplo de URL: `https://fbref.com/en/matches/abc123/2023-2024/TeamA-TeamB`")
+        st.markdown('</div>',unsafe_allow_html=True)
