@@ -13,8 +13,6 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-
-
 # ============================================================
 # Configurações gerais
 # ============================================================
@@ -25,8 +23,6 @@ DELAY_UNDERSTAT = 2
 HEADERS_FBREF = {"User-Agent": "EngramScoreBot/1.0 (analytics@engramscore.com)"}
 HEADERS_UNDERSTAT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 CACHE_TTL = timedelta(days=7)
-
-
 
 # ============================================================
 # 50 ligas mapeadas
@@ -84,7 +80,6 @@ LIGAS_MAP = {
     "Moroccan Botola Pro": {"api_id": 200, "understat": "Morocco", "fbref_comp": "74", "fbref_slug": "Moroccan-Botola-Pro"},
 }
 
-
 # ============================================================
 # Mapeamento manual de times → slug FBref (fallback)
 # ============================================================
@@ -114,7 +109,6 @@ TIMES_FBREF_SLUG = {
     "Corinthians": "Corinthians",
     "São Paulo": "Sao-Paulo",
 }
-
 
 # ============================================================
 # Cache local
@@ -152,7 +146,6 @@ def _cache_load(key: str, ttl: timedelta = CACHE_TTL, extension: str = "json"):
     elif extension == "csv":
         return pd.read_csv(path)
     return None
-
 
 # ============================================================
 # API-Football (RapidAPI) – uso mínimo
@@ -270,6 +263,7 @@ def get_home_away_pct(team_id: int, league_id: int, season: int, api_key: str) -
     home_pct = (home_pts / (3 * home_j) * 100) if home_j > 0 else 50.0
     away_pct = (away_pts / (3 * away_j) * 100) if away_j > 0 else 50.0
     return home_pct, away_pct
+
 # ============================================================
 # FBref scraping – tabelas, classificação, resultados, stats
 # ============================================================
@@ -334,13 +328,13 @@ def get_team_advanced_fbref(team_slug: str, season: str) -> dict:
 
         def extrair_tabela(tabela_id):
             table = soup.find("table", id=tabela_id)
-            if table:
-                df = pd.read_html(str(table))[0]
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = [' '.join(col).strip() for col in df.columns.values]
-                df = df[df["Player"] != "Player"]
-                return df
-            return None
+            if not table:
+                return None
+            df = pd.read_html(str(table))[0]
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [' '.join(col).strip() for col in df.columns.values]
+            df = df[df["Player"] != "Player"]
+            return df
 
         std = extrair_tabela("stats_standard_9")
         if std is not None:
@@ -402,7 +396,8 @@ def get_team_advanced_fbref(team_slug: str, season: str) -> dict:
     except Exception as e:
         print(f"Erro ao buscar FBref para {team_slug}: {e}")
         return {}
-        def get_recent_matches_fbref(team_slug: str, season: str, n: int = 10) -> List[str]:
+
+def get_recent_matches_fbref(team_slug: str, season: str, n: int = 10) -> List[str]:
     url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
     try:
         time.sleep(DELAY_FBREF)
@@ -755,7 +750,8 @@ def carregar_dados_automaticos(
     }
 
     return dados
-    def get_match_period_stats_fbref(match_url: str) -> Optional[pd.DataFrame]:
+
+def get_match_period_stats_fbref(match_url: str) -> Optional[pd.DataFrame]:
     """
     Faz scraping da página de uma partida no FBref e retorna estatísticas por período.
     Exemplo de URL: 'https://fbref.com/en/matches/abc123/2023-2024/TeamA-TeamB'
