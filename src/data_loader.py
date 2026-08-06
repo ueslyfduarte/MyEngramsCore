@@ -1,6 +1,7 @@
 """
-data_loader.py — Coleta automática de dados (FBref + Understat + Soccerway + Soccerstats)
-100% gratuito, sem API. Cache de 7 dias. Temporada atual ou anterior.
+data_loader.py – Coleta de dados via Selenium (FBref) + requests (Understat, Soccerway, Soccerstats)
+Usa navegador Chrome visível (não headless) para contornar Cloudflare.
+Cache de 7 dias. Suporte a ligas anuais (Brasileirão) e europeias.
 """
 
 import os, json, time, re, hashlib
@@ -11,30 +12,33 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+# Selenium imports
+import undetected_chromedriver as uc
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+
 # ============================================================
 # Configurações gerais
 # ============================================================
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
-DELAY_FBREF = 8
+DELAY_FBREF = 10
 DELAY_UNDERSTAT = 2
-DELAY_SOCCER = 5          # delay para Soccerway e Soccerstats
-HEADERS_FBREF = {"User-Agent": "EngramScoreBot/1.0 (analytics@engramscore.com)"}
-HEADERS_UNDERSTAT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+DELAY_SOCCER = 5
+
+HEADERS_UNDERSTAT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"}
 HEADERS_SOCCER = {"User-Agent": "Mozilla/5.0 (compatible; EngramScoreBot/1.0)"}
 CACHE_TTL = timedelta(days=7)
 
-# ============================================================
-# Mapeamento de ligas (FBref + Understat)
-# ============================================================
+# Liga: understat, fbref_comp, fbref_slug, temporada_anual (True para ligas de ano civil)
 LIGAS_MAP = {
-    "Premier League": {"understat": "EPL", "fbref_comp": "9", "fbref_slug": "Premier-League"},
-    "La Liga": {"understat": "La_liga", "fbref_comp": "12", "fbref_slug": "La-Liga"},
-    "Bundesliga": {"understat": "Bundesliga", "fbref_comp": "20", "fbref_slug": "Bundesliga"},
-    "Serie A": {"understat": "Serie_A", "fbref_comp": "11", "fbref_slug": "Serie-A"},
-    "Ligue 1": {"understat": "Ligue_1", "fbref_comp": "13", "fbref_slug": "Ligue-1"},
-    "Brasileirão Série A": {"understat": "BRA", "fbref_comp": "24", "fbref_slug": "Campeonato-Brasileiro-Serie-A"},
-    # Adicione outras ligas conforme necessário
+    "Premier League": {"understat": "EPL", "fbref_comp": "9", "fbref_slug": "Premier-League", "temporada_anual": False},
+    "La Liga": {"understat": "La_liga", "fbref_comp": "12", "fbref_slug": "La-Liga", "temporada_anual": False},
+    "Bundesliga": {"understat": "Bundesliga", "fbref_comp": "20", "fbref_slug": "Bundesliga", "temporada_anual": False},
+    "Serie A": {"understat": "Serie_A", "fbref_comp": "11", "fbref_slug": "Serie-A", "temporada_anual": False},
+    "Ligue 1": {"understat": "Ligue_1", "fbref_comp": "13", "fbref_slug": "Ligue-1", "temporada_anual": False},
+    "Brasileirão Série A": {"understat": "BRA", "fbref_comp": "24", "fbref_slug": "Campeonato-Brasileiro-Serie-A", "temporada_anual": True},
 }
 
 TIMES_FBREF_SLUG = {
@@ -44,9 +48,6 @@ TIMES_FBREF_SLUG = {
     "São Paulo": "Sao-Paulo",
 }
 
-# ============================================================
-# Cache local
-# ============================================================
 def _cache_path(key, extension="json"):
     hash_key = hashlib.md5(key.encode()).hexdigest()
     return CACHE_DIR / f"{hash_key}.{extension}"
@@ -71,29 +72,50 @@ def _cache_load(key, ttl=CACHE_TTL, extension="json"):
     return pd.read_csv(path)
 
 # ============================================================
-# FBref scraping (tabelas, classificação, stats avançadas, resultados)
+# Selenium (FBref)
 # ============================================================
+def _get_page(url):
+    """Usa Selenium com navegador visível para contornar Cloudflare."""
+    options = uc.ChromeOptions()
+    # Modo visível (não headless) para máxima compatibilidade
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = uc.Chrome(options=options)
+    try:
+        driver.get(url)
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.TAG_NAME, "table"))
+        )
+        time.sleep(5)  # pequena pausa para garantir carregamento total
+        html = driver.page_source
+        return html
+    finally:
+        driver.quit()
+
 def _request_fbref(url, use_cache=True):
     cache_key = f"fbref_html_{url}"
     if use_cache:
         cached = _cache_load(cache_key, extension="csv")
         if cached is not None: return cached
-    time.sleep(DELAY_FBREF)
-    resp = requests.get(url, headers=HEADERS_FBREF)
-    if resp.status_code == 429:
-        time.sleep(60)
-        resp = requests.get(url, headers=HEADERS_FBREF)
-    resp.raise_for_status()
-    df = pd.read_html(resp.text, flavor='lxml')[0]
+    html = _get_page(url)
+    df = pd.read_html(html, flavor='lxml')[0]
     if use_cache: _cache_save(cache_key, df, extension="csv")
     return df
 
-def get_league_table_fbref(comp_slug, season):
-    url = f"https://fbref.com/en/comps/{comp_slug}/{season}/"
+def _request_fbref_soup(url):
+    html = _get_page(url)
+    return BeautifulSoup(html, "lxml")
+
+# ============================================================
+# FBref scraping
+# ============================================================
+def get_league_table_fbref(comp_slug, season_str):
+    url = f"https://fbref.com/en/comps/{comp_slug}/{season_str}/"
     return _request_fbref(url)
 
-def get_standings_fbref(comp_slug, season):
-    df = get_league_table_fbref(comp_slug, season)
+def get_standings_fbref(comp_slug, season_str):
+    df = get_league_table_fbref(comp_slug, season_str)
     standings = {}
     for _, row in df.iterrows():
         squad = row.get("Squad", "")
@@ -103,25 +125,19 @@ def get_standings_fbref(comp_slug, season):
             except: pass
     return standings
 
-def get_team_links_from_league(comp_slug, season):
-    url = f"https://fbref.com/en/comps/{comp_slug}/{season}/"
-    time.sleep(DELAY_FBREF)
-    resp = requests.get(url, headers=HEADERS_FBREF)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
+def get_team_links_from_league(comp_slug, season_str):
+    url = f"https://fbref.com/en/comps/{comp_slug}/{season_str}/"
+    soup = _request_fbref_soup(url)
     links = {}
     for a in soup.find_all("a", href=True):
         if "/squads/" in a["href"]:
             links[a.text.strip()] = a["href"]
     return links
 
-def get_team_advanced_fbref(team_slug, season):
-    url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
+def get_team_advanced_fbref(team_slug, season_str):
+    url = f"https://fbref.com/en/squads/{team_slug}/{season_str}/"
     try:
-        time.sleep(DELAY_FBREF)
-        resp = requests.get(url, headers=HEADERS_FBREF)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = _request_fbref_soup(url)
         dados = {}
 
         def extrair_tabela(tabela_id):
@@ -197,13 +213,10 @@ def get_team_advanced_fbref(team_slug, season):
         print(f"Erro ao buscar FBref para {team_slug}: {e}")
         return {}
 
-def get_recent_matches_fbref(team_slug, season, n=10):
-    url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
+def get_recent_matches_fbref(team_slug, season_str, n=10):
+    url = f"https://fbref.com/en/squads/{team_slug}/{season_str}/"
     try:
-        time.sleep(DELAY_FBREF)
-        resp = requests.get(url, headers=HEADERS_FBREF)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = _request_fbref_soup(url)
         table = soup.find("table", id="matchlogs_all")
         if not table: return []
         df = pd.read_html(str(table))[0]
@@ -218,12 +231,9 @@ def get_recent_matches_fbref(team_slug, season, n=10):
         print(f"Erro ao buscar resultados FBref: {e}")
         return []
 
-def get_match_history_fbref(team_slug, season):
-    url = f"https://fbref.com/en/squads/{team_slug}/{season}/"
-    time.sleep(DELAY_FBREF)
-    resp = requests.get(url, headers=HEADERS_FBREF)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
+def get_match_history_fbref(team_slug, season_str):
+    url = f"https://fbref.com/en/squads/{team_slug}/{season_str}/"
+    soup = _request_fbref_soup(url)
     table = soup.find("table", id="matchlogs_all")
     if not table: return []
     df = pd.read_html(str(table))[0]
@@ -248,8 +258,8 @@ def get_match_history_fbref(team_slug, season):
         })
     return history[::-1]
 
-def get_league_averages_fbref(comp_slug, season):
-    df = get_league_table_fbref(comp_slug, season)
+def get_league_averages_fbref(comp_slug, season_str):
+    df = get_league_table_fbref(comp_slug, season_str)
     medias = {}
     mapeamento = {
         'GM': 'Gls', 'FA': 'SoT', 'Poss': 'Poss', 'ECa': 'CK',
@@ -268,14 +278,11 @@ def get_league_averages_fbref(comp_slug, season):
         medias['TC'] = 0.0
     return medias
 
-# ============================================================
-# Understat scraping
-# ============================================================
+# Understat, Soccerway, Soccerstats (requests normais)
 def get_understat_team_xg(team_slug, league, season):
     cache_key = f"understat_team_{team_slug}_{season}"
     cached = _cache_load(cache_key)
     if cached: return cached
-
     league_url = f"https://understat.com/league/{league}/{season}"
     time.sleep(DELAY_UNDERSTAT)
     resp = requests.get(league_url, headers=HEADERS_UNDERSTAT)
@@ -298,26 +305,14 @@ def get_understat_team_xg(team_slug, league, season):
                 return dados
     return {}
 
-# ============================================================
-# Soccerway scraping (estatísticas de partida específica)
-# ============================================================
 def get_soccerway_match_stats(match_url):
-    """
-    Extrai estatísticas de uma partida no Soccerway.
-    Exemplo de URL: 'https://br.soccerway.com/matches/2025/08/05/brazil/serie-a/flamengo/palmeiras/1234567/'
-    Retorna um dicionário com: posse, chutes, chutes a gol, escanteios, faltas, cartões.
-    """
     try:
         time.sleep(DELAY_SOCCER)
         resp = requests.get(match_url, headers=HEADERS_SOCCER)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
-
-        # A tabela de estatísticas geralmente tem class="stats"
         table = soup.find("table", class_="stats")
-        if not table:
-            return None
-
+        if not table: return None
         stats = {}
         for row in table.find_all("tr"):
             cells = row.find_all("td")
@@ -326,11 +321,9 @@ def get_soccerway_match_stats(match_url):
                 home = cells[1].text.strip()
                 away = cells[2].text.strip()
                 try:
-                    # Remove '%' e converte
                     home_val = float(home.replace('%', ''))
                     away_val = float(away.replace('%', ''))
-                except:
-                    continue
+                except: continue
                 if "posse" in label:
                     stats["posse_casa"] = home_val
                     stats["posse_fora"] = away_val
@@ -357,84 +350,72 @@ def get_soccerway_match_stats(match_url):
         print(f"Erro ao buscar Soccerway: {e}")
         return None
 
-# ============================================================
-# Soccerstats scraping (médias de gols, BTTS, over/under da liga)
-# ============================================================
 def get_soccerstats_league_trends(league_name):
-    """
-    Obtém tendências da liga no Soccerstats.
-    league_name: 'england', 'spain', 'italy', 'germany', 'france', 'brazil', etc.
-    Retorna um dicionário com: media_gols, btts_pct, over25_pct, under25_pct.
-    """
     try:
         time.sleep(DELAY_SOCCER)
         url = f"https://www.soccerstats.com/trends.asp?league={league_name}"
         resp = requests.get(url, headers=HEADERS_SOCCER)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
-
-        # As informações estão em tabelas com classes específicas; vamos procurar por células de texto
         dados = {}
-        # Média de gols (geralmente em um parágrafo "Avg goals / match")
         avg_goals = soup.find(string=re.compile(r"Avg goals / match", re.I))
         if avg_goals:
             parts = avg_goals.split()
             for i, p in enumerate(parts):
                 if "avg" in p.lower():
-                    try:
-                        dados["media_gols"] = float(parts[i+1])
+                    try: dados["media_gols"] = float(parts[i+1])
                     except: pass
-
-        # BTTS % (Ambos marcam)
         btts_text = soup.find(string=re.compile(r"Both teams scored", re.I))
         if btts_text:
             percent = re.search(r"(\d+\.?\d*)%", btts_text)
-            if percent:
-                dados["btts_pct"] = float(percent.group(1))
-
-        # Over 2.5 %
+            if percent: dados["btts_pct"] = float(percent.group(1))
         over_text = soup.find(string=re.compile(r"Over 2\.5 goals", re.I))
         if over_text:
             percent = re.search(r"(\d+\.?\d*)%", over_text)
-            if percent:
-                dados["over25_pct"] = float(percent.group(1))
-
-        # Under 2.5 %
+            if percent: dados["over25_pct"] = float(percent.group(1))
         under_text = soup.find(string=re.compile(r"Under 2\.5 goals", re.I))
         if under_text:
             percent = re.search(r"(\d+\.?\d*)%", under_text)
-            if percent:
-                dados["under25_pct"] = float(percent.group(1))
-
+            if percent: dados["under25_pct"] = float(percent.group(1))
         return dados if dados else None
     except Exception as e:
         print(f"Erro ao buscar Soccerstats: {e}")
         return None
 
-# ============================================================
-# Função principal (mantém compatibilidade com versão anterior)
-# ============================================================
 def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soccerstats=False):
     if liga not in LIGAS_MAP:
         raise ValueError(f"Liga '{liga}' não mapeada.")
-    league_info = LIGAS_MAP[liga]
+    info = LIGAS_MAP[liga]
+    temporada_anual = info.get("temporada_anual", False)
 
-    # Determinar temporada automaticamente (FBref)
-    if season is None:
-        current_year = datetime.now().year
-        season_fbref = f"{current_year-1}-{current_year}"
-        try:
-            url = f"https://fbref.com/en/comps/{league_info['fbref_comp']}/{season_fbref}/"
-            resp = requests.get(url, headers=HEADERS_FBREF)
-            if resp.status_code != 200:
-                season_fbref = f"{current_year-2}-{current_year-1}"
-        except:
-            season_fbref = f"{current_year-2}-{current_year-1}"
+    # Determinar a string da temporada para FBref
+    current_year = datetime.now().year
+    if season is not None:
+        if temporada_anual:
+            season_str = str(season)
+        else:
+            season_str = f"{season-1}-{season}"
     else:
-        season_fbref = f"{season-1}-{season}"
+        if temporada_anual:
+            season_str = str(current_year)
+            test_url = f"https://fbref.com/en/comps/{info['fbref_comp']}/{season_str}/"
+            try:
+                resp = requests.get(test_url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code != 200:
+                    season_str = str(current_year - 1)
+            except:
+                season_str = str(current_year - 1)
+        else:
+            season_str = f"{current_year-1}-{current_year}"
+            test_url = f"https://fbref.com/en/comps/{info['fbref_comp']}/{season_str}/"
+            try:
+                resp = requests.get(test_url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code != 200:
+                    season_str = f"{current_year-2}-{current_year-1}"
+            except:
+                season_str = f"{current_year-2}-{current_year-1}"
 
-    # Obter lista de times da tabela da liga
-    standings = get_standings_fbref(league_info["fbref_comp"], season_fbref)
+    standings = get_standings_fbref(info["fbref_comp"], season_str)
     lista_times = list(standings.keys())
 
     if time_casa not in lista_times or time_fora not in lista_times:
@@ -443,7 +424,7 @@ def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soc
     pos_casa = standings[time_casa]
     pos_fora = standings[time_fora]
 
-    team_links = get_team_links_from_league(league_info["fbref_comp"], season_fbref)
+    team_links = get_team_links_from_league(info["fbref_comp"], season_str)
     def get_team_slug(name):
         for tname, href in team_links.items():
             if name.lower() == tname.lower() or name.lower() in tname.lower():
@@ -453,16 +434,16 @@ def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soc
     slug_casa = get_team_slug(time_casa)
     slug_fora = get_team_slug(time_fora)
 
-    adv_casa = get_team_advanced_fbref(slug_casa, season_fbref)
-    adv_fora = get_team_advanced_fbref(slug_fora, season_fbref)
+    adv_casa = get_team_advanced_fbref(slug_casa, season_str)
+    adv_fora = get_team_advanced_fbref(slug_fora, season_str)
 
-    res_casa_list = get_recent_matches_fbref(slug_casa, season_fbref, n=5)
-    res_fora_list = get_recent_matches_fbref(slug_fora, season_fbref, n=5)
+    res_casa_list = get_recent_matches_fbref(slug_casa, season_str, n=5)
+    res_fora_list = get_recent_matches_fbref(slug_fora, season_str, n=5)
     res_casa = "".join(res_casa_list)
     res_fora = "".join(res_fora_list)
 
-    cons_casa_list = get_recent_matches_fbref(slug_casa, season_fbref, n=10)
-    cons_fora_list = get_recent_matches_fbref(slug_fora, season_fbref, n=10)
+    cons_casa_list = get_recent_matches_fbref(slug_casa, season_str, n=10)
+    cons_fora_list = get_recent_matches_fbref(slug_fora, season_str, n=10)
     cons_casa = "".join(cons_casa_list)
     cons_fora = "".join(cons_fora_list)
 
@@ -473,8 +454,8 @@ def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soc
     moral_casa = moral_from_list(cons_casa_list)
     moral_fora = moral_from_list(cons_fora_list)
 
-    hist_casa_raw = get_match_history_fbref(slug_casa, season_fbref)
-    hist_fora_raw = get_match_history_fbref(slug_fora, season_fbref)
+    hist_casa_raw = get_match_history_fbref(slug_casa, season_str)
+    hist_fora_raw = get_match_history_fbref(slug_fora, season_str)
 
     def calc_home_away(history):
         home_pts = away_pts = home_j = away_j = 0
@@ -527,10 +508,12 @@ def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soc
     pts_cpp_fora = dados_cpp_fora["pontos"]
     jogos_cpp_fora = dados_cpp_fora["jogos"]
 
-    understat_league = league_info["understat"]
-    understat_season = int(season_fbref[:4]) + 1
-    understat_casa = get_understat_team_xg(slug_casa, understat_league, understat_season)
-    understat_fora = get_understat_team_xg(slug_fora, understat_league, understat_season)
+    if temporada_anual:
+        understat_season = int(season_str)
+    else:
+        understat_season = int(season_str[:4]) + 1
+    understat_casa = get_understat_team_xg(slug_casa, info["understat"], understat_season)
+    understat_fora = get_understat_team_xg(slug_fora, info["understat"], understat_season)
 
     dados_A = {**adv_casa, **understat_casa}
     dados_B = {**adv_fora, **understat_fora}
@@ -551,20 +534,16 @@ def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soc
     dados_B["Efetividade"] = ef_fora
     dados_B["Transicao"] = trans_fora
 
-    medias_liga = get_league_averages_fbref(league_info["fbref_comp"], season_fbref)
+    medias_liga = get_league_averages_fbref(info["fbref_comp"], season_str)
 
-    # Se solicitado, tenta complementar com Soccerstats (médias de gols, BTTS)
     if usar_soccerstats:
-        league_name_soccerstats = league_info.get("soccerstats", None)
+        league_name_soccerstats = info.get("soccerstats", None)
         if league_name_soccerstats:
             trend = get_soccerstats_league_trends(league_name_soccerstats)
             if trend:
-                if "media_gols" in trend:
-                    medias_liga["media_gols_real"] = trend["media_gols"]
-                if "btts_pct" in trend:
-                    medias_liga["btts_pct"] = trend["btts_pct"]
-                if "over25_pct" in trend:
-                    medias_liga["over25_pct"] = trend["over25_pct"]
+                if "media_gols" in trend: medias_liga["media_gols_real"] = trend["media_gols"]
+                if "btts_pct" in trend: medias_liga["btts_pct"] = trend["btts_pct"]
+                if "over25_pct" in trend: medias_liga["over25_pct"] = trend["over25_pct"]
 
     for k in ['GM','FA','ECa','Poss','GS','FAS','ECc','Des','FC','CA','Int','TC']:
         if k not in medias_liga: medias_liga[k] = 0.0
@@ -610,10 +589,7 @@ def carregar_dados_automaticos(time_casa, time_fora, liga, season=None, usar_soc
 
 def get_match_period_stats_fbref(match_url):
     try:
-        time.sleep(DELAY_FBREF)
-        resp = requests.get(match_url, headers=HEADERS_FBREF)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = _request_fbref_soup(match_url)
         tables = soup.find_all("table")
         for table in tables:
             try:
